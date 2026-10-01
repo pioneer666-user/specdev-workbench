@@ -27,17 +27,17 @@ function renderChartSummary(charts, root) {
 }
 
 function businessIdFromLocation() {
-  const parts = location.pathname.split('/').filter(Boolean) // ['archify-manage','business','<id>']
+  const parts = location.pathname.split('/').filter(Boolean) // ['specdev-workbench','business','<id>']
   return parts[2] || ''
 }
 
 async function main() {
   if (workspaceParamEmpty) return renderEmptyWorkspaceParam()
   const id = businessIdFromLocation()
-  if (!id) return showError('缺少业务 id（路径应为 /archify-manage/business/<业务id>）')
+  if (!id) return showError('缺少业务 id（路径应为 /specdev-workbench/business/<业务id>）')
   let inventory
   try {
-    inventory = await fetchJson(wsUrl('/archify-manage/api/inventory'))
+    inventory = await fetchJson(wsUrl('/specdev-workbench/api/inventory'))
   } catch (error) {
     if (renderRepoState(error)) return
     return showError(error.message)
@@ -57,12 +57,18 @@ async function main() {
   }
   if (business.intro) $('intro').textContent = business.intro
 
+  // P1b-2 独立业务房间入口：业务有效（说明文件检查通过）就显示，链接带工作区标识；
+  // 不为它预读房间接口——没有 room.json 时由房间页给出明确空态。
+  const roomEntry = $('roomEntry')
+  roomEntry.href = wsUrl(`/specdev-workbench/room/${encodeURIComponent(id)}`)
+  $('roomEntryLine').hidden = false
+
   if (business.docs.length > 0) {
     const list = $('docList')
     for (const doc of business.docs) {
       const li = el('li')
       const a = el('a')
-      a.href = wsUrl(`/archify-manage/api/doc?business=${encodeURIComponent(id)}&path=${encodeURIComponent(doc)}`)
+      a.href = wsUrl(`/specdev-workbench/api/doc?business=${encodeURIComponent(id)}&path=${encodeURIComponent(doc)}`)
       a.target = '_blank'
       a.rel = 'noopener'
       a.textContent = doc
@@ -76,7 +82,7 @@ async function main() {
   root.textContent = ''
   for (const chart of business.charts) {
     const card = el('a', 'card')
-    card.href = wsUrl(`/archify-manage/read/${id}/${chart.id}`)
+    card.href = wsUrl(`/specdev-workbench/read/${id}/${chart.id}`)
     card.dataset.status = chartStatusKind(chart)
     const h = el('h2')
     h.textContent = chart.name

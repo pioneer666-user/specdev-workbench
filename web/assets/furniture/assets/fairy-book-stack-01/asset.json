@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "assetVersion": 1,
+  "status": "internal",
+  "assetId": "fairy-book-stack-01",
+  "name": "林间双册书摆",
+  "category": "ornament",
+  "description": "童话风双册精装书摆件：下册蜂蜜棕平放，上册低饱和青绿在其上轻微错开并小角度斜叠；两册各有完整的硬封面顶板、封底板、书脊板与三面内缩的书页层，书脊上缀两条细凸饰线，封面无文字。宽 0.22 米、深 0.14 米、叠高 0.075 米，本地 +Z 正面为书页侧面。是一个整体装饰摆件，不是可点击的业务文档，无任何资料动作，也不提供承载面、不允许把新物品继续放到书上；仅可依附接受 ornament 类别的承载面（如陶瓷展示台台面），当前书桌桌面只接受台灯类别，不能因为“桌面摆件”的称呼承诺能放上书桌。",
+  "styleIds": ["fairy"],
+  "modelRef": "fairy-book-stack-01",
+  "previewRef": "assets/fairy-book-stack-01/preview.webp",
+  "placeholder": false,
+  "bounds": { "minX": -0.11, "maxX": 0.11, "minY": 0, "maxY": 0.075, "minZ": -0.07, "maxZ": 0.07 },
+  "placement": { "allowedKinds": ["surface"], "allowedYawDeg": [0, 90, 180, 270] },
+  "clearanceBoxes": [],
+  "approachPoint": null,
+  "surfaces": [],
+  "capabilities": [],
+  "recommendations": { "note": "推荐童话阅读房、书桌旁与展示台，与林间蜂蜜木书架、书桌同系列搭配；也可混搭写实房间。风格只是软推荐，不构成摆放准入；能否放置始终以承载面的类别与空间校验为准。" },
+  "source": { "origin": "自制", "license": "MIT", "note": "本包 model.js 自制 Three.js 程序化模型，无纹理、无外部模型或贴图。" }
+}

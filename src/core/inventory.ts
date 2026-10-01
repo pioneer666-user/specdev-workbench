@@ -1,9 +1,9 @@
-// 约定树清单：只读 docs/archify/ 子树 + refs/tags/archify/ 前缀（D1：不整仓扫描）。
+// 约定树清单：只读 docs/specdev/ 子树 + refs/tags/specdev/ 前缀（D1：不整仓扫描）。
 // 目录名即稳定编号；说明文件缺失/不合法的业务或图标记 descriptorError 并跳过展开，不影响其余（§3.5）。
 import { readdir } from 'node:fs/promises'
 import { worktreeFileExists, readWorktreeFileOptional } from './git.ts'
 import { CoreError } from './errors.ts'
-import { listArchifyTags, snapshotsForChart, type RawTagRecord } from './snapshots.ts'
+import { listSpecdevTags, snapshotsForChart, type RawTagRecord } from './snapshots.ts'
 import { compareCurrentWithLatest, chartIdOwners } from './chart.ts'
 import { readDescriptor, isPlainObject, requireStringFields } from './descriptor.ts'
 import {
@@ -46,7 +46,7 @@ async function readProjectInfo(repoRoot: string): Promise<ProjectInfo> {
 /** 组装整个项目清单（首页与业务页共用；含每图快照计数、无效标签计数、当前是否已改动）。 */
 export async function readInventory(repoRoot: string): Promise<Inventory> {
   const project = await readProjectInfo(repoRoot)
-  const tagRecords = await listArchifyTags(repoRoot)
+  const tagRecords = await listSpecdevTags(repoRoot)
 
   const businessEntries = await readdir(`${repoRoot}/${CONVENTION_ROOT}`, { withFileTypes: true })
   const businesses: BusinessSummary[] = []

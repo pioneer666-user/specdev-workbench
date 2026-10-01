@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "assetVersion": 1,
+  "status": "internal",
+  "assetId": "fairy-potted-plant-01",
+  "name": "林间小叶盆栽",
+  "category": "plant",
+  "description": "童话风小叶盆栽：暖陶小盆有厚边盆口与真实内外壁，盆内可见土面；短枝从土中长出并向两侧分枝，托起八片带薄厚度与弧度的小叶，绿色分三档、轮廓紧凑，叶柄接枝、枝接土。宽深各 0.22 米、高 0.36 米，本地 +Z 正面为叶簇朝向之一。静态陈列摆件，无生长动画、光点或实际灯光，无任何资料动作；仅可依附接受 plant 类别的承载面（如陶瓷展示台台面），当前书桌桌面只接受台灯类别，不能因为“桌面摆件”的称呼承诺能放上书桌。",
+  "styleIds": ["fairy"],
+  "modelRef": "fairy-potted-plant-01",
+  "previewRef": "assets/fairy-potted-plant-01/preview.webp",
+  "placeholder": false,
+  "bounds": { "minX": -0.11, "maxX": 0.11, "minY": 0, "maxY": 0.36, "minZ": -0.11, "maxZ": 0.11 },
+  "placement": { "allowedKinds": ["surface"], "allowedYawDeg": [0, 90, 180, 270] },
+  "clearanceBoxes": [],
+  "approachPoint": null,
+  "surfaces": [],
+  "capabilities": [],
+  "recommendations": { "note": "推荐童话阅读房、窗边与展示台，与林间蜂蜜木系列、陶瓷展示台均可搭配；风格只是软推荐，不构成摆放准入；能否放置始终以承载面的类别与空间校验为准。" },
+  "source": { "origin": "自制", "license": "MIT", "note": "本包 model.js 自制 Three.js 程序化模型，无纹理、无外部模型或贴图。" }
+}

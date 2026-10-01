@@ -10,7 +10,7 @@
 // 对仓库的唯一写入是一个附注标签：工作区文件、分支、提交一概不动。
 import { runGit, gitShowFileOptional, readWorktreeFileOptional } from './git.ts'
 import { CoreError } from './errors.ts'
-import { listArchifyTags, snapshotsForChart, findSnapshot, type RawTagRecord } from './snapshots.ts'
+import { listSpecdevTags, snapshotsForChart, findSnapshot, type RawTagRecord } from './snapshots.ts'
 import { locateChartDir } from './chart.ts'
 import { CHART_FILE_NAMES, FILE_KEY } from './chart-files.ts'
 import { normalizeEol, fingerprintOf } from './fingerprint.ts'
@@ -306,7 +306,7 @@ async function createSnapshot(
   // 重试有上限，不无限重试（红线 10）。
   const headIds = await chartBlobIds(repoRoot, head, chartDir)
   const now = options.now ?? new Date()
-  const base = `archify/${chartId}/${localStamp(now)}`
+  const base = `specdev/${chartId}/${localStamp(now)}`
   // message 严格按读取侧校验的约定生成（snapshots.ts validateRecord 五项）。
   const savedAt = localIso(now)
   const message = JSON.stringify({
@@ -321,7 +321,7 @@ async function createSnapshot(
 
   let created: string | null = null
   for (let attempt = 0; attempt < MAX_TAG_ATTEMPTS && created === null; attempt += 1) {
-    const records = await listArchifyTags(repoRoot)
+    const records = await listSpecdevTags(repoRoot)
     const duplicate = await findDuplicateSnapshot(repoRoot, records, chartId, stage, headIds)
     if (duplicate) return { snapshot: duplicate, alreadySaved: true }
     const tag = pickTagName(records, base)
@@ -329,7 +329,7 @@ async function createSnapshot(
       await runGit(repoRoot, ['tag', '-a', tag, '-m', message, head])
       created = tag
     } catch (error) {
-      const latest = await listArchifyTags(repoRoot)
+      const latest = await listSpecdevTags(repoRoot)
       const contention =
         latest.some((r) => r.tag === tag)
         || (await findDuplicateSnapshot(repoRoot, latest, chartId, stage, headIds)) !== null
@@ -349,7 +349,7 @@ async function createSnapshot(
   // "版本已写上、只是没核完"，不能混进"没能保存"——所以整段包住，异常一律换码带上版本名
   // （审查 P2）。换码是幂等的：下面自己抛的已经是这个码。
   try {
-    const entry = findSnapshot(await listArchifyTags(repoRoot), created)
+    const entry = findSnapshot(await listSpecdevTags(repoRoot), created)
     const expected = { schema: SCHEMA.snapshot, chart: chartId, name, stage, note, dir: chartDir, savedAt } as const
     const mismatch = (Object.keys(expected) as (keyof typeof expected)[]).filter((k) => entry.meta[k] !== expected[k])
     if (entry.commit !== head || mismatch.length > 0) {

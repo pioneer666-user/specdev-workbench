@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>家具图鉴 · SpecDev 工作台</title>
+<script src="/specdev-workbench/assets/theme.js"></script>
+<link rel="stylesheet" href="/specdev-workbench/assets/style.css">
+<!-- 图鉴页独立样式：只作用于 .furniture-page，复用全局主题变量，不改业务/房间页。 -->
+<link rel="stylesheet" href="/specdev-workbench/assets/furniture-page.css">
+</head>
+<body class="furniture-page">
+<header class="app-bar">
+  <a class="brand" data-home-link href="/specdev-workbench/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">工作台</span></span></a>
+  <div class="theme-switch" role="group" aria-label="页面主题"><button type="button" data-theme-choice="light" aria-pressed="false"><span aria-hidden="true">☼</span> 浅色</button><button type="button" data-theme-choice="dark" aria-pressed="true"><span aria-hidden="true">☾</span> 深色</button></div>
+</header>
+<div class="page-content">
+<header class="top">
+  <div>
+    <p class="crumbs"><a href="/specdev-workbench/">项目首页</a> / <span>家具图鉴</span></p>
+    <h1 id="title">家具图鉴</h1>
+    <!-- E9b：随包共用家具库的看图挑选页。不按业务过滤，也从这里推断不出任何业务。 -->
+    <p class="sub">本插件随包的全部家具都在这里：看图挑选喜欢的款式，复制清单回聊天，AI 按你的选择布置房间。各款风格只是搭配建议，可以混搭。</p>
+    <details class="workspace-details" id="workspaceDetails" hidden><summary id="workspaceLabel">工作区</summary><p id="repoLine"></p></details>
+  </div>
+  <p id="status" class="status" data-kind="info">正在加载家具目录…</p>
+</header>
+<p id="errorBox" class="error" role="alert" hidden></p>
+<section id="guideBox" class="guide" hidden></section>
+<!-- 选择工具条：勾选卡片上的复选框后来这里复制清单；未选择时按钮禁用。 -->
+<section id="picker" class="picker-bar" hidden aria-label="选择与复制">
+  <p id="pickCount">已选 0 款</p>
+  <button id="copyButton" type="button" disabled>复制给 AI</button>
+  <button id="clearButton" type="button" disabled>清空选择</button>
+</section>
+<div id="pickListBox" class="pick-list-box" hidden>
+  <label class="pick-list-label" for="pickList">复制后粘贴到聊天发给 AI：</label>
+  <!-- 只读文本框：始终可手动全选复制，内容随勾选即时同步；未勾选时以占位文字提示（不虚构默认选择）。 -->
+  <textarea id="pickList" readonly rows="4" spellcheck="false" placeholder="勾选上方家具后，这里会出现可复制的挑选清单。"></textarea>
+  <p id="copyNote" class="copy-note" role="status" aria-live="polite" hidden></p>
+</div>
+<!-- 目录卡片按 index.json 分类动态填充（furniture-page.js）；空态与错误态也渲染在这里。 -->
+<main id="catalog" class="furniture-cards"></main>
+</div>
+<script type="module" src="/specdev-workbench/assets/furniture-page.js"></script>
+</body>
+</html>

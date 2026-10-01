@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "categories": [
+    {
+      "id": "storage",
+      "name": "收纳",
+      "types": [
+        "shelf",
+        "cabinet",
+        "chest"
+      ]
+    },
+    {
+      "id": "tables",
+      "name": "桌台",
+      "types": [
+        "desk",
+        "table",
+        "display-stand"
+      ]
+    },
+    {
+      "id": "seating-sleeping",
+      "name": "坐卧",
+      "types": [
+        "chair",
+        "sofa",
+        "bed"
+      ]
+    },
+    {
+      "id": "lighting",
+      "name": "照明",
+      "types": [
+        "lamp",
+        "floor-lamp",
+        "wall-lamp"
+      ]
+    },
+    {
+      "id": "decoration",
+      "name": "装饰",
+      "types": [
+        "vase",
+        "picture",
+        "plant",
+        "ornament"
+      ]
+    },
+    {
+      "id": "signage",
+      "name": "展示标识",
+      "types": [
+        "notice-board",
+        "sign",
+        "display-screen"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "assetId": "fairy-bookshelf-01",
+      "metadataRef": "assets/fairy-bookshelf-01/asset.json"
+    },
+    {
+      "assetId": "fairy-desk-01",
+      "metadataRef": "assets/fairy-desk-01/asset.json"
+    },
+    {
+      "assetId": "fairy-table-lamp-01",
+      "metadataRef": "assets/fairy-table-lamp-01/asset.json"
+    },
+    {
+      "assetId": "fairy-notice-board-01",
+      "metadataRef": "assets/fairy-notice-board-01/asset.json"
+    },
+    {
+      "assetId": "ceramic-display-stand-01",
+      "metadataRef": "assets/ceramic-display-stand-01/asset.json"
+    },
+    {
+      "assetId": "ceramic-vase-01",
+      "metadataRef": "assets/ceramic-vase-01/asset.json"
+    },
+    {
+      "assetId": "fairy-potted-plant-01",
+      "metadataRef": "assets/fairy-potted-plant-01/asset.json"
+    },
+    {
+      "assetId": "fairy-book-stack-01",
+      "metadataRef": "assets/fairy-book-stack-01/asset.json"
+    },
+    {
+      "assetId": "fairy-bed-01",
+      "metadataRef": "assets/fairy-bed-01/asset.json"
+    },
+    {
+      "assetId": "fairy-reading-chair-01",
+      "metadataRef": "assets/fairy-reading-chair-01/asset.json"
+    },
+    {
+      "assetId": "ceramic-low-cabinet-01",
+      "metadataRef": "assets/ceramic-low-cabinet-01/asset.json"
+    },
+    {
+      "assetId": "ceramic-floor-lamp-01",
+      "metadataRef": "assets/ceramic-floor-lamp-01/asset.json"
+    }
+  ]
+}

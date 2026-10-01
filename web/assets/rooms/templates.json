@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "note": "两套底座共享同一份空间布局，仅风格身份不同。空间数据来自 E2a 任务单固定值，并须与两套底座 meta 比对。",
+  "templates": [
+    {
+      "schemaVersion": 1,
+      "templateId": "room-ceramic-01",
+      "styleId": "ceramic",
+      "name": "写实底座·项目介绍室",
+      "interiorBounds": { "minX": -4, "maxX": 4, "minY": 0, "maxY": 3.4, "minZ": -3, "maxZ": 3 },
+      "zones": [
+        { "zoneId": "floor-main", "name": "室内地面陈设区", "kind": "floor", "bounds": { "minX": -3.7, "maxX": 3.7, "minY": 0, "maxY": 3.0, "minZ": -2.7, "maxZ": 2.7 } }
+      ],
+      "entry": {
+        "wall": "north",
+        "door": { "centerX": 2.25, "centerZ": -3, "width": 1.4, "height": 2.55, "opens": "outward" },
+        "inward": "+Z",
+        "spawn": { "x": 2.25, "z": -2.35 }
+      },
+      "reservedVolumes": [
+        { "id": "entry-clear", "name": "入口禁放区", "purpose": "entry", "bounds": { "minX": 1.55, "maxX": 2.95, "minY": 0, "maxY": 2.1, "minZ": -3, "maxZ": -1.4 } },
+        { "id": "aisle-main", "name": "主通路", "purpose": "corridor", "bounds": { "minX": 1.65, "maxX": 2.85, "minY": 0, "maxY": 2.1, "minZ": -2, "maxZ": 2.4 } },
+        { "id": "aisle-display", "name": "展示通路", "purpose": "corridor", "bounds": { "minX": -3.6, "maxX": 2.85, "minY": 0, "maxY": 2.1, "minZ": 1, "maxZ": 2.05 } }
+      ],
+      "walkProfile": { "radius": 0.26, "eyeClearance": 1.9 }
+    },
+    {
+      "schemaVersion": 1,
+      "templateId": "room-fairy-01",
+      "styleId": "fairy",
+      "name": "童话底座·项目介绍室",
+      "interiorBounds": { "minX": -4, "maxX": 4, "minY": 0, "maxY": 3.4, "minZ": -3, "maxZ": 3 },
+      "zones": [
+        { "zoneId": "floor-main", "name": "室内地面陈设区", "kind": "floor", "bounds": { "minX": -3.7, "maxX": 3.7, "minY": 0, "maxY": 3.0, "minZ": -2.7, "maxZ": 2.7 } }
+      ],
+      "entry": {
+        "wall": "north",
+        "door": { "centerX": 2.25, "centerZ": -3, "width": 1.4, "height": 2.55, "opens": "outward" },
+        "inward": "+Z",
+        "spawn": { "x": 2.25, "z": -2.35 }
+      },
+      "reservedVolumes": [
+        { "id": "entry-clear", "name": "入口禁放区", "purpose": "entry", "bounds": { "minX": 1.55, "maxX": 2.95, "minY": 0, "maxY": 2.1, "minZ": -3, "maxZ": -1.4 } },
+        { "id": "aisle-main", "name": "主通路", "purpose": "corridor", "bounds": { "minX": 1.65, "maxX": 2.85, "minY": 0, "maxY": 2.1, "minZ": -2, "maxZ": 2.4 } },
+        { "id": "aisle-display", "name": "展示通路", "purpose": "corridor", "bounds": { "minX": -3.6, "maxX": 2.85, "minY": 0, "maxY": 2.1, "minZ": 1, "maxZ": 2.05 } }
+      ],
+      "walkProfile": { "radius": 0.26, "eyeClearance": 1.9 }
+    }
+  ]
+}

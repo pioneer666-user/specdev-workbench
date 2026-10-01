@@ -3,7 +3,7 @@
 import { readdir } from 'node:fs/promises'
 import { gitShowFileOptional, readWorktreeFileOptional, worktreeDirExists } from './git.ts'
 import { CoreError } from './errors.ts'
-import { listArchifyTags, snapshotsForChart, findSnapshot, parseTagName } from './snapshots.ts'
+import { listSpecdevTags, snapshotsForChart, findSnapshot, parseTagName } from './snapshots.ts'
 import { readDescriptor, isPlainObject, requireStringFields } from './descriptor.ts'
 import { CHART_FILE_NAMES } from './chart-files.ts'
 import { fingerprintOf, normalizeEol } from './fingerprint.ts'
@@ -123,7 +123,7 @@ async function readSnapshotFiles(
 }
 
 /**
- * 阅读页一屏数据。v 取 'current'（工作区）或标签全名（archify/<图编号>/<版本>）。
+ * 阅读页一屏数据。v 取 'current'（工作区）或标签全名（specdev/<图编号>/<版本>）。
  * 图不存在 / 标签不存在或不合规 → 抛 CoreError（message 直接上页面）；
  * workflow.json 缺失不抛，写入 workflowError（图不可读是明确报错，不是空白页，§3.5）。
  */
@@ -143,7 +143,7 @@ export async function readChartPage(
   const chartSummaryOk = !!(chart.data && isPlainObject(chart.data) && chart.data.schema === SCHEMA.chart
     && !requireStringFields(chart.data, ['id', 'name']) && chart.data.id === chartId)
 
-  const tagRecords = await listArchifyTags(repoRoot)
+  const tagRecords = await listSpecdevTags(repoRoot)
   const snapshots = snapshotsForChart(tagRecords, chartId)
   const latest = snapshots.snapshots[0]
   // 比较失败（如工作区文件超过读取上限）不让阅读页整个失败——历史快照照常可读。

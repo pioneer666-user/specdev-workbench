@@ -1,0 +1,59 @@
+{
+  "format": "specdev-building",
+  "schema": "specdev/building/1",
+  "units": "m",
+  "style": "warm-modern",
+  "floors": [
+    { "id": "floor-ground", "name": "一层", "elevation": 0, "height": 3.6 },
+    { "id": "floor-upper", "name": "二层", "elevation": 4.2, "height": 3.6 }
+  ],
+  "spaces": [
+    { "id": "room-account", "kind": "room", "floorId": "floor-ground", "businessId": "account-access",
+      "rect": { "x": -5.5, "z": -4, "width": 5, "depth": 6 } },
+    { "id": "room-form", "kind": "room", "floorId": "floor-ground", "businessId": "form-design",
+      "rect": { "x": 0, "z": -4, "width": 6, "depth": 6 } },
+    { "id": "room-fill", "kind": "room", "floorId": "floor-ground", "businessId": "fill-submit",
+      "rect": { "x": 5.5, "z": -4, "width": 5, "depth": 6 } },
+    { "id": "corridor-ground", "name": "一层前廊", "kind": "corridor", "floorId": "floor-ground",
+      "rect": { "x": 0, "z": 0, "width": 16, "depth": 2 } },
+    { "id": "yard-entry", "name": "项目前庭", "kind": "yard", "floorId": "floor-ground",
+      "rect": { "x": 0, "z": 4, "width": 8, "depth": 6 } },
+    { "id": "room-file", "kind": "room", "floorId": "floor-upper", "businessId": "file-material",
+      "rect": { "x": -6, "z": -4, "width": 4, "depth": 6 } },
+    { "id": "room-review", "kind": "room", "floorId": "floor-upper", "businessId": "review-audit",
+      "rect": { "x": 0, "z": -4, "width": 8, "depth": 6 } },
+    { "id": "room-stats", "kind": "room", "floorId": "floor-upper", "businessId": "stats-export",
+      "rect": { "x": 6, "z": -4, "width": 4, "depth": 6 } },
+    { "id": "corridor-upper", "name": "二层前廊", "kind": "corridor", "floorId": "floor-upper",
+      "rect": { "x": 0, "z": 0, "width": 16, "depth": 2 } },
+    { "id": "landing-upper", "name": "二层梯台", "kind": "terrace", "floorId": "floor-upper",
+      "rect": { "x": 15, "z": 1, "width": 2, "depth": 4 } },
+    { "id": "return-upper", "name": "二层回廊", "kind": "corridor", "floorId": "floor-upper",
+      "rect": { "x": 3, "z": 2, "width": 22, "depth": 2 } }
+  ],
+  "openings": [
+    { "id": "door-account", "kind": "door", "spaceId": "room-account", "side": "south", "offset": 0, "width": 1.6, "to": "corridor-ground" },
+    { "id": "door-form", "kind": "door", "spaceId": "room-form", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-ground" },
+    { "id": "door-fill", "kind": "door", "spaceId": "room-fill", "side": "south", "offset": 0, "width": 1.6, "to": "corridor-ground" },
+    { "id": "door-file", "kind": "door", "spaceId": "room-file", "side": "south", "offset": 0, "width": 1.6, "to": "corridor-upper" },
+    { "id": "door-review", "kind": "door", "spaceId": "room-review", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-upper" },
+    { "id": "door-stats", "kind": "door", "spaceId": "room-stats", "side": "south", "offset": 0, "width": 1.6, "to": "corridor-upper" },
+    { "id": "window-account", "kind": "window", "spaceId": "room-account", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-form", "kind": "window", "spaceId": "room-form", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-fill", "kind": "window", "spaceId": "room-fill", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-file", "kind": "window", "spaceId": "room-file", "side": "north", "offset": 0, "width": 2.4 },
+    { "id": "window-review", "kind": "window", "spaceId": "room-review", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-stats", "kind": "window", "spaceId": "room-stats", "side": "north", "offset": 0, "width": 2.4 }
+  ],
+  "stairs": [
+    { "id": "stair-ground-upper", "from": { "spaceId": "corridor-ground", "x": 8, "z": 0 }, "to": { "spaceId": "landing-upper", "x": 14, "z": 0 }, "width": 1.4, "steps": 22 }
+  ],
+  "roofs": [
+    { "id": "roof-upper", "spaceIds": ["room-file", "room-review", "room-stats"], "type": "gable", "rise": 1.8, "overhang": 0.35 }
+  ],
+  "construction": {
+    "phase": "design",
+    "status": { "design": "detailed", "approval": "pending", "implementation": "unknown", "tests": "pending", "acceptance": "pending", "evidence": {} }
+  },
+  "entry": { "spaceId": "yard-entry", "x": 0, "z": 5 }
+}

@@ -24,18 +24,18 @@ const STAGES: readonly SnapshotStage[] = ['design', 'implemented']
 /** 标签名第二段 = 图稳定编号；第三段起 = 版本标识（版本标识里允许再有斜杠）。 */
 export function parseTagName(tag: string): { chart: string; version: string } | null {
   const parts = tag.split('/')
-  if (parts.length < 3 || parts[0] !== 'archify' || !parts[1] || parts.some((p) => p === '')) return null
+  if (parts.length < 3 || parts[0] !== 'specdev' || !parts[1] || parts.some((p) => p === '')) return null
   return { chart: parts[1], version: parts.slice(2).join('/') }
 }
 
 /**
- * 列出 refs/tags/archify/ 前缀下的全部标签（一次调用，不整仓扫描）。
+ * 列出 refs/tags/specdev/ 前缀下的全部标签（一次调用，不整仓扫描）。
  * 记录以格式串末尾的 %00（NUL）分隔，标签 message 里的换行不会切断记录。
  * %(*objecttype) 取剥壳后的对象类型（评审 #2）：要求 commit，防止"40 位但指向树/blob"混进快照。
  */
-export async function listArchifyTags(repoRoot: string): Promise<RawTagRecord[]> {
+export async function listSpecdevTags(repoRoot: string): Promise<RawTagRecord[]> {
   const format = '%(refname:short)%09%(objecttype)%09%(*objectname)%09%(*objecttype)%09%(creatordate:iso8601-strict)%09%(contents)%00'
-  const out = await runGit(repoRoot, ['for-each-ref', `refs/tags/${'archify'}/`, `--format=${format}`])
+  const out = await runGit(repoRoot, ['for-each-ref', `refs/tags/${'specdev'}/`, `--format=${format}`])
   const records: RawTagRecord[] = []
   for (const raw of out.split('\0')) {
     // 每条记录实际形如 "<字段们>\n\0\n"（%00 后 git 还补了换行）——先剥掉两端换行再按制表符切字段。
@@ -61,7 +61,7 @@ export async function listArchifyTags(repoRoot: string): Promise<RawTagRecord[]>
 /** 校验单条标签；不合法返回原因字符串（调用方跳过并计数）。 */
 function validateRecord(record: RawTagRecord): { meta: SnapshotMeta; commit: string } | { invalid: string } {
   const parsed = parseTagName(record.tag)
-  if (!parsed) return { invalid: '标签名不符合 archify/<图编号>/<版本> 结构' }
+  if (!parsed) return { invalid: '标签名不符合 specdev/<图编号>/<版本> 结构' }
   if (record.objecttype !== 'tag') return { invalid: '不是附注标签（轻量标签不登记快照）' }
   if (!/^[0-9a-f]{40}$/.test(record.derefObject)) return { invalid: '剥壳后没有指向有效对象' }
   if (record.derefType !== 'commit') {

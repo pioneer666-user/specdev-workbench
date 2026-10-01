@@ -1,0 +1,48 @@
+{
+  "format": "specdev-building",
+  "schema": "specdev/building/1",
+  "units": "m",
+  "style": "warm-modern",
+  "floors": [{ "id": "floor-ground", "name": "一层", "elevation": 0, "height": 3.6 }],
+  "spaces": [
+    { "id": "room-account", "kind": "room", "floorId": "floor-ground", "businessId": "account-access",
+      "rect": { "x": -22.5, "z": -5, "width": 9, "depth": 8 } },
+    { "id": "room-form", "kind": "room", "floorId": "floor-ground", "businessId": "form-design",
+      "rect": { "x": -13.5, "z": -5, "width": 9, "depth": 8 } },
+    { "id": "room-fill", "kind": "room", "floorId": "floor-ground", "businessId": "fill-submit",
+      "rect": { "x": -4.5, "z": -5, "width": 9, "depth": 8 } },
+    { "id": "room-file", "kind": "room", "floorId": "floor-ground", "businessId": "file-material",
+      "rect": { "x": 4.5, "z": -5, "width": 9, "depth": 8 } },
+    { "id": "room-review", "kind": "room", "floorId": "floor-ground", "businessId": "review-audit",
+      "rect": { "x": 13.5, "z": -5, "width": 9, "depth": 8 } },
+    { "id": "room-stats", "kind": "room", "floorId": "floor-ground", "businessId": "stats-export",
+      "rect": { "x": 22.5, "z": -5, "width": 9, "depth": 8 } },
+    { "id": "corridor-main", "name": "南廊", "kind": "corridor", "floorId": "floor-ground",
+      "rect": { "x": 0, "z": 3, "width": 58, "depth": 8 } },
+    { "id": "yard-entry", "name": "前庭", "kind": "yard", "floorId": "floor-ground",
+      "rect": { "x": 0, "z": 13, "width": 58, "depth": 12 } }
+  ],
+  "openings": [
+    { "id": "door-account", "kind": "door", "spaceId": "room-account", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-main" },
+    { "id": "door-form", "kind": "door", "spaceId": "room-form", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-main" },
+    { "id": "door-fill", "kind": "door", "spaceId": "room-fill", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-main" },
+    { "id": "door-file", "kind": "door", "spaceId": "room-file", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-main" },
+    { "id": "door-review", "kind": "door", "spaceId": "room-review", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-main" },
+    { "id": "door-stats", "kind": "door", "spaceId": "room-stats", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-main" },
+    { "id": "window-account", "kind": "window", "spaceId": "room-account", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-form", "kind": "window", "spaceId": "room-form", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-fill", "kind": "window", "spaceId": "room-fill", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-file", "kind": "window", "spaceId": "room-file", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-review", "kind": "window", "spaceId": "room-review", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-stats", "kind": "window", "spaceId": "room-stats", "side": "north", "offset": 0, "width": 3 }
+  ],
+  "stairs": [],
+  "roofs": [
+    { "id": "roof-main", "spaceIds": ["room-account", "room-form", "room-fill", "room-file", "room-review", "room-stats"], "type": "gable", "rise": 1.8, "overhang": 0.35 }
+  ],
+  "construction": {
+    "phase": "design",
+    "status": { "design": "detailed", "approval": "pending", "implementation": "unknown", "tests": "pending", "acceptance": "pending", "evidence": {} }
+  },
+  "entry": { "spaceId": "yard-entry", "x": 0, "z": 17 }
+}

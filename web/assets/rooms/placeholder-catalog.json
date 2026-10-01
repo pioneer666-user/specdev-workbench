@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "assetId": "placeholder-desk",
+      "name": "占位书桌",
+      "category": "desk",
+      "description": "按真实尺寸 1.6 × 0.8 × 0.75 米生成的占位盒，程序生成、非正式美术；正面为本地 +Z（前挡板颜色不同）。E2b 起在桌顶登记承载面 desktop，只接受台灯类物品。",
+      "styleIds": ["ceramic", "fairy"],
+      "modelRef": "placeholder-box-desk",
+      "previewRef": null,
+      "placeholder": true,
+      "bounds": { "minX": -0.8, "maxX": 0.8, "minY": 0, "maxY": 0.75, "minZ": -0.4, "maxZ": 0.4 },
+      "placement": { "allowedKinds": ["floor"], "allowedYawDeg": [0, 90, 180, 270] },
+      "clearanceBoxes": [
+        { "name": "桌前操作留空", "bounds": { "minX": -0.8, "maxX": 0.8, "minY": 0, "maxY": 1.9, "minZ": 0.4, "maxZ": 1.3 } }
+      ],
+      "approachPoint": { "x": 0, "z": 1.0 },
+      "surfaces": [
+        {
+          "surfaceId": "desktop",
+          "name": "桌面可摆放区",
+          "rect": { "minX": -0.7, "maxX": 0.7, "minZ": -0.3, "maxZ": 0.3 },
+          "y": 0.75,
+          "allowedCategories": ["lamp"]
+        }
+      ],
+      "capabilities": [],
+      "recommendations": { "note": "软建议：靠墙或靠展示通路南侧摆放，桌前朝向通路；不参与硬性校验。" },
+      "source": { "origin": "自制", "license": "本项目占位资产", "note": "程序生成占位盒，正式美术两步验证通过后另做。" }
+    },
+    {
+      "assetId": "placeholder-shelf",
+      "name": "占位书架",
+      "category": "shelf",
+      "description": "按真实尺寸 1.2 × 0.5 × 1.8 米生成的占位盒，程序生成、非正式美术；正面为本地 +Z（前挡板颜色不同），用于 E2a 回归；两件实例共用本资产。",
+      "styleIds": ["ceramic", "fairy"],
+      "modelRef": "placeholder-box-shelf",
+      "previewRef": null,
+      "placeholder": true,
+      "bounds": { "minX": -0.6, "maxX": 0.6, "minY": 0, "maxY": 1.8, "minZ": -0.25, "maxZ": 0.25 },
+      "placement": { "allowedKinds": ["floor"], "allowedYawDeg": [0, 90, 180, 270] },
+      "clearanceBoxes": [
+        { "name": "书架前阅读取书区", "bounds": { "minX": -0.65, "maxX": 0.65, "minY": 0, "maxY": 1.9, "minZ": 0.25, "maxZ": 1.3 } }
+      ],
+      "approachPoint": { "x": 0, "z": 0.9 },
+      "surfaces": [],
+      "capabilities": ["open-document-collection"],
+      "recommendations": { "note": "软建议：沿北墙排布、正面朝南；不参与硬性校验。" },
+      "source": { "origin": "自制", "license": "本项目占位资产", "note": "程序生成占位盒，正式美术两步验证通过后另做。" }
+    },
+    {
+      "assetId": "placeholder-table-lamp",
+      "name": "占位台灯",
+      "category": "lamp",
+      "description": "按真实尺寸 0.24 × 0.30 × 0.42 米生成的占位台灯，程序生成、非正式美术；只能放在承载面上（不提供 floor 放置），没有独立地面站位，操作站位沿用父家具；正面为本地 +Z（标记板颜色不同）。",
+      "styleIds": ["ceramic", "fairy"],
+      "modelRef": "placeholder-box-lamp",
+      "previewRef": null,
+      "placeholder": true,
+      "bounds": { "minX": -0.12, "maxX": 0.12, "minY": 0, "maxY": 0.42, "minZ": -0.15, "maxZ": 0.15 },
+      "placement": { "allowedKinds": ["surface"], "allowedYawDeg": [0, 90, 180, 270] },
+      "clearanceBoxes": [],
+      "approachPoint": null,
+      "surfaces": [],
+      "capabilities": [],
+      "recommendations": { "note": "软建议：靠桌子两侧摆放，不挡桌前操作区；不参与硬性校验。" },
+      "source": { "origin": "自制", "license": "本项目占位资产", "note": "程序生成占位模型，正式美术两步验证通过后另做。" }
+    }
+  ]
+}

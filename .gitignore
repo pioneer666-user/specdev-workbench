@@ -3,3 +3,4 @@ dist/
 *.tgz
 .runtime/
 local-artifacts/
+package-lock.json

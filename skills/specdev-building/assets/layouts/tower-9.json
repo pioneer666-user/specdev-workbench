@@ -1,0 +1,71 @@
+{
+  "format": "specdev-building",
+  "schema": "specdev/building/1",
+  "units": "m",
+  "style": "warm-modern",
+  "floors": [
+    { "id": "floor-ground", "name": "一层", "elevation": 0, "height": 3.6 },
+    { "id": "floor-upper", "name": "二层", "elevation": 4.2, "height": 3.6 }
+  ],
+  "spaces": [
+    { "id": "room-alpha", "kind": "room", "floorId": "floor-ground", "businessId": "alpha",
+      "rect": { "x": -8, "z": -4, "width": 4, "depth": 6 } },
+    { "id": "room-beta", "kind": "room", "floorId": "floor-ground", "businessId": "beta",
+      "rect": { "x": -4, "z": -4, "width": 4, "depth": 6 } },
+    { "id": "room-gamma", "kind": "room", "floorId": "floor-ground", "businessId": "gamma",
+      "rect": { "x": 0, "z": -4, "width": 4, "depth": 6 } },
+    { "id": "room-delta", "kind": "room", "floorId": "floor-ground", "businessId": "delta",
+      "rect": { "x": 4, "z": -4, "width": 4, "depth": 6 } },
+    { "id": "room-epsilon", "kind": "room", "floorId": "floor-ground", "businessId": "epsilon",
+      "rect": { "x": 8, "z": -4, "width": 4, "depth": 6 } },
+    { "id": "corridor-ground", "name": "一层前廊", "kind": "corridor", "floorId": "floor-ground",
+      "rect": { "x": 0, "z": 0, "width": 20, "depth": 2 } },
+    { "id": "yard-entry", "name": "项目前庭", "kind": "yard", "floorId": "floor-ground",
+      "rect": { "x": 0, "z": 4, "width": 10, "depth": 6 } },
+    { "id": "room-zeta", "kind": "room", "floorId": "floor-upper", "businessId": "zeta",
+      "rect": { "x": -7.5, "z": -4, "width": 5, "depth": 6 } },
+    { "id": "room-eta", "kind": "room", "floorId": "floor-upper", "businessId": "eta",
+      "rect": { "x": -2.5, "z": -4, "width": 5, "depth": 6 } },
+    { "id": "room-theta", "kind": "room", "floorId": "floor-upper", "businessId": "theta",
+      "rect": { "x": 2.5, "z": -4, "width": 5, "depth": 6 } },
+    { "id": "room-iota", "kind": "room", "floorId": "floor-upper", "businessId": "iota",
+      "rect": { "x": 7.5, "z": -4, "width": 5, "depth": 6 } },
+    { "id": "corridor-upper", "name": "二层前廊", "kind": "corridor", "floorId": "floor-upper",
+      "rect": { "x": 0, "z": 0, "width": 20, "depth": 2 } },
+    { "id": "landing-upper", "name": "二层梯台", "kind": "terrace", "floorId": "floor-upper",
+      "rect": { "x": 17, "z": 1, "width": 2, "depth": 4 } },
+    { "id": "return-upper", "name": "二层回廊", "kind": "corridor", "floorId": "floor-upper",
+      "rect": { "x": 3, "z": 2, "width": 26, "depth": 2 } }
+  ],
+  "openings": [
+    { "id": "door-alpha", "kind": "door", "spaceId": "room-alpha", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-ground" },
+    { "id": "door-beta", "kind": "door", "spaceId": "room-beta", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-ground" },
+    { "id": "door-gamma", "kind": "door", "spaceId": "room-gamma", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-ground" },
+    { "id": "door-delta", "kind": "door", "spaceId": "room-delta", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-ground" },
+    { "id": "door-epsilon", "kind": "door", "spaceId": "room-epsilon", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-ground" },
+    { "id": "door-zeta", "kind": "door", "spaceId": "room-zeta", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-upper" },
+    { "id": "door-eta", "kind": "door", "spaceId": "room-eta", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-upper" },
+    { "id": "door-theta", "kind": "door", "spaceId": "room-theta", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-upper" },
+    { "id": "door-iota", "kind": "door", "spaceId": "room-iota", "side": "south", "offset": 0, "width": 1.8, "to": "corridor-upper" },
+    { "id": "window-alpha", "kind": "window", "spaceId": "room-alpha", "side": "north", "offset": 0, "width": 2.4 },
+    { "id": "window-beta", "kind": "window", "spaceId": "room-beta", "side": "north", "offset": 0, "width": 2.4 },
+    { "id": "window-gamma", "kind": "window", "spaceId": "room-gamma", "side": "north", "offset": 0, "width": 2.4 },
+    { "id": "window-delta", "kind": "window", "spaceId": "room-delta", "side": "north", "offset": 0, "width": 2.4 },
+    { "id": "window-epsilon", "kind": "window", "spaceId": "room-epsilon", "side": "north", "offset": 0, "width": 2.4 },
+    { "id": "window-zeta", "kind": "window", "spaceId": "room-zeta", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-eta", "kind": "window", "spaceId": "room-eta", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-theta", "kind": "window", "spaceId": "room-theta", "side": "north", "offset": 0, "width": 3 },
+    { "id": "window-iota", "kind": "window", "spaceId": "room-iota", "side": "north", "offset": 0, "width": 3 }
+  ],
+  "stairs": [
+    { "id": "stair-ground-upper", "from": { "spaceId": "corridor-ground", "x": 10, "z": 0 }, "to": { "spaceId": "landing-upper", "x": 16, "z": 0 }, "width": 1.4, "steps": 22 }
+  ],
+  "roofs": [
+    { "id": "roof-upper", "spaceIds": ["room-zeta", "room-eta", "room-theta", "room-iota"], "type": "gable", "rise": 1.8, "overhang": 0.35 }
+  ],
+  "construction": {
+    "phase": "design",
+    "status": { "design": "detailed", "approval": "pending", "implementation": "unknown", "tests": "pending", "acceptance": "pending", "evidence": {} }
+  },
+  "entry": { "spaceId": "yard-entry", "x": 0, "z": 5 }
+}

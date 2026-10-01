@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>建筑总览 · SpecDev 工作台</title>
+<script src="/specdev-workbench/assets/theme.js"></script>
+<link rel="stylesheet" href="/specdev-workbench/assets/style.css">
+<!-- Three.js 副本随包发布（web/assets/three/，来源与版本见其 VERSION.md）：
+     裸名 'three' 与官方 addon 路径都在这里映射，页面脚本与场景模块共用。 -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/specdev-workbench/assets/three/three.module.js",
+    "three/addons/controls/OrbitControls.js": "/specdev-workbench/assets/three/OrbitControls.js"
+  }
+}
+</script>
+</head>
+<body class="building-page">
+<a class="skip-link" href="#main">跳到主要内容</a>
+<header class="app-bar">
+  <a class="brand" data-home-link href="/specdev-workbench/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">工作台</span></span></a>
+  <div class="theme-switch" role="group" aria-label="页面主题"><button type="button" data-theme-choice="light" aria-pressed="false"><span aria-hidden="true">☼</span> 浅色</button><button type="button" data-theme-choice="dark" aria-pressed="true"><span aria-hidden="true">☾</span> 深色</button></div>
+</header>
+<div class="page-content">
+<header class="top">
+  <div>
+    <p class="crumbs"><a href="/specdev-workbench/">项目首页</a> / <span>建筑总览</span></p>
+    <h1 id="title">建筑总览</h1>
+    <p class="sub" id="intro">按建筑蓝图把项目看成一栋房子：楼层、业务房间与资料入口。</p>
+    <!-- 工作区行与三页同款：默认收起，展开见全路径（common.js renderRepoLine 填充）。 -->
+    <details class="workspace-details" id="workspaceDetails" hidden><summary id="workspaceLabel">工作区</summary><p id="repoLine"></p></details>
+  </div>
+  <p id="status" class="status" data-kind="info">正在读取建筑蓝图…</p>
+</header>
+<p id="errorBox" class="error" role="alert" hidden></p>
+<section id="guideBox" class="guide" hidden></section>
+<!-- 核对或几何有问题：列出诊断（error 阻止生成，warning 只是提示），不建三维场景。 -->
+<section id="diagnosticsPanel" class="diagnostics-panel" hidden aria-labelledby="diagnosticsHeading">
+  <h2 id="diagnosticsHeading">蓝图需要调整，暂不能生成建筑</h2>
+  <p class="diagnostics-note">修好下面的问题后刷新本页即可；管理页只读，不会自动改蓝图或清单。</p>
+  <ol id="problemList" class="problem-list"></ol>
+</section>
+<!-- 三维视图＋房间目录：几何全部由服务端算好（model/present），页面只负责呈现。
+     建筑生成成功后整页切到"全窗口"形态（body.building-live，由 building.js 加上）：
+     三维视图占满窗口，右侧目录改成浮在视口上的抽屉，可随手收起让视图全宽。 -->
+<section id="buildingStage" class="building-layout" hidden>
+  <div id="viewport" class="building-viewport" aria-label="三维建筑视图，拖动环绕，滚轮缩放">
+    <div class="view-toolbar" role="group" aria-label="浏览方式">
+      <div class="toolbar-group">
+        <label class="toolbar-field" for="floor">楼层剖看</label>
+        <select id="floor" class="floor-select"><option value="all">全部楼层</option></select>
+        <label class="preview-toggle" for="preview"><input id="preview" type="checkbox"><span>完整外观预览<small>仅预览造型，不代表实现</small></span></label>
+        <button id="walkToggle" class="walk-button" type="button" aria-pressed="false">进入探索</button>
+        <button id="resetView" class="reset-button" type="button">回到总览</button>
+        <!-- 操作提示跟控制放在同一行：这样它永远不与底部横幅、方向按钮区争地方，
+             窄屏换行时也只是把操作行抬高一点（抽屉与卡片按同一行高让位）。 -->
+        <p id="sceneHint" class="scene-hint">拖动环绕 · 滚轮缩放 · 点目录定位房间</p>
+      </div>
+      <!-- 资料目录的开关：目录浮在视口右侧，收起后三维视图占满整页；状态由 building.js 管
+           （作者的选择记在本机，进探索时临时收起、退出后收回他的选择）。 -->
+      <button id="directoryToggle" class="panel-toggle" type="button" aria-expanded="true" aria-controls="directory">收起目录</button>
+    </div>
+    <p id="previewBanner" class="preview-banner" hidden>完整外观预览 · 不代表代码已实现或已验收</p>
+    <!-- 进不去探索时的说明（入口站不住、没有行走面）：留在视口里，不被状态行的换版口径冲掉。 -->
+    <p id="walkNotice" class="walk-notice" role="status" hidden></p>
+    <!-- 探索模式：所在位置＋方向按钮（键盘 WASD／方向键、Shift 加速同样可用；按钮按住即走）。 -->
+    <div id="walkHud" class="walk-hud" hidden>
+      <p id="walkLocation" class="walk-location"></p>
+      <div class="walk-pad" role="group" aria-label="漫游方向按钮">
+        <button type="button" data-walk-key="ArrowUp" aria-label="前进">↑</button>
+        <button type="button" data-walk-key="ArrowLeft" aria-label="向左">←</button>
+        <button type="button" data-walk-key="ArrowDown" aria-label="后退">↓</button>
+        <button type="button" data-walk-key="ArrowRight" aria-label="向右">→</button>
+      </div>
+    </div>
+    <div id="sceneFallback" class="scene-fallback" hidden>
+      <strong>三维视图不可用</strong>
+      <p id="sceneFallbackReason"></p>
+      <p>房间目录与资料入口不受影响，仍可使用。</p>
+    </div>
+    <!-- 房内打开资料：业务门牌／房间目录给该业务的介绍与资料清单，项目牌给项目介绍。
+         文档正文在面板里读；流程图用现有阅读页（iframe，带同一个工作区参数）。
+         打开时暂停漫游输入，关闭后位置与视角原样——读完留在原地接着逛。 -->
+    <section id="materialPanel" class="material-panel" role="dialog" aria-modal="false" aria-labelledby="materialTitle" hidden>
+      <div class="material-head">
+        <div class="material-heading">
+          <p class="material-kind" id="materialKind">业务资料</p>
+          <h2 id="materialTitle">…</h2>
+        </div>
+        <button id="materialClose" class="material-close" type="button" aria-label="关闭资料面板">×</button>
+      </div>
+      <div class="material-body">
+        <div class="material-side">
+          <p id="materialIntro" class="material-intro" hidden></p>
+          <p id="materialListLabel" class="material-list-label" hidden>资料清单 <span id="materialCount"></span></p>
+          <ul id="materialList" class="material-list" hidden></ul>
+          <p id="materialEmpty" class="material-empty" hidden></p>
+        </div>
+        <div class="material-reader">
+          <p id="materialReaderHint" class="material-reader-hint">在左边挑一份资料，正文与流程图都在这里读。</p>
+          <p id="materialReaderTitle" class="material-reader-title" hidden></p>
+          <p id="materialReaderStatus" class="material-reader-status" role="alert" hidden></p>
+          <div id="materialReaderBody" class="material-reader-body" hidden></div>
+          <iframe id="materialReaderFrame" class="material-reader-frame" title="流程图阅读" hidden></iframe>
+        </div>
+      </div>
+    </section>
+  </div>
+  <aside id="directory" class="building-directory" aria-label="项目与房间目录">
+    <div class="project-block">
+      <p class="eyebrow"><span class="eyebrow-line"></span> 当前项目</p>
+      <h2 id="projectName">…</h2>
+      <p id="projectDesc" class="project-description"></p>
+      <p id="metrics" class="metrics" aria-label="建筑信息"></p>
+    </div>
+    <div id="phaseCard" class="phase-card"><span class="status-dot" aria-hidden="true"></span><div><strong id="phaseLabel">…</strong><p id="phaseNote"></p></div></div>
+    <section id="notices" class="notices" hidden aria-label="生成提示">
+      <details><summary>生成提示 <span id="noticeCount"></span></summary><ul id="noticeList"></ul></details>
+    </section>
+    <div class="section-label">房间目录 <span>点击定位 · 资料链接到阅读入口</span></div>
+    <!-- tabindex="-1"：关掉资料面板时若原来的触发按钮已经不在了（换蓝图会重建目录），
+         焦点落到这块目录容器上，不丢在没有落点的地方。 -->
+    <div id="rooms" class="rooms" tabindex="-1"></div>
+  </aside>
+</section>
+</div>
+<script type="module" src="/specdev-workbench/assets/building.js"></script>
+</body>
+</html>

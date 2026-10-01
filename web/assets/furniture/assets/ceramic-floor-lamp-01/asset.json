@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "assetVersion": 1,
+  "status": "internal",
+  "assetId": "ceramic-floor-lamp-01",
+  "name": "暖釉落地阅读灯",
+  "category": "floor-lamp",
+  "description": "低圆暖白釉面底座连接黄铜立杆、支架和灯座，双壁暖白布罩带厚口沿及上下开口，罩内固定暖亮灯泡。宽深不超过0.48、高不超过1.65米；按+Z为统一正面，仅地面放置。静态自发光外观，不实际照亮周围，不支持灯光开关，无承载面。",
+  "styleIds": [
+    "ceramic"
+  ],
+  "modelRef": "ceramic-floor-lamp-01",
+  "previewRef": "assets/ceramic-floor-lamp-01/preview.webp",
+  "placeholder": false,
+  "bounds": {
+    "minX": -0.24,
+    "maxX": 0.24,
+    "minY": 0,
+    "maxY": 1.65,
+    "minZ": -0.24,
+    "maxZ": 0.24
+  },
+  "placement": {
+    "allowedKinds": [
+      "floor"
+    ],
+    "allowedYawDeg": [
+      0,
+      90,
+      180,
+      270
+    ]
+  },
+  "clearanceBoxes": [
+    {
+      "name": "正面接近操作区",
+      "bounds": {
+        "minX": -0.34,
+        "maxX": 0.34,
+        "minY": 0,
+        "maxY": 1.9,
+        "minZ": 0.24,
+        "maxZ": 1.2
+      }
+    }
+  ],
+  "approachPoint": {
+    "x": 0,
+    "z": 0.85
+  },
+  "surfaces": [],
+  "capabilities": [],
+  "recommendations": {
+    "note": "适合温暖阅读休憩房，与蜂蜜木书桌、书架、奶油布料及暖白陶瓷搭配；风格只是软推荐，混搭允许，摆放以空间和类别校验为准。"
+  },
+  "source": {
+    "origin": "自制",
+    "license": "MIT",
+    "note": "自制Three.js程序化实体几何，无外部模型或贴图；有木面者使用固定种子DataTexture。"
+  }
+}

@@ -1,11 +1,26 @@
 // 首页只从现有清单汇总项目与业务，不推测代码活动或图与代码的同步情况。
 import { $, businessCard, el, fetchJson, pageTitle, renderEmptyWorkspaceParam, renderGuide, renderRepoLine, renderRepoState, setStatus, showError, workspaceParamEmpty, wsUrl } from './common.js'
 
+/**
+ * 首页最醒目的那一下：进建筑。只有这个项目**真有建筑**才出现——探测一次 /api/building：
+ * 读到了（模型或诊断列表都算）就亮出来；「还没有建筑蓝图」或这一下没读到，入口就不出现，
+ * 不给人一个点进去只看得到空态的按钮。只读、不改任何东西；探测失败不影响首页其余部分。
+ */
+async function revealBuildingLink() {
+  const link = $('buildingLink')
+  try {
+    await fetchJson(wsUrl('/specdev-workbench/api/building'))
+    link.hidden = false
+  } catch {
+    link.hidden = true
+  }
+}
+
 async function main() {
   const root = $('root')
   try {
     if (workspaceParamEmpty) return renderEmptyWorkspaceParam()
-    const inventory = await fetchJson(wsUrl('/archify-manage/api/inventory'))
+    const inventory = await fetchJson(wsUrl('/specdev-workbench/api/inventory'))
     if (inventory.code === 'repo-not-configured') return renderGuide(inventory)
 
     document.title = pageTitle(inventory.project.name, inventory.repo)
@@ -21,6 +36,8 @@ async function main() {
     $('projectMetrics').hidden = false
     $('heroActions').hidden = businesses.length === 0
     $('showcaseLink').hidden = businesses.length === 0
+    // 没有业务就没有建筑（蓝图必须逐间绑业务），这种项目连探测都不发。
+    if (businesses.length > 0) void revealBuildingLink()
     root.replaceChildren()
 
     for (const [index, business] of businesses.entries()) {

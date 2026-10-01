@@ -130,10 +130,11 @@ export function findSection(doc, id, { unreadable = '' } = {}) {
 }
 
 /**
- * 一节正文拆成段落与列表项。只认最常见的写法（空行分段、`-`/`*`/`数字.` 列表），
- * 不假装是完整 Markdown 解析器。
+ * 正文分块内核：空行分段、`-`/`*`/`数字.` 列表；headings 打开时把 `#` 标题单独成块
+ * （房内资料面板读整篇业务文档要标题；节点详情的节内正文不按标题切）。
+ * 只认最常见的写法，不假装是完整 Markdown 解析器。
  */
-export function parseBody(text) {
+function parseBlocks(text, headings) {
   const items = []
   let paragraph = []
   const flush = () => {
@@ -148,6 +149,12 @@ export function parseBody(text) {
       flush()
       continue
     }
+    const heading = headings ? /^(#{1,6})[ \t]+(.+?)[ \t]*$/.exec(trimmed) : null
+    if (heading) {
+      flush()
+      items.push({ kind: 'heading', level: heading[1].length, text: heading[2] })
+      continue
+    }
     const bullet = /^(?:[-*+]|\d+\.)[ \t]+(.*)$/.exec(trimmed)
     if (bullet) {
       flush()
@@ -159,6 +166,18 @@ export function parseBody(text) {
   flush()
   return items
 }
+
+/**
+ * 一节正文拆成段落与列表项。只认最常见的写法（空行分段、`-`/`*`/`数字.` 列表），
+ * 不假装是完整 Markdown 解析器。
+ */
+export const parseBody = (text) => parseBlocks(text, false)
+
+/**
+ * 整篇文档的正文分块（房内资料面板读业务文档用）：与 parseBody 同一口径，多认 `#` 标题行。
+ * 标题按层级给 { kind: 'heading', level 1..6, text }，页面据此决定用几级标题呈现。
+ */
+export const parseDocument = (text) => parseBlocks(text, true)
 
 /** 行内标记：**加粗** 与 `代码`。返回片段数组，页面拼 DOM 用（不经 innerHTML）。 */
 export function splitInline(text) {

@@ -1,0 +1,287 @@
+/* 房间页（body.room-page）独立样式：只作用于本页，不改业务页与建筑页。
+   主题色、按钮与提示行的底子在 style.css，这里只补房间视口的布局与定位。 */
+
+.room-stage { margin: 0 0 20px; }
+
+/* 三维视图占页面主要面积：高度取视口的大部分并有下限，窄屏也能完整看到房间。 */
+.room-viewport {
+  position: relative;
+  height: min(74vh, 760px);
+  min-height: 420px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+/* canvas 尺寸交给容器（setSize 的第三个参数 false 不写 style，须由 CSS 定显示尺寸）：
+   与建筑页同款规则；漏了这条画布会按属性像素（×像素比）放大裁切，房间中心偏出画面。 */
+.room-viewport canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+/* 工具行浮在视口左上：返回业务页＋回到总览＋一句操作提示（按钮样式与共用工具条一致，只补定位）。 */
+.room-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+/* 提示行在共用样式里是视口右下绝对定位；房间里它属于工具行，改回静态排布。
+   P1c-2c-2 起带 role=status：行走／总览操作提示与门结果的人话说明都走这一行。 */
+.room-toolbar .scene-hint { position: static; margin: 0; color: #6c7d70; pointer-events: none; }
+
+/* 行走／总览／门按钮：与"回到总览"同款；当前模式对应的按钮呈禁用态（浅显不抢焦点）。 */
+.room-toolbar .reset-button:disabled { opacity: .55; cursor: default; }
+
+/* 返回业务页：外观与工具条按钮同款（浅底描边），链接语义。 */
+.room-back {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid #b9c6b2;
+  background: rgba(251, 250, 240, .92);
+  color: #29433a;
+}
+.room-back:hover { border-color: #487465; text-decoration: none; }
+
+/* 点击家具后的身份一行：浮在视口左下，textContent 填充。 */
+.pick-info {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+}
+
+/* 占位声明常驻视口右下：小字、不抢注意力。 */
+.placeholder-note {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* 底座字幕与昼夜面板（2026-09-28 作者令：照着抄旧底座页面）：
+   类名与取值逐项抄自 experiments/2026-09-27-空房间风格底座/style.css；
+   仅去掉 eyebrow 的数字编号、top 下移让开本页工具条（返回业务页／回到总览）。
+   变量随底座风格与昼夜切换（body[data-style]／[data-period] 由 room.js 设置），
+   星夜换浅色字与深色面板，抄旧页原值。 */
+.room-page { --ink:#394740; --subtle:#7c837d; --panel:rgba(255,255,248,.65); --border:rgba(70,80,60,.13); }
+body[data-style="fairy"].room-page { --ink:#43523b; --subtle:#6b7e62; --panel:#fbffe5a8; --border:#6781572a; }
+body[data-style="fairy"][data-period="night"].room-page { --ink:#f0ead8; --subtle:#b3b8c8; --panel:#151d35ad; --border:#c2c9ef21; }
+
+.room-page .intro { position: absolute; pointer-events: none; top: 142px; left: 46px; color: var(--ink); }
+.room-page .eyebrow { font-size: 10px; letter-spacing: 3px; color: var(--subtle); margin: 0 0 18px; }
+.room-page .intro h1 { font-family: "STSong", "SimSun", serif; font-weight: 400; font-size: 43px; letter-spacing: 6px; margin: 0 0 20px; }
+.room-page .intro > p:not(.eyebrow) { font-size: 12px; line-height: 2.1; letter-spacing: 2px; color: var(--subtle); margin: 0; }
+.room-page .material-note { display: flex; align-items: center; gap: 9px; margin-top: 27px; font-size: 10px; color: var(--subtle); letter-spacing: 1px; }
+.room-page .material-chip { width: 25px; height: 25px; background: linear-gradient(140deg, #fff, #c6cac5 65%, #faf9ee); border-radius: 6px; border: 1px solid #ffffff6b; box-shadow: 0 3px 8px #101e1515; }
+body[data-style="fairy"].room-page .material-chip { background: linear-gradient(135deg, #d2bf94, #9b6e48 50%, #5f8248); }
+
+/* 昼夜面板：抄旧页 .period-panel/.small-label/.period-switch。 */
+.room-page .period-panel { position: absolute; right: 44px; bottom: 95px; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); backdrop-filter: blur(18px); }
+.room-page .small-label { display: block; font-size: 10px; letter-spacing: 2px; color: var(--subtle); margin-bottom: 12px; }
+.room-page .period-switch { display: flex; gap: 6px; }
+.room-page .period-switch button { font: inherit; color: var(--ink); font-size: 11px; letter-spacing: 1px; padding: 10px 18px; background: transparent; border: 0; border-radius: 9px; cursor: pointer; }
+.room-page .period-switch button:hover { filter: brightness(.97); }
+.room-page .period-switch button:focus-visible { outline: 2px solid #81966a; outline-offset: 5px; }
+.room-page .period-switch button[aria-pressed="true"] { background: #f8f9ef; color: #3d4b3c; box-shadow: 0 2px 6px #0000000a; }
+body[data-period="night"].room-page .period-switch button[aria-pressed="true"] { background: #4b536b; color: #fff1d2; }
+
+/* 窄屏：抄旧页 850px 断点的字幕与面板项；工具条按钮变多，提示行整行换行避开字幕。 */
+@media (max-width: 850px) {
+  .room-page .room-toolbar { left: 12px; right: 12px; }
+  .room-toolbar .scene-hint { flex: 1 1 100%; }
+  .room-page .intro { top: 150px; left: 24px; }
+  .room-page .intro h1 { font-size: 31px; }
+  .room-page .intro > p:not(.eyebrow) { font-size: 11px; }
+  .room-page .material-note { display: none; }
+  .room-page .period-panel { right: 22px; bottom: 75px; }
+}
+
+/* 场景建不起来：占位说明居中，返回链接照常可用。 */
+.room-viewport .scene-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+}
+
+/* 摆放诊断列表：code 行用等宽与主题色，原因行普通文字。 */
+.room-diag .diag-code { margin: 0 0 2px; font-family: Consolas, "Courier New", monospace; color: var(--warning); }
+.room-diag .problem-list li > p:last-child { margin: 0; color: var(--secondary); }
+
+/* 业务页的"进入房间"入口：跟在业务介绍后面的一行链接，不抢文档与图卡的位置。 */
+.business-page .room-entry-line { margin: 10px 0 0; }
+.business-page .room-entry-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  font-weight: 600;
+}
+.business-page .room-entry-link:hover { background: var(--accent-hover); text-decoration: none; }
+
+/* E9b：房间页普通页头/空态可见区的"家具图鉴"入口，视觉同业务页进入房间入口；
+   全窗口形态下页头隐藏，工具条里另有常驻入口，这里只管普通形态。 */
+.room-page .furniture-entry-line { margin: 10px 0 0; }
+.room-page .furniture-entry-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  font-weight: 600;
+}
+.room-page .furniture-entry-link:hover { background: var(--accent-hover); text-decoration: none; }
+
+/* 全窗口形态（作者令：进入房间后房间占满全屏，不留其他东西）：
+   场景创建成功后 room.js 给 body 加 room-live——顶栏与页头让位，视口铺满窗口；
+   错误、空态与场景失败不加这个类，仍是普通滚动文档。 */
+.room-page.room-live { overflow: hidden; }
+.room-page.room-live .app-bar,
+.room-page.room-live .page-content > .top { display: none; }
+.room-page.room-live .room-stage { position: fixed; inset: 0; z-index: 5; margin: 0; }
+.room-page.room-live .room-viewport { height: 100%; min-height: 0; border-radius: 0; border: none; }
+
+/* ── 阅读面板覆盖层（E3b-2）────────────────────────────────────────────
+   root 在 viewport 外、roomStage 内：阅读时背景视口加 inert，面板不受波及。
+   轻微遮罩＋四周留出场景（沿用建筑页"面板是浮卡、能看出还在房子里"的做法）；
+   面板结构复用 style.css 的 .material-*，这里只改房间侧的定位与不透明度。 */
+.room-reader-root {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(18px, 4vh, 44px) clamp(18px, 4vw, 64px);
+  background: rgba(12, 18, 15, .28);
+}
+.room-reader-root[hidden] { display: none; }
+/* 焦点边界需要可聚焦，不能 display:none；绝对定位避免占用阅读区。 */
+.room-reader-root .reader-focus-guard { position: absolute; width: 1px; height: 1px; overflow: hidden; }
+/* .material-panel 原是建筑视口内绝对定位的浮卡；这里由 root 居中托管，改回常规盒。 */
+.room-page .room-reader-panel {
+  position: relative;
+  inset: auto;
+  width: min(920px, 100%);
+  height: min(640px, 100%);
+  max-width: none;
+  margin-inline: 0;
+  /* 正文保持足够不透明便于阅读；描边随底座风格变量（陶瓷浅／童话暖／星夜深）走。 */
+  background: color-mix(in srgb, var(--surface) 98%, transparent);
+  border-color: var(--border);
+}
+/* 重试行：失败时出现在正文区下方；隐藏时不占位。 */
+.reader-retry-line { flex: none; margin: 10px 0 0; }
+.reader-retry-line[hidden] { display: none; }
+.room-page .reader-retry-line .reset-button { font-size: 13px; }
+
+/* 图阅读页容器（E9c）：reader.js 每次选图新建 iframe（复用 style.css 的
+   .material-reader-frame 外观），这里只管容器自身占满阅读区、隐藏时不占位；
+   iframe 保持可聚焦（不设 pointer-events/touch 屏障），键盘能进图也能离图。 */
+.room-reader-root .material-reader-frame-host {
+  flex: 1;
+  display: flex;
+  min-height: 220px; /* 浅/深主题与窄屏都保留可视高度，关闭按钮不因此被顶出面板 */
+  min-width: 0;
+}
+.room-reader-root .material-reader-frame-host[hidden] { display: none; }
+.room-reader-root .material-reader-frame-host .material-reader-frame { flex: 1; }
+
+/* ── 清单收缩与面板放大（作者令 2026-10-01：看图时清单可收起、窗口可放大，
+      四周留边仍看得出在房间里，不是跳转页面）─────────────────────────── */
+/* 面板头里的两枚工具小按钮（清单收缩／放大还原），与关闭钮同一套轻量观感。
+   关闭钮 DOM 序在前（焦点循环首位＝打开焦点），视觉仍排最右（order）。 */
+.room-reader-root .material-head .material-close { order: 3; }
+.room-reader-root .material-tools { order: 2; flex: none; display: flex; gap: 8px; margin-left: auto; }
+.room-reader-root .material-tool {
+  height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface-soft); color: var(--secondary); font-size: 12.5px; line-height: 1;
+  cursor: pointer; white-space: nowrap;
+}
+.room-reader-root .material-tool:hover { background: var(--hover); }
+.room-reader-root .material-tool[aria-pressed='true'] { color: var(--accent); border-color: var(--accent-border); }
+/* 收起清单：侧栏整体让位，阅读区独占整行（覆盖 style.css 的两列网格）。 */
+.room-reader-root[data-list='collapsed'] .material-body { grid-template-columns: minmax(0, 1fr); }
+.room-reader-root[data-list='collapsed'] .material-side { display: none; }
+/* 放大：面板放到接近全屏但四周留边（root 的半透明遮罩和边缘房间画面仍在视野里）。 */
+.room-reader-root[data-size='large'] { padding: clamp(10px, 2vh, 20px) clamp(12px, 2vw, 28px); }
+.room-reader-root[data-size='large'] .room-reader-panel { width: min(1560px, 100%); height: min(960px, 100%); }
+
+/* 长路径按原执行单要能读全（E3b-2 验收补齐 R2）：共用 .material-item 是单行省略号
+   （white-space:nowrap＋ellipsis），登记路径长且前缀相同时在清单里被截断。这里在
+   房间阅读面板局部覆盖——条目允许多行、长无空格片段也能折行，取消省略；清单仍限
+   在自己的侧栏内滚动（.material-side 已有 overflow-y:auto）。不改共用 style.css。 */
+.room-reader-root .material-item {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+/* 家具标题（面板头）与文档标题不许被长路径撑宽挤走关闭按钮：flex 子项给 min-width:0，
+   长词按 anywhere 折行；正文里的长路径与行内代码同理不撑出面板。 */
+.room-reader-root .material-heading { min-width: 0; }
+.room-reader-root .material-heading h2,
+.room-reader-root .material-reader-title { overflow-wrap: anywhere; }
+.room-reader-root .material-reader-body { min-width: 0; }
+.room-reader-root .material-reader-body code { overflow-wrap: anywhere; }
+.room-reader-root .material-doc-paragraph,
+.room-reader-root .material-doc-heading { overflow-wrap: anywhere; }
+
+/* ── 家具资料绑定提示（E3b-2）：绑定有误但房间照常浏览时的可展开诊断 ── */
+.binding-note {
+  position: absolute;
+  left: 12px;
+  bottom: 44px;
+  z-index: 2;
+  max-width: min(440px, calc(100% - 24px));
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text);
+}
+.binding-note summary { cursor: pointer; color: var(--warning); }
+.binding-note ol { margin: 6px 0 0; padding-left: 18px; }
+.binding-note ol p { margin: 2px 0 6px; }
+.binding-note .diag-code { font-family: Consolas, "Courier New", monospace; font-size: 11px; }
+
+/* 窄屏：阅读面板收窄留边、绑定提示避开工具条换行区。 */
+@media (max-width: 850px) {
+  .room-reader-root { padding: 12px; }
+  .room-page .room-reader-panel { width: 100%; height: 100%; }
+  .binding-note { bottom: 64px; }
+}

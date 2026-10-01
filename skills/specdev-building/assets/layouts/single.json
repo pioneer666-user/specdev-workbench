@@ -1,0 +1,27 @@
+{
+  "format": "specdev-building",
+  "schema": "specdev/building/1",
+  "units": "m",
+  "style": "warm-modern",
+  "defaults": { "wallThickness": 0.18, "slabThickness": 0.18, "doorHeight": 2.5 },
+  "floors": [{ "id": "floor-ground", "name": "一层", "elevation": 0, "height": 3.6 }],
+  "spaces": [
+    { "id": "room-sample", "kind": "room", "floorId": "floor-ground", "businessId": "sample-business",
+      "rect": { "x": 0, "z": -1, "width": 8, "depth": 6 } },
+    { "id": "yard-entry", "name": "前庭", "kind": "yard", "floorId": "floor-ground",
+      "rect": { "x": 0, "z": 6, "width": 14, "depth": 8 } }
+  ],
+  "openings": [
+    { "id": "door-sample", "kind": "door", "spaceId": "room-sample", "side": "south", "offset": 0, "width": 1.8, "to": "yard-entry" },
+    { "id": "window-sample", "kind": "window", "spaceId": "room-sample", "side": "north", "offset": 0, "width": 3 }
+  ],
+  "stairs": [],
+  "roofs": [
+    { "id": "roof-sample", "spaceIds": ["room-sample"], "type": "gable", "rise": 1.8, "overhang": 0.35 }
+  ],
+  "construction": {
+    "phase": "design",
+    "status": { "design": "detailed", "approval": "pending", "implementation": "unknown", "tests": "pending", "acceptance": "pending", "evidence": {} }
+  },
+  "entry": { "spaceId": "yard-entry", "x": 0, "z": 8 }
+}

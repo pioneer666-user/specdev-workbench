@@ -1,0 +1,21 @@
+/* 独立项目选择页：共用主题色，样式仅限本页；内容自然换行和滚动。 */
+.workspaces-page { background: var(--page); }
+.workspaces-page .workspaces-main { max-width: 860px; margin: 40px auto; padding: 0 24px 40px; }
+.workspaces-page h1 { margin: 0 0 8px; font-size: 28px; }
+.workspaces-page .workspaces-intro { color: var(--secondary); margin: 0 0 24px; }
+.workspaces-page .workspace-list { list-style: none; margin: 20px 0; padding: 0; display: grid; gap: 12px; }
+.workspaces-page .workspace-project {
+  display: block; min-width: 0; padding: 16px 20px;
+  color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  white-space: normal; overflow-wrap: anywhere;
+}
+.workspaces-page .workspace-project:hover { background: var(--hover); border-color: var(--accent); text-decoration: none; }
+.workspaces-page .workspace-project:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.workspaces-page .workspace-title { display: block; font-size: 17px; font-weight: 600; }
+.workspaces-page .workspace-path { display: block; margin-top: 6px; color: var(--secondary); overflow-wrap: anywhere; white-space: pre-wrap; }
+.workspaces-page #workspaceStatus { color: var(--muted); }
+.workspaces-page #workspaceFallback { margin-top: 20px; font-size: 13px; }
+@media (max-width: 480px) {
+  .workspaces-page .workspaces-main { margin-top: 24px; padding: 0 16px 24px; }
+  .workspaces-page .workspace-project { padding: 14px; }
+}

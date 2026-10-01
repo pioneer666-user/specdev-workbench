@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "assetVersion": 1,
+  "status": "internal",
+  "assetId": "fairy-desk-01",
+  "name": "林间蜂蜜木书桌",
+  "category": "desk",
+  "description": "蜂蜜色暖木书桌，连续水平厚桌面带柔和倒角，四条收脚木腿、桌裙与侧横枨，桌下留空；本地 +Z 正面有静态浅抽屉、细缝和小黄铜拉手，叶形浅装饰与同系列书架呼应。宽 1.6 米、高 0.75 米、深 0.8 米。桌面只承载台灯类物品，不提供抽屉开合或资料动作。",
+  "styleIds": ["fairy"],
+  "modelRef": "fairy-desk-01",
+  "previewRef": "assets/fairy-desk-01/preview.webp",
+  "placeholder": false,
+  "bounds": { "minX": -0.8, "maxX": 0.8, "minY": 0, "maxY": 0.75, "minZ": -0.4, "maxZ": 0.4 },
+  "placement": { "allowedKinds": ["floor"], "allowedYawDeg": [0, 90, 180, 270] },
+  "clearanceBoxes": [
+    { "name": "桌前操作留空", "bounds": { "minX": -0.8, "maxX": 0.8, "minY": 0, "maxY": 1.9, "minZ": 0.4, "maxZ": 1.3 } }
+  ],
+  "approachPoint": { "x": 0, "z": 1 },
+  "surfaces": [
+    { "surfaceId": "desktop", "name": "桌面可摆放区", "rect": { "minX": -0.7, "maxX": 0.7, "minZ": -0.3, "maxZ": 0.3 }, "y": 0.75, "allowedCategories": ["lamp"] }
+  ],
+  "capabilities": [],
+  "recommendations": { "note": "推荐童话阅读区与温暖的项目介绍区，和林间蜂蜜木书架搭配；也可混搭写实房。桌面只接受 lamp 类别，正面保留操作空间。" },
+  "source": { "origin": "自制", "license": "MIT", "note": "当前资产包 model.js 自制 Three.js 程序化模型与固定种子 DataTexture 木纹，无外部模型或贴图。" }
+}

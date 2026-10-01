@@ -1,0 +1,68 @@
+/* 家具图鉴页（E9b）专属样式：只作用于 .furniture-page，颜色全部走 style.css 的
+   主题变量（深/浅主题自动跟随）；不重排业务页、建筑页或房间页。布局以图片辨识和
+   挑选为先：桌面多列卡片、窄屏单列，长名称与说明换行，不横向撑破页面。 */
+
+.furniture-page .picker-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin: 0 0 10px; padding: 10px 14px; border-radius: 10px;
+  background: var(--surface-soft); border: 1px solid var(--border);
+}
+.furniture-page .picker-bar p { margin: 0; color: var(--secondary); font-weight: 600; }
+.furniture-page .picker-bar button {
+  font: inherit; cursor: pointer; border-radius: 8px; padding: 5px 14px;
+  border: 1px solid var(--accent-border); background: var(--accent-bg); color: var(--accent);
+}
+.furniture-page .picker-bar button:hover:not(:disabled) { background: var(--accent-hover); }
+.furniture-page .picker-bar button:disabled { cursor: not-allowed; opacity: .55; }
+
+.furniture-page .pick-list-box { margin: 0 0 20px; }
+.furniture-page .pick-list-label { display: block; margin: 0 0 6px; color: var(--muted); font-size: 13px; }
+.furniture-page .pick-list-box textarea {
+  width: 100%; resize: vertical; font: inherit; color: var(--text);
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+}
+.furniture-page .pick-list-box textarea:focus-visible { outline: 2px solid var(--accent-border); }
+.furniture-page .copy-note { margin: 6px 0 0; font-size: 13px; color: var(--secondary); }
+.furniture-page .copy-note[data-kind="ok"] { color: var(--success); }
+.furniture-page .copy-note[data-kind="bad"] { color: var(--danger); }
+
+/* 分类标题：跟 index.categories 顺序；没有分类信息时由脚本退回单一列表。 */
+.furniture-page .furniture-group { margin: 26px 0 10px; }
+.furniture-page .furniture-group h2 { margin: 0 0 4px; font-size: 15px; }
+.furniture-page .furniture-group .group-note { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+
+.furniture-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.furniture-card {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+}
+.furniture-card:has(.furniture-pick input:checked) { border-color: var(--accent-border); background: var(--accent-bg); }
+
+.furniture-page .furniture-pick { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }
+.furniture-page .furniture-pick input { width: 16px; height: 16px; flex: none; align-self: center; cursor: pointer; }
+.furniture-page .furniture-name { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+
+/* 缩略图：完整轮廓优先（object-fit: contain），不裁切床/落地灯等比例差异大的资产。 */
+.furniture-page .furniture-thumb {
+  display: flex; align-items: center; justify-content: center;
+  height: 150px; border-radius: 8px; overflow: hidden;
+  background: var(--canvas); border: 1px solid var(--border);
+}
+.furniture-page .furniture-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.furniture-page .no-preview { margin: 0; color: var(--muted); font-size: 13px; }
+
+.furniture-page .furniture-size { margin: 0; color: var(--secondary); font-size: 13px; }
+.furniture-page .furniture-meta { margin: 0; color: var(--muted); font-size: 13px; }
+.furniture-page .asset-id { margin: 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.furniture-page .furniture-card details { font-size: 13px; color: var(--secondary); }
+.furniture-page .furniture-card details summary { cursor: pointer; color: var(--muted); }
+.furniture-page .furniture-card details p { margin: 6px 0 0; overflow-wrap: anywhere; }
+
+.furniture-page .furniture-empty {
+  padding: 26px; border-radius: 10px; border: 1px dashed var(--border-strong);
+  color: var(--muted); text-align: center;
+}
+
+@media (max-width: 560px) {
+  .furniture-cards { grid-template-columns: 1fr; }
+}

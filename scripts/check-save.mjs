@@ -1,8 +1,8 @@
 // 保存版本·接口层验收：入库、可重跑、自包含。
 // 流程：① 构建 dist（scripts/build.mjs）→ ② 用假 DSH 装载**构建产物** dist/index.js
-//       （只给 webServer.register / effect 两个能力，访问其他能力当场报错）→ ③ 本地起 HTTP →
+//       （给 webServer / effect / connection / skills / fs 与工作区软探测，访问其他能力当场报错）→ ③ 本地起 HTTP →
 //       ④ 走真实路由断言 GET/POST /api/snapshots 的语义 → ⑤ 回执写 local-artifacts/smoke-runs/。
-// 用法（在 archify-manager/ 下）：node scripts/check-save.mjs
+// 用法（在 specdev-workbench/ 下）：node scripts/check-save.mjs
 // 说明：示例仓每次全新生成（sample/generate.mjs），本脚本会往那个临时仓里打标签、造一次
 //       人为提交——都在 local-artifacts/ 下的临时目录里，不碰本工作区、不碰产品代码。
 //       摘要由本脚本用 git 命令 + Node 哈希独立重算（不复用产品代码），避免"同错同过"。
@@ -22,18 +22,18 @@ const MANAGER = path.resolve(HERE, '..')
 const stamp = new Date().toISOString().replace(/[:.]/g, '-')
 const RUN_DIR = path.resolve(MANAGER, '..', 'local-artifacts', 'smoke-runs', `${stamp}-check-save`)
 const REPO = path.join(RUN_DIR, 'sample-repo')
-const PREFIX = '/archify-manage'
+const PREFIX = '/specdev-workbench'
 const BIZ = 'activity-registration'
 const CHART = 'seat-refund' // 干净图：生成后工作区无改动、无版本
-const CLEAN_DIR = `docs/archify/${BIZ}/${CHART}`
+const CLEAN_DIR = `docs/specdev/${BIZ}/${CHART}`
 const DIRTY_BIZ = 'member-points'
 const DIRTY_CHART = 'points-earn' // 生成器改了工作区且未提交
-const DIRTY_DIR = `docs/archify/${DIRTY_BIZ}/${DIRTY_CHART}`
+const DIRTY_DIR = `docs/specdev/${DIRTY_BIZ}/${DIRTY_CHART}`
 const PROBE_BIZ = 'probe-biz' // 脚本自造的干净小图，专供并发用例（不依赖生成器的既有状态）
 const PROBE_CHART = 'probe-chart'
-const PROBE_DIR = `docs/archify/${PROBE_BIZ}/${PROBE_CHART}`
+const PROBE_DIR = `docs/specdev/${PROBE_BIZ}/${PROBE_CHART}`
 const PROBE2_CHART = 'probe-noev' // 只提交两个文件的干净小图：分辨"缺证据文件"与"空证据文件"
-const PROBE2_DIR = `docs/archify/${PROBE_BIZ}/${PROBE2_CHART}`
+const PROBE2_DIR = `docs/specdev/${PROBE_BIZ}/${PROBE2_CHART}`
 const FILES = [['workflow.json', 'workflow'], ['details.md', 'details'], ['evidence.json', 'evidence']]
 
 const lines = []
@@ -140,10 +140,25 @@ const capabilities = {
     effectLabel = label
     disposer = fn()
   },
-  // 1d 起插件装载时会注册随包技能（inject 含 skills/fs）：提供最小 skills 让装载走通，
-  // fs 显式为 undefined（自查走"ctx.fs 不可用"分支，不触发 Proxy 的未提供报错）。
-  skills: { register() {} },
-  fs: undefined,
+  // 1d 起插件装载时会注册随包技能（inject 含 skills/fs）：假环境按 runtime provider 语义给
+  // register/list/get，并给一个能读盘的 fs。只给 register 会让自查在 list 上抛 TypeError，
+  // 日志里出现**假的**"技能自查失败"（2026-09-25 前就是这样）。
+  skills: (() => {
+    const entries = []
+    return {
+      entries,
+      register(entry) { entries.push(entry) },
+      list: async () => entries.map((entry) => ({ name: entry.name })),
+      get: async (name) => {
+        const hit = entries.find((entry) => entry.name === name)
+        return hit === undefined ? undefined : { name: hit.name, content: hit.content }
+      },
+    }
+  })(),
+  fs: {
+    resolve: async (file) => ({ targetKey: file, displayPath: file }),
+    readText: async (target) => readFileSync(target.targetKey, 'utf8'),
+  },
   // 路由入口统一过 connection.requestRejection：本脚本聚焦保存业务，桩明确放行（undefined）；
   // 认证门的拒绝行为不在本脚本范围。
   connection: { requestRejection: () => undefined },
@@ -160,7 +175,7 @@ const fakeCtx = new Proxy(capabilities, {
   },
 })
 plugin.apply(fakeCtx, { repoRoot: REPO })
-expect('插件导出的 name', plugin.name, 'specdev-archify-manage')
+expect('插件导出的 name', plugin.name, 'specdev-workbench')
 expect('插件声明的 inject', plugin.inject, ['webServer', 'connection', 'skills', 'fs'])
 expect('注册了一次前缀路由', registered.length, 1)
 expect('路由形状', [registered[0]?.kind, registered[0]?.path], ['prefix', PREFIX])
@@ -199,7 +214,7 @@ const postSave = (payload) => postRaw(JSON.stringify(payload))
 const check = (biz, chart) => getJson(`${PREFIX}/api/snapshots?business=${biz}&chart=${chart}`)
 /** 该图实际留下的标签数：直接用 git 数（独立于产品代码，作"版本数"的准绳）。 */
 const tagCount = async (chart) =>
-  (await execFileAsync('git', ['-C', REPO, 'tag', '--list', `archify/${chart}/*`], { encoding: 'utf8' })).stdout.split('\n').filter(Boolean).length
+  (await execFileAsync('git', ['-C', REPO, 'tag', '--list', `specdev/${chart}/*`], { encoding: 'utf8' })).stdout.split('\n').filter(Boolean).length
 /** 该图当前有效版本数：从清单接口取，与页面看到的是同一份账。 */
 const versionCount = async (biz, chart) => {
   const inv = await getJson(`${PREFIX}/api/inventory`)
@@ -249,8 +264,8 @@ const NAME = '首版设计 · 中文名过 HTTP'
 const saved = await postSave({ business: BIZ, chart: CHART, name: NAME, stage: 'design', note: '超过一万元需要主管确认', head: clean.body.head, fingerprint: clean.body.fingerprint })
 expect('保存 200', saved.status, 200)
 expect('返回 snapshot 且 alreadySaved=false', [typeof saved.body.snapshot?.tag, saved.body.alreadySaved], ['string', false])
-expect('标签名形如 archify/<图编号>/YYYYMMDD-HHMMSS',
-  [/^archify\/seat-refund\//.test(saved.body.snapshot.tag), /^[0-9]{8}-[0-9]{6}(-[0-9]+)?$/.test(saved.body.snapshot.tag.split('/').pop())], [true, true])
+expect('标签名形如 specdev/<图编号>/YYYYMMDD-HHMMSS',
+  [/^specdev\/seat-refund\//.test(saved.body.snapshot.tag), /^[0-9]{8}-[0-9]{6}(-[0-9]+)?$/.test(saved.body.snapshot.tag.split('/').pop())], [true, true])
 expect('标签钉在确认过的提交上', saved.body.snapshot.commit, clean.body.head)
 expect('中文名与说明经 HTTP 往返逐字一致', [saved.body.snapshot.meta.name, saved.body.snapshot.meta.note], [NAME, '超过一万元需要主管确认'])
 expect('保存后版本数 +1', await versionCount(BIZ, CHART), 1)
@@ -355,7 +370,7 @@ const gateOk = saveGate(printA, { ok: true, head: 'abcdef1234'.repeat(4), finger
 expect('一致：放行，并说明存的是哪次提交', [gateOk.state, gateOk.text.includes('abcdef12')], ['ok', true])
 
 // ② 一次保存请求的结果：ok 只认"状态成功 + 正文完整"，缺一不可（审查 P2）
-const unverifiedBody = { code: 'save-created-unverified', error: '版本 archify/x/20260101-000000 已经写上去了，但读回核对没做完：git 超时。请刷新页面看版本列表确认。' }
+const unverifiedBody = { code: 'save-created-unverified', error: '版本 specdev/x/20260101-000000 已经写上去了，但读回核对没做完：git 超时。请刷新页面看版本列表确认。' }
 const outcomeCases = [
   ['请求没有回应', { responded: false, ok: false, status: 0, body: null }, 'unknown'],
   ['状态成功但正文读不出来', { responded: true, ok: true, status: 200, body: null }, 'unknown'],
@@ -369,7 +384,7 @@ const outcomeCases = [
 for (const [label, input, kind] of outcomeCases) expect(`${label} → ${kind}`, saveOutcome(input).kind, kind)
 const unverified = saveOutcome({ responded: true, ok: false, status: 500, body: unverifiedBody })
 expect('"已写上、没核完"不许说成没能保存（并带上版本名）',
-  [unverified.text.includes('没能保存'), unverified.text.includes('archify/x/20260101-000000'), unverified.text.includes('不要急着重存')],
+  [unverified.text.includes('没能保存'), unverified.text.includes('specdev/x/20260101-000000'), unverified.text.includes('不要急着重存')],
   [false, true, true])
 expect('真没存上才说没能保存',
   saveOutcome({ responded: true, ok: false, status: 409, body: { error: '还有没提交的改动' } }).text, '没能保存：还有没提交的改动')
@@ -388,7 +403,7 @@ expect('阅读页含保存弹层与三处关闭控件、名称/阶段/说明字�
   readHtml.includes('name="saveStage"'), readHtml.includes('id="saveNote"'),
 ], Array(6).fill(true))
 expect('脚本接线齐全（先问检查、POST、失败说清楚、原地刷新）', [
-  readJs.includes('/api/snapshots?business='), readJs.includes("'/archify-manage/api/snapshots'"),
+  readJs.includes('/api/snapshots?business='), readJs.includes("'/specdev-workbench/api/snapshots'"),
   readJs.includes("method: 'POST'"), readJs.includes('这一版已经保存过'),
   readJs.includes('已保存，请刷新查看'), readJs.includes('renderVersions(data)'),
   readJs.includes('renderStatus(data'), readJs.includes('图名与摘要取自当前说明文件'),

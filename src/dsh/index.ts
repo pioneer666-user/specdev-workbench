@@ -16,9 +16,12 @@ import {
   loadEvidence,
   checkChartCommitted,
   saveChartSnapshot,
+  readBuildingBinding,
+  presentBuilding,
+  readRoomLayout,
 } from '../core/index.ts'
 
-export const name = 'specdev-archify-manage'
+export const name = 'specdev-workbench'
 // skills＝DSH 技能注册表（dsh-skill）、fs＝文件后端（dsh-fs-sandbox，读不受沙箱限制）、
 // connection＝宿主认证（dsh-client-connection 的 requestRejection：Host/Origin 栅栏＋会话 cookie），
 // 都是 dsh 基座必挂服务，与 webServer 同源，按必填注入——装载时即保证自查可用。
@@ -29,7 +32,7 @@ interface ManageConfig {
   repoRoot?: string
 }
 
-/** 从当前文件向上找最近的 package.json 所在目录：开发态=archify-manager/，安装态=包根。 */
+/** 从当前文件向上找最近的 package.json 所在目录：开发态=specdev-workbench/，安装态=包根。 */
 function findPackageRoot(): string {
   let dir = path.dirname(fileURLToPath(import.meta.url))
   while (true) {
@@ -48,6 +51,7 @@ const MIME: Record<string, string> = {
   '.json': 'application/json; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
   '.txt': 'text/plain; charset=utf-8',
 }
 
@@ -163,7 +167,7 @@ function repoNotConfigured(res: import('node:http').ServerResponse): void {
       // 勿写 - insert：insert 是新增条目，会与本包自带条目撞 id（duplicate loader entry）启动失败；
       // 同 id 不带 insert 才是覆盖。
       example: [
-        "- id: specdev-archify-manage",
+        "- id: specdev-workbench",
         "  config:",
         "    repoRoot: 'D:/你的/业务项目仓库'",
       ].join('\n'),
@@ -335,6 +339,16 @@ interface SkillRegistryLike {
   get: (name: string, options?: Record<string, unknown>) => Promise<{ name: string; content: string } | undefined>
 }
 
+/**
+ * 随包技能清单（`skills/<dir>/`）：插件安装目录不在 DSH 的技能扫描根里，靠运行时注册挂进全局层。
+ * `sample` 是各自的自查参考文件——三份技能的资源布局不同，读不到就说明该技能的参考文件没进包。
+ */
+export const BUNDLED_SKILLS = [
+  { dir: 'specdev-business', sample: 'references/specification.md' },
+  { dir: 'specdev-building', sample: 'references/blueprint-contract.md' },
+  { dir: 'specdev-room', sample: 'references/room-contract.md' },
+] as const
+
 /** fs 后端的结构类型：模型读取工具背后的服务（fs 沙箱只圈写，读不受限）。readText 吃 resolve 的返回对象。 */
 interface FsBackendLike {
   resolve: (path: string, options?: Record<string, unknown>) => Promise<{ targetKey: string; displayPath: string }>
@@ -377,13 +391,13 @@ async function selfCheckSkill(
   ctx: { skills?: SkillRegistryLike; fs?: FsBackendLike },
   expected: { name: string; content: string },
   skillDir: string,
+  sampleRel: string,
   log: (message: string) => void,
 ): Promise<void> {
   const registry = ctx.skills
   if (!registry) return
   const listed = (await registry.list()).some((skill) => skill.name === expected.name)
   const definition = await registry.get(expected.name)
-  const sampleRel = 'references/specification.md'
   let sample: string | undefined
   let sampleWhy = ''
   if (ctx.fs === undefined) sampleWhy = 'ctx.fs 不可用'
@@ -399,12 +413,12 @@ async function selfCheckSkill(
   const contentOk = definition !== undefined && definition.content === expected.content
   const sampleNote = sample === undefined ? `未通过（${sampleWhy}）` : `${sample.length} 字`
   log(
-    `技能自查：list ${listed ? '已见' : '未见'} ${expected.name}；`
+    `技能自查（${expected.name}）：list ${listed ? '已见' : '未见'}；`
     + `get 正文 ${definition === undefined ? '未取到' : `${definition.content.length} 字${contentOk ? '（与 SKILL.md 一致）' : '（与 SKILL.md 不一致）'}`}；`
     + `fs 读 ${sampleRel} ${sampleNote}`,
   )
   if (!listed || !contentOk || sample === undefined) {
-    log(`技能自查存在未过项（list=${listed} 正文=${contentOk} 参考文件=${sample !== undefined}）`)
+    log(`技能自查存在未过项（${expected.name}）：list=${listed} 正文=${contentOk} 参考文件=${sample !== undefined}`)
   }
 }
 
@@ -416,6 +430,7 @@ async function selfCheckSkill(
 export function registerBundledSkill(
   ctx: { skills?: SkillRegistryLike; fs?: FsBackendLike },
   skillDir: string,
+  sampleRel: string,
   log: (message: string) => void,
 ): boolean {
   let raw: string
@@ -434,17 +449,30 @@ export function registerBundledSkill(
     log(`随包技能注册跳过：ctx.skills 服务不可用（已解析 ${parsed.name}）`)
     return false
   }
-  ctx.skills.register({
-    name: parsed.name,
-    description: parsed.description,
-    content: parsed.content,
-    // source 必填：register() 只代补 invocation/provider，加载侧 validateDefinition 校验 source 必须是字符串。
-    source: 'runtime',
-    resourceBase: { kind: 'directory', path: skillDir },
-  })
+  // 注册接口会同步抛（重名、定义校验不过等）：按**单份**技能兜住，一份失败不作废其余技能，
+  // 也不让异常穿出 apply——否则调用方（apply 的循环、插件装载）会跟着断。
+  try {
+    const accepted = ctx.skills.register({
+      name: parsed.name,
+      description: parsed.description,
+      content: parsed.content,
+      // source 必填：register() 只代补 invocation/provider，加载侧 validateDefinition 校验 source 必须是字符串。
+      source: 'runtime',
+      resourceBase: { kind: 'directory', path: skillDir },
+    })
+    // 注册表契约是同步的；万一宿主返回 Promise，拒绝也要记账，不能变成未处理拒绝。
+    if (accepted !== null && typeof accepted === 'object' && typeof (accepted as PromiseLike<unknown>).then === 'function') {
+      void Promise.resolve(accepted).catch((error) => {
+        log(`随包技能 ${parsed.name} 注册失败：${String(error)}`)
+      })
+    }
+  } catch (error) {
+    log(`随包技能 ${parsed.name} 注册失败：${String(error)}`)
+    return false
+  }
   log(`技能 ${parsed.name} 已注册（source=runtime，resourceBase=${skillDir}）`)
-  void selfCheckSkill(ctx, parsed, skillDir, log).catch((error) => {
-    log(`技能自查失败：${String(error)}`)
+  void selfCheckSkill(ctx, parsed, skillDir, sampleRel, log).catch((error) => {
+    log(`技能 ${parsed.name} 自查失败：${String(error)}`)
   })
   return true
 }
@@ -462,7 +490,7 @@ export function apply(
 ): void {
   // 启动观测（验收后可降噪）：装载路径、repoRoot 是否进来了、路由是否注册成功。
   // 第二期起 repoRoot 只是"手动模式"兜底：带工作区标识的链接按请求查注册表，不在装载时定死。
-  console.error(`[archify-manage] apply 运行：repoRoot=${JSON.stringify(config?.repoRoot ?? '(缺省)')}（手动模式兜底；带 workspace 的链接按请求解析）`)
+  console.error(`[specdev-workbench] apply 运行：repoRoot=${JSON.stringify(config?.repoRoot ?? '(缺省)')}（手动模式兜底；带 workspace 的链接按请求解析）`)
   const manualRepoRoot = typeof config?.repoRoot === 'string' ? config.repoRoot.trim() : ''
   const packageRoot = findPackageRoot()
   const webRoot = path.join(packageRoot, 'web')
@@ -474,10 +502,10 @@ export function apply(
     workspaceRegistry: () => ctx.get('workspaceRegistry') as WorkspaceRegistryLike | undefined,
   }
 
-  // 路由前缀用 archify-manage：archify 是 Archify 渲染器（他人产物）的名字，加 -manage 区分。
+  // N2b：只注册统一的新 URL 前缀，宿主按精确前缀边界分派。
   const dispose = ctx.webServer.register({
     kind: 'prefix',
-    path: '/archify-manage',
+    path: '/specdev-workbench',
     async handler(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) {
       try {
         // 认证门在一切业务处理之前；拒绝时响应已写完，直接返回。
@@ -489,14 +517,17 @@ export function apply(
       }
     },
   })
-  console.error('[archify-manage] /archify-manage 前缀路由已注册（入口统一认证，fail-closed）')
+  console.error('[specdev-workbench] /specdev-workbench 前缀路由已注册（入口统一认证，fail-closed）')
   // effect 的回调在加载时执行、其返回值才是卸载时的清理函数——返回 dispose 本身，不要当场调用。
   ctx.effect(() => dispose, '流程图管理路由清理')
 
-  // 随包技能注册（1d 方案 A）：安装目录不在 DSH 技能扫描根里，靠运行时注册把 archify-maker
-  // 挂进注册表全局层；注册后自查取证（发现／正文／参考文件），日志与上面两行同风格。
-  const skillDir = path.join(packageRoot, 'skills', 'archify-maker')
-  registerBundledSkill(ctx, skillDir, (message) => console.error(`[archify-manage] ${message}`))
+  // 随包技能注册（1d 方案 A）：安装目录不在 DSH 技能扫描根里，靠运行时注册把随包技能
+  // （specdev-business 业务设计与维护、specdev-building 建筑布置、specdev-room 独立房间布置）挂进注册表全局层；注册后各自自查取证
+  // （发现／正文／该技能自己的参考文件），日志与上面两行同风格。
+  const log = (message: string) => console.error(`[specdev-workbench] ${message}`)
+  for (const skill of BUNDLED_SKILLS) {
+    registerBundledSkill(ctx, path.join(packageRoot, 'skills', skill.dir), skill.sample, log)
+  }
 }
 
 interface RouteContext {
@@ -509,7 +540,7 @@ interface RouteContext {
 }
 
 /**
- * 认证门：整个 /archify-manage 前缀在所有业务处理
+ * 认证门：整个 /specdev-workbench 前缀在所有业务处理
  * 之前统一过宿主 connection.requestRejection——先 Host/Origin 栅栏（403，防 DNS rebinding
  * 与跨站请求），再验宿主签名的会话 cookie（401）。判定与宿主自己的 RPC 通道同款
  * （deepseek-harness packages/client/connection/src/rpc-host.ts 的通道路由）。
@@ -561,7 +592,7 @@ async function handle(
   ctx: RouteContext,
 ): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://127.0.0.1')
-  const segments = url.pathname.split('/').filter((s) => s !== '') // ['archify-manage', ...]
+  const segments = url.pathname.split('/').filter((s) => s !== '') // ['specdev-workbench', ...]
   // 接口以只读为主（GET/HEAD）；只有两个 POST：
   //   /api/evidence —— 正文提交第一次响应（/api/chart）里的证据清单原文，消除"页面两次请求
   //     之间文件被保存，图与证据来自两个版本"的错配；只解析、不写任何文件。
@@ -578,6 +609,9 @@ async function handle(
   // 页面
   if (segments.length === 1) {
     if (await serveFile(res, ctx.webRoot, 'index.html')) return
+  } else if (segments.length === 2 && segments[1] === 'workspaces') {
+    // 独立项目选择页不先绑定仓库，沿用入口认证与 GET/HEAD 守卫。
+    if (await serveFile(res, ctx.webRoot, 'workspaces.html')) return
   } else if (segments.length === 2 && segments[1] === 'business') {
     if (await serveFile(res, ctx.webRoot, 'business.html')) return
   } else if (segments.length === 3 && segments[1] === 'business' && ID_PATTERN.test(segments[2])) {
@@ -585,8 +619,20 @@ async function handle(
   } else if (segments.length === 2 && segments[1] === 'showcase') {
     // 项目级业务展示页：列表／星图／球阵三格式，页面自己读 inventory 装配。
     if (await serveFile(res, ctx.webRoot, 'showcase.html')) return
+  } else if (segments.length === 2 && segments[1] === 'building') {
+    // 建筑总览页：Three.js 消费 /api/building 的模型与建造表现（几何全在服务端算好）。
+    if (await serveFile(res, ctx.webRoot, 'building.html')) return
   } else if (segments.length >= 3 && segments[1] === 'read') {
     if (await serveFile(res, ctx.webRoot, 'read.html')) return
+  } else if (segments.length === 3 && segments[1] === 'room' && ID_PATTERN.test(segments[2])) {
+    // 独立业务房间页（P1b-2）：/specdev-workbench/room/<合法业务ID> 由本前缀统一认证；
+    // 页面自己调 /api/room 取配置，本路由只发页面文件。非法 ID 不命中，落 404。
+    if (await serveFile(res, ctx.webRoot, 'room.html')) return
+  } else if (segments.length === 2 && segments[1] === 'furniture') {
+    // 家具图鉴页（E9b）：随包共用家具库的看图挑选页，只读静态资源（catalog 与缩略图走
+    // 下方 assets 分支），不按业务过滤、不请求 inventory 或 /api/room；仍经本前缀统一
+    // 认证与方法守卫。额外子路径不命中，落 404。
+    if (await serveFile(res, ctx.webRoot, 'furniture.html')) return
   }
 
   // 静态资产：页面自身资源与 vendor 渲染器副本
@@ -612,7 +658,7 @@ async function handleApi(
   res: import('node:http').ServerResponse,
   ctx: RouteContext,
 ): Promise<void> {
-  const api = url.pathname.split('/').filter((s) => s !== '')[2] // /archify-manage/api/<name>
+  const api = url.pathname.split('/').filter((s) => s !== '')[2] // /specdev-workbench/api/<name>
   const q = url.searchParams
 
   // 工作区清单（第 4 步·入口 B）：侧栏按钮点开后供挑选工作区，不绑定任何业务目录，
@@ -670,6 +716,32 @@ async function dispatchApi(
 
   if (api === 'inventory') {
     sendJson(res, 200, { ...(await readInventory(root)), repo: ctx.repo })
+    return
+  }
+
+  if (api === 'building') {
+    // 建筑蓝图绑定核对与模型生成：清单是内容依据、蓝图是空间安排。
+    // 核对结果（含问题清单）是有效响应回 200；清单/蓝图读不了才走 CoreError。
+    // view=frame|preview 时附建造表现（parts/colliders/surfaces）：frame 按当前建造阶段
+    // 给设计框架，preview 给完整外观预览——两者的区别在 presentBuilding，页面不重复实现。
+    const binding = await readBuildingBinding(root)
+    const view = q.get('view')
+    let present: ReturnType<typeof presentBuilding> | undefined
+    if (binding.ok && binding.model && (view === 'frame' || view === 'preview')) {
+      present = presentBuilding(binding.model, { preview: view === 'preview' })
+    }
+    sendJson(res, 200, { ...binding, repo: ctx.repo, ...(present !== undefined ? { present } : {}) })
+    return
+  }
+
+  if (api === 'room') {
+    // 独立业务房间的配置读取（P1b-1）：配置固定在该业务约定目录下的 room.json，
+    // business 必填；workspace 缺省、认证与方法守卫沿用本入口既有行为。
+    // 200 只表示配置已读取且归属/顶层结构有效——家具布置是否可渲染由页面把 layout
+    // 交给 rooms/placement.js 校验（先校验再渲染）；本接口不返回 ok:true、不伪造装配结果。
+    const business = requireId(res, q.get('business'), 'business')
+    if (!business) return
+    sendJson(res, 200, { ...(await readRoomLayout(root, business)), repo: ctx.repo })
     return
   }
 

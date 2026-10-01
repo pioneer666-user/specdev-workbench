@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>流程图管理 · 项目首页</title>
-<script src="/archify-manage/assets/theme.js"></script>
-<link rel="stylesheet" href="/archify-manage/assets/style.css">
+<title>项目首页 · SpecDev 工作台</title>
+<script src="/specdev-workbench/assets/theme.js"></script>
+<link rel="stylesheet" href="/specdev-workbench/assets/style.css">
 </head>
 <body class="home-page">
 <a class="skip-link" href="#main">跳到主要内容</a>
 <header class="app-bar">
-  <a class="brand" data-home-link href="/archify-manage/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">流程图工作台</span></span></a>
+  <a class="brand" data-home-link href="/specdev-workbench/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">工作台</span></span></a>
   <div class="theme-switch" role="group" aria-label="页面主题">
     <button type="button" data-theme-choice="light" aria-pressed="false"><span aria-hidden="true">☼</span> 浅色</button>
     <button type="button" data-theme-choice="dark" aria-pressed="true"><span aria-hidden="true">☾</span> 深色</button>
@@ -22,7 +22,7 @@
       <p class="eyebrow"><span class="eyebrow-line"></span> 项目总览</p>
       <h1 id="projectName">你的业务，<br>在这里清晰展开。</h1>
       <p id="projectDesc" class="hero-description">从业务出发，阅读流程、理解实现，回看每一个版本。</p>
-      <div class="hero-actions" id="heroActions" hidden><a href="#businesses" class="primary-link">浏览业务 <span aria-hidden="true">↗</span></a><span class="hero-hint">从一张图，进入项目</span></div>
+      <div class="hero-actions" id="heroActions" hidden><a id="buildingLink" class="primary-link primary-link-lead" data-ws-link="/specdev-workbench/building" hidden>走进建筑 <span aria-hidden="true">↗</span></a><a href="#businesses" class="secondary-link">浏览业务</a><span class="hero-hint">从一张图，进入项目</span></div>
       <details class="workspace-details" id="workspaceDetails" hidden><summary id="workspaceLabel">当前工作区</summary><p id="repoLine"></p></details>
     </div>
     <div class="hero-art" aria-hidden="true">
@@ -45,13 +45,13 @@
     <div class="metric-note"><span class="metric-label">阅读路径</span><p>业务 <span>→</span> 流程 <span>→</span> 实现</p><span class="metric-unit">让项目上下文有迹可循</span></div>
   </section>
   <section id="businesses" class="business-section" aria-labelledby="businessHeading">
-    <div class="section-heading"><div><p class="eyebrow">探索项目</p><h2 id="businessHeading">业务入口</h2></div><div class="heading-side"><a id="showcaseLink" class="showcase-link" href="/archify-manage/showcase" data-ws-link="/archify-manage/showcase" hidden>业务展示 ↗</a><p id="status" class="status" data-kind="info" role="status">正在读取项目清单…</p></div></div>
+    <div class="section-heading"><div><p class="eyebrow">探索项目</p><h2 id="businessHeading">业务入口</h2></div><div class="heading-side"><a id="showcaseLink" class="showcase-link" href="/specdev-workbench/showcase" data-ws-link="/specdev-workbench/showcase" hidden>业务展示 ↗</a><p id="status" class="status" data-kind="info" role="status">正在读取项目清单…</p></div></div>
     <p id="errorBox" class="error" role="alert" hidden></p>
     <section id="guideBox" class="guide" hidden></section>
     <div id="root" class="cards home-cards" aria-busy="true"><p class="loading-copy">正在整理业务入口…</p></div>
   </section>
   <footer class="home-footer"><span>SpecDev · 让业务逻辑清晰可读</span><span>业务 / 流程 / 版本</span></footer>
 </main>
-<script type="module" src="/archify-manage/assets/home.js"></script>
+<script type="module" src="/specdev-workbench/assets/home.js"></script>
 </body>
 </html>

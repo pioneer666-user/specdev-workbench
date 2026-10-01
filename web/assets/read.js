@@ -30,14 +30,15 @@ import { describeSource, displayError, evidenceSummary, formatCodeBlock } from '
 import { stripExternalFonts } from './template.js'
 import { connectChartSelection } from './chart-link.js'
 import { loadDetailEvidence, renderNodeDetail } from './node-detail.js'
+import { forwardEscapeToHost } from './panel-link.js'
 // 保存弹层的两条状态规则（自查放行与否、请求结果怎么算）；摘要在那个模块里保管，见文件头注释
 import { rememberShown, shownFingerprint, saveGate, saveOutcome } from './save-result.js'
 // process 垫片必须先于编译器求值（Archify 模块顶层读 process.env；浏览器里没有 process）。
-import '/archify-manage/vendor/shims/process.mjs'
+import '/specdev-workbench/vendor/shims/process.mjs'
 
-const COMPILER_URL = '/archify-manage/vendor/archify/renderers/workflow/workflow-compiler.mjs'
-const UTILS_URL = '/archify-manage/vendor/archify/renderers/shared/utils.mjs'
-const TEMPLATE_URL = '/archify-manage/vendor/archify/assets/template.html'
+const COMPILER_URL = '/specdev-workbench/vendor/archify/renderers/workflow/workflow-compiler.mjs'
+const UTILS_URL = '/specdev-workbench/vendor/archify/renderers/shared/utils.mjs'
+const TEMPLATE_URL = '/specdev-workbench/vendor/archify/assets/template.html'
 
 // 图里当前选中的那个步骤（恰好一个才算选中）：状态条与详情弹层共用同一份，未选中为 null。
 // 它只是"记着当前是谁"，节点清单与说明正文都取本次已加载的版本，点开详情不再取文件。
@@ -96,6 +97,11 @@ async function renderChart(workflowText, host, chartName) {
   frame.className = 'chart-frame'
   frame.title = `${meta.title || chartName} 交互图`
   frame.src = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+  // 图是同一来源的 blob：点进图里之后焦点落在那份文档，键盘一样到不了外层，
+  // 所以那份文档也转发一次"关掉资料面板"的 ESC（图每次重渲染换一份文档，跟着 load 重新接）。
+  frame.addEventListener('load', () => {
+    if (frame.contentDocument) forwardEscapeToHost(window, frame.contentDocument)
+  })
   host.replaceChildren(frame)
   return { kb: (result.svg.length / 1024).toFixed(1), ms, frame }
 }
@@ -334,7 +340,7 @@ function renderDetailsPanel(version, doc) {
  * 证据为空是如实说明，不算错误；接口失败也只影响本面板，不拖垮整页。
  */
 async function renderEvidencePanel(version, onReady) {
-  const state = await loadDetailEvidence(version, text => postJson(wsUrl('/archify-manage/api/evidence'), text))
+  const state = await loadDetailEvidence(version, text => postJson(wsUrl('/specdev-workbench/api/evidence'), text))
   const host = $('evidencePanel')
   host.replaceChildren()
   const heading = el('h2')
@@ -386,20 +392,20 @@ function evidenceBlock(ref) {
 }
 
 function parseLocation() {
-  const parts = location.pathname.split('/').filter(Boolean) // ['archify-manage','read','<biz>','<chart>']
+  const parts = location.pathname.split('/').filter(Boolean) // ['specdev-workbench','read','<biz>','<chart>']
   return { business: parts[2] || '', chart: parts[3] || '', v: new URLSearchParams(location.search).get('v') || 'current' }
 }
 
 async function main() {
   const { business, chart, v } = parseLocation()
-  if (!business || !chart) return showError('路径应为 /archify-manage/read/<业务id>/<图id>')
+  if (!business || !chart) return showError('路径应为 /specdev-workbench/read/<业务id>/<图id>')
   if (workspaceParamEmpty) return renderEmptyWorkspaceParam()
   // "业务"面包屑在取数开始前就绑好业务段与工作区标识：
   // 图不存在、工作区失效或请求失败时它也不再是裸地址，错误页上点它仍回到本工作区的业务页。
-  $('bizLink').href = wsUrl(`/archify-manage/business/${business}`)
+  $('bizLink').href = wsUrl(`/specdev-workbench/business/${business}`)
   let data
   try {
-    data = await fetchJson(wsUrl(`/archify-manage/api/chart?business=${encodeURIComponent(business)}&chart=${encodeURIComponent(chart)}&v=${encodeURIComponent(v)}`))
+    data = await fetchJson(wsUrl(`/specdev-workbench/api/chart?business=${encodeURIComponent(business)}&chart=${encodeURIComponent(chart)}&v=${encodeURIComponent(v)}`))
   } catch (error) {
     if (renderRepoState(error)) return
     return showError(error.message)
@@ -408,7 +414,7 @@ async function main() {
 
   document.title = pageTitle(data.chart.name, data.repo)
   $('bizLink').textContent = data.business.name
-  $('bizLink').href = wsUrl(`/archify-manage/business/${business}`)
+  $('bizLink').href = wsUrl(`/specdev-workbench/business/${business}`)
   $('chartName').textContent = data.chart.name
   $('title').textContent = data.chart.name
   if (data.chart.summary) $('summary').textContent = data.chart.summary
@@ -485,6 +491,9 @@ async function main() {
     if (event.clientX < rect.left || event.clientX > rect.right
       || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close()
   })
+  // 本页被装进资料面板（iframe）时，焦点在本文档里，父页收不到按键：没有自己的弹层
+  // 要关的 ESC 由阅读页转给宿主页去关面板；顶层标签页里打开本页时它什么也不做。
+  // 注意安装位置见文件末尾：要装在 main() 的早退分支之前（见那里的说明）。
   renderDetailsPanel(data.version, details)
   // 证据解析不阻塞版本条：先发出去（正文带的就是本页 data 里那份清单原文），版本条立起来、
   // 状态栏报完再等它——证据慢只慢证据面板
@@ -535,7 +544,7 @@ function renderVersions(data) {
     current.textContent = `当前（工作区）${statusSuffix(data)}`
     current.title = data.compareError || '回到当前工作区内容'
     current.addEventListener('click', () => {
-      location.assign(wsUrl(`/archify-manage/read/${business}/${chart}?v=current`))
+      location.assign(wsUrl(`/specdev-workbench/read/${business}/${chart}?v=current`))
     })
     versions.appendChild(current)
   }
@@ -545,7 +554,7 @@ function renderVersions(data) {
     button.title = [snapshot.tag, snapshot.meta.note].filter(Boolean).join(' · ')
     if (snapshot.tag === v) button.setAttribute('aria-current', 'true')
     button.addEventListener('click', () => {
-      location.assign(wsUrl(`/archify-manage/read/${business}/${chart}?v=${encodeURIComponent(snapshot.tag)}`))
+      location.assign(wsUrl(`/specdev-workbench/read/${business}/${chart}?v=${encodeURIComponent(snapshot.tag)}`))
     })
     versions.appendChild(button)
   }
@@ -608,7 +617,7 @@ async function openSaveDialog() {
 
   let check
   try {
-    check = await fetchJson(wsUrl(`/archify-manage/api/snapshots?business=${encodeURIComponent(business)}&chart=${encodeURIComponent(chart)}`))
+    check = await fetchJson(wsUrl(`/specdev-workbench/api/snapshots?business=${encodeURIComponent(business)}&chart=${encodeURIComponent(chart)}`))
   } catch (error) {
     check = { failed: error.message } // 请求没回来：交给 saveGate 归为"没能检查"
   }
@@ -663,7 +672,7 @@ async function submitSave() {
   let status = 0
   let body = null
   try {
-    const response = await fetch(wsUrl('/archify-manage/api/snapshots'), {
+    const response = await fetch(wsUrl('/specdev-workbench/api/snapshots'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -714,7 +723,7 @@ async function refreshBar(prefix = '') {
   const { business, chart, v } = pageState
   let data
   try {
-    data = await fetchJson(wsUrl(`/archify-manage/api/chart?business=${encodeURIComponent(business)}&chart=${encodeURIComponent(chart)}&v=${encodeURIComponent(v)}`))
+    data = await fetchJson(wsUrl(`/specdev-workbench/api/chart?business=${encodeURIComponent(business)}&chart=${encodeURIComponent(chart)}&v=${encodeURIComponent(v)}`))
   } catch {
     return false
   }
@@ -730,4 +739,8 @@ async function refreshAfterSave(label, alreadySaved) {
   if (!(await refreshBar(`${note}。`))) setStatus(`${note}，但版本条没能刷新：已保存，请刷新查看。`, 'warn')
 }
 
+// 本页嵌在资料面板里时，把"关掉面板"的 ESC 转给宿主页（顶层标签页里什么也不做）。
+// 装在 main() 之前而不是 main 里面：路径不对、工作区标识为空、取图失败这些分支都会提前返回，
+// 但用户看到的仍是这个阅读页——读不到图的时候，ESC 照样该能关掉外面的资料面板。
+forwardEscapeToHost(window, document)
 main()

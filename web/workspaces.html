@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>选择项目 · SpecDev 工作台</title>
+<script src="/specdev-workbench/assets/theme.js"></script>
+<link rel="stylesheet" href="/specdev-workbench/assets/style.css">
+<link rel="stylesheet" href="/specdev-workbench/assets/workspaces.css">
+</head>
+<body class="workspaces-page">
+<a class="skip-link" href="#main">跳到主要内容</a>
+<header class="app-bar">
+  <a class="brand" href="/specdev-workbench/workspaces"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">工作台</span></span></a>
+  <div class="theme-switch" role="group" aria-label="页面主题">
+    <button type="button" data-theme-choice="light" aria-pressed="false">☼ 浅色</button>
+    <button type="button" data-theme-choice="dark" aria-pressed="true">☾ 深色</button>
+  </div>
+</header>
+<main id="main" class="workspaces-main">
+  <h1>选择项目</h1>
+  <p class="workspaces-intro">选择一个 DSH 工作区，进入 SpecDev 工作台</p>
+  <p id="workspaceStatus" role="status">正在读取项目清单…</p>
+  <p id="workspaceError" class="error" role="alert" hidden></p>
+  <ul id="workspaceList" class="workspace-list" aria-label="项目清单" aria-busy="true"></ul>
+  <p id="workspaceEmpty" hidden>还没有工作区，请先回 DSH 创建工作区，再刷新此页。</p>
+  <button id="workspaceRetry" type="button" hidden>重试</button>
+  <p id="workspaceFallback" hidden><a href="/specdev-workbench/">打开手动配置入口</a></p>
+</main>
+<script src="/specdev-workbench/assets/workspaces.js" defer></script>
+</body>
+</html>

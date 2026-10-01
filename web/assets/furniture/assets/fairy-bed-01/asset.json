@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "assetVersion": 1,
+  "status": "internal",
+  "assetId": "fairy-bed-01",
+  "name": "林间蜂蜜木床",
+  "category": "bed",
+  "description": "蜂蜜木圆润床头与较低床尾，四脚支承床框及承托板，奶油厚床垫、双枕与低饱和青绿折被。宽1.50、深2.20、高不超过1.10米；+Z为床尾，接近位在床尾。仅地面静态休憩家具，无坐卧动作，不提供承载面。",
+  "styleIds": [
+    "fairy"
+  ],
+  "modelRef": "fairy-bed-01",
+  "previewRef": "assets/fairy-bed-01/preview.webp",
+  "placeholder": false,
+  "bounds": {
+    "minX": -0.75,
+    "maxX": 0.75,
+    "minY": 0,
+    "maxY": 1.1,
+    "minZ": -1.1,
+    "maxZ": 1.1
+  },
+  "placement": {
+    "allowedKinds": [
+      "floor"
+    ],
+    "allowedYawDeg": [
+      0,
+      90,
+      180,
+      270
+    ]
+  },
+  "clearanceBoxes": [
+    {
+      "name": "正面接近操作区",
+      "bounds": {
+        "minX": -0.8,
+        "maxX": 0.8,
+        "minY": 0,
+        "maxY": 1.9,
+        "minZ": 1.1,
+        "maxZ": 2.1
+      }
+    }
+  ],
+  "approachPoint": {
+    "x": 0,
+    "z": 1.65
+  },
+  "surfaces": [],
+  "capabilities": [],
+  "recommendations": {
+    "note": "适合温暖阅读休憩房，与蜂蜜木书桌、书架、奶油布料及暖白陶瓷搭配；风格只是软推荐，混搭允许，摆放以空间和类别校验为准。"
+  },
+  "source": {
+    "origin": "自制",
+    "license": "MIT",
+    "note": "自制Three.js程序化实体几何，无外部模型或贴图；有木面者使用固定种子DataTexture。"
+  }
+}

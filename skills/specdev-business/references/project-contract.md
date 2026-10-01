@@ -4,11 +4,11 @@
 
 ## 1. 目录总览与路径基准
 
-插件只认一种组织方式（约定根 `docs/archify/`，业务仓库根相对）：
+插件只认一种组织方式（约定根 `docs/specdev/`，业务仓库根相对）：
 
 ```text
 <业务仓库>/
-  docs/archify/
+  docs/specdev/
     project.json                        # 项目（整仓一份）
     <业务id>/business.json              # 业务（每业务一份）
     <业务id>/<图id>/chart.json          # 图说明（每图一份）
@@ -18,10 +18,10 @@
   docs/…、src/…                         # 业务文档与源码留在原位，只引用不搬动
 ```
 
-- **路径基准**：business.json 里 `docs` 数组、evidence.json 里 `path`，一律写**业务仓库根相对路径**（正斜杠分隔），不是相对 `docs/archify/`，也不写盘符绝对路径。
+- **路径基准**：business.json 里 `docs` 数组、evidence.json 里 `path`，一律写**业务仓库根相对路径**（正斜杠分隔），不是相对 `docs/specdev/`，也不写盘符绝对路径。
 - **id 即目录名**：业务 id、图 id 就是各自的目录名；插件按目录遍历，说明文件里的 `id` 与目录名不一致会直接标记说明文件问题。
 - **业务 id 与图 id 的硬限制**：必须匹配 `^[A-Za-z0-9][A-Za-z0-9._-]*$`（字母或数字开头，其余只能是字母、数字、点、下划线、连字符）——这是管理页路由与 API 的统一校验（`src/dsh/index.ts` 的 `ID_PATTERN`）。说明文件字段检查只看 id＝目录名，**id 不合规的业务/图照样进不去页面、调不了 API**：目录名用中文，即使说明文件全对也访问不了。
-- **命名建议（硬限制之内从严）**：沿用 workflow 节点 id 的风格——字母开头，可含数字、下划线、连字符，不用点，不写中文、空格、斜杠。快照标签名形如 `archify/<图编号>/<版本标识>`，图 id 会进标签名，保持朴素少踩坑。
+- **命名建议（硬限制之内从严）**：沿用 workflow 节点 id 的风格——字母开头，可含数字、下划线、连字符，不用点，不写中文、空格、斜杠。快照标签名形如 `specdev/<图编号>/<版本标识>`，图 id 会进标签名，保持朴素少踩坑。
 - **图编号全项目唯一**：跨业务也不允许重复。重复时两边都标记编号冲突、该图阅读停用——历史快照按图编号归组，重了分不清归属。
 
 ## 2. 六类文件逐个约定
@@ -32,14 +32,14 @@
 
 ```json
 {
-  "schema": "specdev-archify/project/1",
+  "schema": "specdev/project/1",
   "name": "示例项目名"
 }
 ```
 
 | 字段 | 必填 | 含义 |
 |---|---|---|
-| `schema` | 是 | 固定 `"specdev-archify/project/1"`，一字不差 |
+| `schema` | 是 | 固定 `"specdev/project/1"`，一字不差 |
 | `name` | 是 | 项目显示名（首页标题），非空 |
 | `description` | 否 | 项目一句话说明 |
 
@@ -49,7 +49,7 @@
 
 ```json
 {
-  "schema": "specdev-archify/business/1",
+  "schema": "specdev/business/1",
   "id": "activity-registration",
   "name": "活动报名",
   "intro": "一句话业务介绍。",
@@ -59,7 +59,7 @@
 
 | 字段 | 必填 | 含义 |
 |---|---|---|
-| `schema` | 是 | 固定 `"specdev-archify/business/1"` |
+| `schema` | 是 | 固定 `"specdev/business/1"` |
 | `id` | 是 | 业务 id，**必须与目录名一致** |
 | `name` | 是 | 业务显示名，非空 |
 | `intro` | 否 | 业务介绍（业务页展示） |
@@ -75,7 +75,7 @@
 
 ```json
 {
-  "schema": "specdev-archify/chart/1",
+  "schema": "specdev/chart/1",
   "id": "submit-review",
   "name": "提交复核流程",
   "summary": "一句话图摘要。"
@@ -84,7 +84,7 @@
 
 | 字段 | 必填 | 含义 |
 |---|---|---|
-| `schema` | 是 | 固定 `"specdev-archify/chart/1"` |
+| `schema` | 是 | 固定 `"specdev/chart/1"` |
 | `id` | 是 | 图编号，**必须与目录名一致，且全项目唯一** |
 | `name` | 是 | 图显示名（业务页图列表、阅读页标题） |
 | `summary` | 否 | 图摘要（图列表展示） |
@@ -138,7 +138,7 @@
 
 ```json
 {
-  "schema": "specdev-archify/evidence/1",
+  "schema": "specdev/evidence/1",
   "refs": []
 }
 ```
@@ -147,7 +147,7 @@
 
 ```json
 {
-  "schema": "specdev-archify/evidence/1",
+  "schema": "specdev/evidence/1",
   "refs": [
     {
       "id": "eligibility-core",
@@ -184,7 +184,7 @@
 | # | 检查项 | 怎么查 |
 |---|---|---|
 | 1 | 六类文件格式 | JSON 都能解析；三个说明文件 `schema` 一字不差、必填字段非空、`id` 与目录名一致；workflow.json 过 workflow.md §4 校验（showcase 五判据全过） |
-| 2 | 图编号全项目唯一 | 扫全部 `docs/archify/<业务id>/` 下的图目录名，新图编号不与任何现有图重复 |
+| 2 | 图编号全项目唯一 | 扫全部 `docs/specdev/<业务id>/` 下的图目录名，新图编号不与任何现有图重复 |
 | 3 | 文档路径有效 | business.json `docs` 每条：仓库根相对、正斜杠、文件在工作区确实存在 |
 | 4 | 详情节与节点 ID 对应 | details.md 每个 `## ` 节的 id 都在 workflow.json `nodes[].id` 里；无中文标题、无多节同 id；**分节覆盖图上全部节点**——插件容忍漏写（显示"没写说明"）只是读取降级，交付不得留漏：能补齐的当场补齐，业务文档没写依据的列为待裁决问题，不默认放过 |
 | 5 | 规则及分支出处 | 每个节点的职责、条件、先后、失败后果都能指回业务文档；文档没定义的分支已列为待裁决问题，没在图里替业务定规则 |
@@ -201,8 +201,8 @@
 
 | 来源 | 取用点 |
 |---|---|
-| `archify-manager/README.md`（D2 节、页面与 API、快照五项校验） | 目录结构、图名不随版本回退、docs 只读声明路径 |
-| `archify-manager/sample/generate.mjs` + `sample/data/` | 六类文件合法样本形状、details 分节写法、证据引用条目 |
+| `specdev-workbench/README.md`（D2 节、页面与 API、快照五项校验） | 目录结构、图名不随版本回退、docs 只读声明路径 |
+| `specdev-workbench/sample/generate.mjs` + `sample/data/` | 六类文件合法样本形状、details 分节写法、证据引用条目 |
 | `skills/archify-reader/SKILL.md`《详情内容规范》 | §2.5 写作约束八条（摘取适配，见下） |
 | `src/core/types.ts`、`chart-files.ts`、`evidence.ts`、`inventory.ts`、`src/dsh/index.ts`（doc 路由）、`web/assets/details.js` | 字段校验、三文件清单、证据硬规则、编号冲突、分节解析（均只读核对，未改插件） |
 

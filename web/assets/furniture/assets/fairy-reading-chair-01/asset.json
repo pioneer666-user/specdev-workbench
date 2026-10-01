@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "assetVersion": 1,
+  "status": "internal",
+  "assetId": "fairy-reading-chair-01",
+  "name": "林间软垫阅读椅",
+  "category": "chair",
+  "description": "紧凑蜂蜜木扶手椅，四脚、座框和背支承连接厚奶油坐垫与靠垫，两侧圆润扶手。宽0.72、深0.60、高不超过0.95米；+Z为座前。仅地面静态家具，不支持坐下，不提供承载面。",
+  "styleIds": [
+    "fairy"
+  ],
+  "modelRef": "fairy-reading-chair-01",
+  "previewRef": "assets/fairy-reading-chair-01/preview.webp",
+  "placeholder": false,
+  "bounds": {
+    "minX": -0.36,
+    "maxX": 0.36,
+    "minY": 0,
+    "maxY": 0.95,
+    "minZ": -0.3,
+    "maxZ": 0.3
+  },
+  "placement": {
+    "allowedKinds": [
+      "floor"
+    ],
+    "allowedYawDeg": [
+      0,
+      90,
+      180,
+      270
+    ]
+  },
+  "clearanceBoxes": [
+    {
+      "name": "正面接近操作区",
+      "bounds": {
+        "minX": -0.45,
+        "maxX": 0.45,
+        "minY": 0,
+        "maxY": 1.9,
+        "minZ": 0.3,
+        "maxZ": 1.3
+      }
+    }
+  ],
+  "approachPoint": {
+    "x": 0,
+    "z": 0.9
+  },
+  "surfaces": [],
+  "capabilities": [],
+  "recommendations": {
+    "note": "适合温暖阅读休憩房，与蜂蜜木书桌、书架、奶油布料及暖白陶瓷搭配；风格只是软推荐，混搭允许，摆放以空间和类别校验为准。"
+  },
+  "source": {
+    "origin": "自制",
+    "license": "MIT",
+    "note": "自制Three.js程序化实体几何，无外部模型或贴图；有木面者使用固定种子DataTexture。"
+  }
+}

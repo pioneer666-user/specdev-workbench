@@ -3,21 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>业务 · 流程图管理</title>
-<script src="/archify-manage/assets/theme.js"></script>
-<link rel="stylesheet" href="/archify-manage/assets/style.css">
+<title>业务 · SpecDev 工作台</title>
+<script src="/specdev-workbench/assets/theme.js"></script>
+<link rel="stylesheet" href="/specdev-workbench/assets/style.css">
 </head>
 <body class="business-page">
 <header class="app-bar">
-  <a class="brand" data-home-link href="/archify-manage/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">流程图工作台</span></span></a>
+  <a class="brand" data-home-link href="/specdev-workbench/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">工作台</span></span></a>
   <div class="theme-switch" role="group" aria-label="页面主题"><button type="button" data-theme-choice="light" aria-pressed="false"><span aria-hidden="true">☼</span> 浅色</button><button type="button" data-theme-choice="dark" aria-pressed="true"><span aria-hidden="true">☾</span> 深色</button></div>
 </header>
 <div class="page-content">
 <header class="top">
   <div>
-    <p class="crumbs"><a href="/archify-manage/">项目首页</a> / <span id="bizName">…</span></p>
+    <p class="crumbs"><a href="/specdev-workbench/">项目首页</a> / <span id="bizName">…</span></p>
     <h1 id="title">业务</h1>
     <p class="sub" id="intro"></p>
+    <!-- P1b-2：独立业务房间入口。初始隐藏；business.js 读到当前业务且说明文件有效后才显示。
+         不为它预读房间接口：没有 room.json 时由房间页给出明确空态。
+         E9b：同一行增加「家具图鉴」入口（随业务有效显示，同样不预读房间接口）；
+         新标签打开并保留本页，workspace 由 common.js 经 data-ws-link 补全。 -->
+    <p class="room-entry-line" id="roomEntryLine" hidden><a id="roomEntry" class="room-entry-link" href="/specdev-workbench/room">进入房间 ↗</a> <a id="furnitureEntry" class="room-entry-link" data-ws-link="/specdev-workbench/furniture" href="/specdev-workbench/furniture" target="_blank" rel="noopener">家具图鉴 ↗</a></p>
     <!-- 第二期第 2 步：工作区模式显示"工作区：名称（路径）"，手动配置模式注明（由 business.js 填充）。
          长路径不再直接铺开行内断词，与首页一样折进可展开块（common.js renderRepoLine 填充）。 -->
     <details class="workspace-details" id="workspaceDetails" hidden><summary id="workspaceLabel">工作区</summary><p id="repoLine"></p></details>
@@ -33,6 +38,6 @@
 </section>
 <main id="root" class="cards"></main>
 </div>
-<script type="module" src="/archify-manage/assets/business.js"></script>
+<script type="module" src="/specdev-workbench/assets/business.js"></script>
 </body>
 </html>

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "roomId": "sample-intro-room",
+  "businessId": "sample-business",
+  "templateRef": "room-ceramic-01",
+  "instances": [
+    { "instanceId": "intro-bookshelf", "assetId": "fairy-bookshelf-01", "placement": { "kind": "floor", "zoneId": "floor-main", "x": -3, "z": 2.4, "yawDeg": 180 } },
+    { "instanceId": "intro-desk", "assetId": "fairy-desk-01", "placement": { "kind": "floor", "zoneId": "floor-main", "x": -1, "z": 0.4, "yawDeg": 0 } },
+    { "instanceId": "intro-lamp", "assetId": "fairy-table-lamp-01", "placement": { "kind": "surface", "parentInstanceId": "intro-desk", "surfaceId": "desktop", "offsetX": -0.4, "offsetZ": 0, "yawDeg": 0 } }
+  ],
+  "bindings": [
+    { "instanceId": "intro-bookshelf", "action": "open-document-collection", "documents": ["docs/项目介绍.md"] }
+  ]
+}

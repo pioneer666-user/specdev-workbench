@@ -3,36 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>图阅读 · 流程图管理</title>
-<script src="/archify-manage/assets/theme.js"></script>
-<link rel="stylesheet" href="/archify-manage/assets/style.css">
+<title>图阅读 · SpecDev 工作台</title>
+<script src="/specdev-workbench/assets/theme.js"></script>
+<link rel="stylesheet" href="/specdev-workbench/assets/style.css">
 <!-- 把渲染器用到的 node: 内置模块映射到随包替身（vendor/archify-renderer/stubs/）。
      编译路径不该真调用它们；一旦被调用，替身抛错暴露。 -->
 <script type="importmap">
 {
   "imports": {
-    "node:fs": "/archify-manage/vendor/stubs/fs.mjs",
-    "node:path": "/archify-manage/vendor/stubs/path.mjs",
-    "node:url": "/archify-manage/vendor/stubs/url.mjs",
-    "node:crypto": "/archify-manage/vendor/stubs/crypto.mjs",
-    "node:http": "/archify-manage/vendor/stubs/http.mjs",
-    "node:https": "/archify-manage/vendor/stubs/https.mjs",
-    "node:net": "/archify-manage/vendor/stubs/net.mjs",
-    "node:dns/promises": "/archify-manage/vendor/stubs/dns-promises.mjs",
-    "node:child_process": "/archify-manage/vendor/stubs/child_process.mjs"
+    "node:fs": "/specdev-workbench/vendor/stubs/fs.mjs",
+    "node:path": "/specdev-workbench/vendor/stubs/path.mjs",
+    "node:url": "/specdev-workbench/vendor/stubs/url.mjs",
+    "node:crypto": "/specdev-workbench/vendor/stubs/crypto.mjs",
+    "node:http": "/specdev-workbench/vendor/stubs/http.mjs",
+    "node:https": "/specdev-workbench/vendor/stubs/https.mjs",
+    "node:net": "/specdev-workbench/vendor/stubs/net.mjs",
+    "node:dns/promises": "/specdev-workbench/vendor/stubs/dns-promises.mjs",
+    "node:child_process": "/specdev-workbench/vendor/stubs/child_process.mjs"
   }
 }
 </script>
 </head>
 <body class="read-page">
 <header class="app-bar">
-  <a class="brand" data-home-link href="/archify-manage/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">流程图工作台</span></span></a>
+  <a class="brand" data-home-link href="/specdev-workbench/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">工作台</span></span></a>
   <div class="theme-switch" role="group" aria-label="页面主题"><button type="button" data-theme-choice="light" aria-pressed="false"><span aria-hidden="true">☼</span> 浅色</button><button type="button" data-theme-choice="dark" aria-pressed="true"><span aria-hidden="true">☾</span> 深色</button></div>
 </header>
 <div class="page-content">
 <header class="top">
   <div>
-    <p class="crumbs"><a href="/archify-manage/">项目首页</a> / <a id="bizLink" href="/archify-manage/">业务</a> / <span id="chartName">…</span></p>
+    <p class="crumbs"><a href="/specdev-workbench/">项目首页</a> / <a id="bizLink" href="/specdev-workbench/">业务</a> / <span id="chartName">…</span></p>
     <h1 id="title">图阅读</h1>
     <p class="sub" id="summary"></p>
     <!-- 第二期第 2 步：工作区模式显示"工作区：名称（路径）"，手动配置模式注明（由 read.js 填充）。
@@ -71,7 +71,7 @@
   <div class="detail-dialog-head"><span>全部阅读资料 · 当前所选版本</span><button autofocus id="materialsClose" class="detail-close" type="button" aria-label="关闭阅读资料">×</button></div>
   <div class="detail-dialog-body"><section id="detailsPanel" class="details-panel"></section><section id="evidencePanel" class="evidence-panel"><p>正在读取源码证据…</p></section></div>
 </dialog>
-<script type="module" src="/archify-manage/assets/read.js"></script>
+<script type="module" src="/specdev-workbench/assets/read.js"></script>
 <!-- 保存版本弹层（G）：给"当前（工作区）"这一份内容登记一个带名称/阶段/说明的版本。
      关闭三方式与节点详情弹层一致：右上按钮 / ESC / 点框外空白。
      打开时先问一次"现在能不能存"，并把服务端的内容摘要与页面正看的那一份对一下——

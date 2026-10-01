@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "assetVersion": 1,
+  "status": "internal",
+  "assetId": "ceramic-display-stand-01",
+  "name": "暖釉陶瓷展示台",
+  "category": "display-stand",
+  "description": "暖白象牙釉面陶瓷展示台：厚台板带柔和倒角与台板下一圈浅青灰收边，中央收腰柱身托住台板，向下接较宽的低底座，底面落地。釉面有柔和高光与很弱的粗糙度变化。占地 0.8×0.6 米、高 0.9 米，本地 +Z 为正面。台顶提供水平陈列面，可放置台灯、花瓶、绿植与小摆件；展示台没有资料动作，不是屏幕，不显示文档或流程图。",
+  "styleIds": ["ceramic"],
+  "modelRef": "ceramic-display-stand-01",
+  "previewRef": "assets/ceramic-display-stand-01/preview.webp",
+  "placeholder": false,
+  "bounds": { "minX": -0.4, "maxX": 0.4, "minY": 0, "maxY": 0.9, "minZ": -0.3, "maxZ": 0.3 },
+  "placement": { "allowedKinds": ["floor"], "allowedYawDeg": [0, 90, 180, 270] },
+  "clearanceBoxes": [
+    { "name": "展台前陈列操作区", "bounds": { "minX": -0.5, "maxX": 0.5, "minY": 0, "maxY": 1.9, "minZ": 0.3, "maxZ": 1.3 } }
+  ],
+  "approachPoint": { "x": 0, "z": 0.9 },
+  "surfaces": [
+    { "surfaceId": "display-top", "name": "展示台顶部陈列区", "rect": { "minX": -0.32, "maxX": 0.32, "minZ": -0.22, "maxZ": 0.22 }, "y": 0.9, "allowedCategories": ["lamp", "vase", "plant", "ornament"] }
+  ],
+  "capabilities": [],
+  "recommendations": { "note": "推荐写实项目展示区，也可混搭童话阅读房。台顶陈列区接受台灯、花瓶、绿植与小摆件四类，子物品仍须自身支持 surface 放置并通过投影、重叠与高度等现行校验，不代表对应资产已经做出或任意大小都能放。" },
+  "source": { "origin": "自制", "license": "MIT", "note": "当前资产包 model.js 自制 Three.js 程序化模型与固定种子 DataTexture 釉面粗糙度纹理，无外部模型或贴图。" }
+}

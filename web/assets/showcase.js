@@ -51,14 +51,14 @@ function buildStarMap(businesses) {
       const px = bx + 88 * Math.cos(angle + spread)
       const py = by + 88 * Math.sin(angle + spread)
       group.append(svgEl('line', { class: 'star-line', x1: bx, y1: by, x2: px, y2: py }))
-      const link = svgEl('a', { href: wsUrl(`/archify-manage/read/${encodeURIComponent(business.id)}/${encodeURIComponent(chart.id)}`) })
+      const link = svgEl('a', { href: wsUrl(`/specdev-workbench/read/${encodeURIComponent(business.id)}/${encodeURIComponent(chart.id)}`) })
       const title = svgEl('title')
       title.textContent = chart.name
       const dot = svgEl('circle', { class: 'star star-chart', cx: px, cy: py, r: 5, 'data-star': 'chart' })
       link.append(title, dot)
       group.append(link)
     })
-    const bizLink = svgEl('a', { href: wsUrl(`/archify-manage/business/${encodeURIComponent(business.id)}`) })
+    const bizLink = svgEl('a', { href: wsUrl(`/specdev-workbench/business/${encodeURIComponent(business.id)}`) })
     const bizTitle = svgEl('title')
     bizTitle.textContent = business.name
     const glow = svgEl('circle', { class: 'star-glow', cx: bx, cy: by, r: 26 })
@@ -152,7 +152,7 @@ async function main() {
   if (workspaceParamEmpty) return renderEmptyWorkspaceParam()
   let inventory
   try {
-    inventory = await fetchJson(wsUrl('/archify-manage/api/inventory'))
+    inventory = await fetchJson(wsUrl('/specdev-workbench/api/inventory'))
   } catch (error) {
     if (error.repo) renderRepoLine(error.repo)
     if (!renderRepoState(error)) showError(error.message)
@@ -182,9 +182,9 @@ async function main() {
 
   const nodes = []
   for (const business of businesses) {
-    nodes.push({ key: `b/${business.id}`, kind: 'business', label: business.name, href: wsUrl(`/archify-manage/business/${encodeURIComponent(business.id)}`) })
+    nodes.push({ key: `b/${business.id}`, kind: 'business', label: business.name, href: wsUrl(`/specdev-workbench/business/${encodeURIComponent(business.id)}`) })
     for (const chart of business.charts) {
-      nodes.push({ key: `c/${business.id}/${chart.id}`, kind: 'chart', label: chart.name, href: wsUrl(`/archify-manage/read/${encodeURIComponent(business.id)}/${encodeURIComponent(chart.id)}`) })
+      nodes.push({ key: `c/${business.id}/${chart.id}`, kind: 'chart', label: chart.name, href: wsUrl(`/specdev-workbench/read/${encodeURIComponent(business.id)}/${encodeURIComponent(chart.id)}`) })
     }
   }
   const sphere = createSphere($('sphereBox'), nodes)

@@ -338,10 +338,14 @@ a, button { touch-action: manipulation; }
 .eyebrow-line { display: inline-block; width: 20px; height: 2px; background: var(--accent); }
 .project-hero h1 { margin: 0 0 22px; color: var(--text); font-size: clamp(30px, 3.2vw, 46px); line-height: 1.35; letter-spacing: -1.3px; font-weight: 650; text-wrap: balance; overflow-wrap: anywhere; }
 .hero-description { margin: 0; max-width: 55ch; color: var(--muted); font-size: 14px; line-height: 1.9; overflow-wrap: anywhere; }
-.hero-actions { display: flex; gap: 20px; align-items: center; margin: 28px 0 22px; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; margin: 28px 0 22px; }
 .primary-link { display: inline-flex; gap: 30px; align-items: center; padding: 11px 19px; border-radius: 8px; background: var(--primary); color: var(--primary-ink); font-size: 13px; font-weight: 600; transition: filter .15s, transform .15s; }
 .primary-link span { font-size: 18px; line-height: 1; }
 .primary-link:hover { filter: brightness(1.09); transform: translateY(-1px); text-decoration: none; }
+/* 首页 hero 的主按钮：进建筑是这一页最想让人点的那一下，尺寸与间距都压过次级入口。 */
+.primary-link-lead { gap: 36px; padding: 15px 24px; font-size: 15px; box-shadow: var(--shadow); }
+.secondary-link { display: inline-flex; align-items: center; padding: 12px 18px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-soft); color: var(--text); font-size: 13px; font-weight: 600; transition: border-color .15s, color .15s; }
+.secondary-link:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
 .hero-hint { font-size: 12px; color: var(--muted); }
 .workspace-details { margin-top: 20px; max-width: 100%; color: var(--muted); font-size: 12px; }
 .workspace-details summary { cursor: pointer; width: fit-content; max-width: 100%; overflow-wrap: anywhere; }
@@ -498,4 +502,335 @@ a, button { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* ── 建筑总览页：三维视图＋房间目录 ───────────────────────────── */
+.building-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 18px;
+  align-items: stretch; margin-top: 18px;
+}
+.building-viewport {
+  position: relative; min-width: 0; min-height: 560px; height: calc(100vh - 230px);
+  border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 0%, #eef3ea 0%, #dfe7da 62%, #d3ddce 100%);
+}
+.building-viewport canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.view-toolbar {
+  position: absolute; top: 12px; left: 12px; right: 12px; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  pointer-events: none;
+}
+.view-toolbar > * { pointer-events: auto; }
+/* 操作行分两段：左边是浏览方式，右边是资料目录开关（目录收起后开关仍在原位，点得回来）。 */
+.toolbar-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.toolbar-field { font-size: 13px; color: #41504a; }
+.floor-select, .reset-button, .walk-button, .panel-toggle {
+  padding: 7px 12px; border-radius: 8px; font-size: 13px; font-family: inherit;
+  border: 1px solid #b9c6b2; background: rgba(251, 250, 240, .92); color: #29433a;
+}
+.floor-select:hover, .reset-button:hover, .walk-button:hover, .panel-toggle:hover { border-color: #487465; }
+.walk-button { font-weight: 600; border-color: #7f9c8b; }
+.walk-button[aria-pressed="true"] { background: #487465; border-color: #3d6455; color: #fbfaf0; }
+.walk-button:disabled { cursor: not-allowed; opacity: .55; border-color: #b9c6b2; color: #7d8f81; }
+.preview-toggle {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 7px 12px; border-radius: 8px; border: 1px dashed #9db4a4;
+  background: rgba(251, 250, 240, .92); color: #29433a; font-size: 13px;
+}
+.preview-toggle small { display: block; font-size: 11px; color: #7d8f81; }
+.preview-banner {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 2;
+  margin: 0; padding: 7px 16px; border-radius: 999px; font-size: 13px;
+  background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning);
+}
+.scene-hint {
+  position: absolute; right: 14px; bottom: 12px; z-index: 1; margin: 0;
+  font-size: 12px; color: #6c7d70; pointer-events: none;
+}
+/* 探索模式的操作层：左下角位置提示与方向按钮，按钮按住即走（pointerdown/up）。 */
+.walk-hud {
+  position: absolute; left: 12px; bottom: 12px; z-index: 2;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+}
+/* 进不去探索的说明：和漫游操作层同角（进不去时操作层是隐藏的，不会叠在一起）。 */
+.walk-notice {
+  position: absolute; left: 12px; bottom: 12px; z-index: 3; margin: 0;
+  max-width: min(460px, calc(100% - 24px)); padding: 8px 14px; border-radius: 10px;
+  font-size: 12px; line-height: 1.6;
+  background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning);
+}
+.walk-location {
+  margin: 0; padding: 6px 14px; border-radius: 999px; font-size: 12px;
+  background: rgba(251, 250, 240, .92); border: 1px solid #b9c6b2; color: #29433a;
+}
+.walk-pad { display: grid; grid-template-columns: repeat(3, 38px); gap: 4px; }
+.walk-pad button {
+  width: 38px; height: 36px; border-radius: 8px; font-size: 15px; line-height: 1;
+  border: 1px solid #b9c6b2; background: rgba(251, 250, 240, .92); color: #2f4a3f;
+  touch-action: none; user-select: none;
+}
+.walk-pad button:hover { border-color: #487465; }
+.walk-pad button[data-pressed="true"] { background: #487465; border-color: #3d6455; color: #fbfaf0; }
+.walk-pad [data-walk-key="ArrowUp"] { grid-area: 1 / 2; }
+.walk-pad [data-walk-key="ArrowLeft"] { grid-area: 2 / 1; }
+.walk-pad [data-walk-key="ArrowDown"] { grid-area: 2 / 2; }
+.walk-pad [data-walk-key="ArrowRight"] { grid-area: 2 / 3; }
+.scene-fallback {
+  position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 28px;
+  background: color-mix(in srgb, var(--page) 78%, transparent);
+}
+.scene-fallback strong { font-size: 17px; }
+.scene-fallback p { margin: 0; max-width: 46ch; color: var(--secondary); font-size: 13px; }
+.building-directory {
+  display: flex; flex-direction: column; gap: 16px; padding: 20px;
+  border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+  max-height: calc(100vh - 230px); overflow-y: auto;
+}
+.building-directory .project-block h2 { margin: 8px 0 6px; font-size: 21px; }
+.project-description { margin: 0; color: var(--muted); font-size: 13px; }
+.metrics { margin: 10px 0 0; font-size: 13px; color: var(--secondary); }
+.phase-card {
+  display: flex; gap: 12px; align-items: flex-start; padding: 13px 15px;
+  border: 1px solid var(--accent-border); background: var(--accent-bg); border-radius: 10px;
+}
+.phase-card .status-dot {
+  flex: none; width: 10px; height: 10px; border-radius: 999px; margin-top: 5px;
+  background: var(--accent); box-shadow: 0 0 0 4px var(--glow);
+}
+.phase-card strong { font-size: 14px; }
+.phase-card p { margin: 3px 0 0; font-size: 12.5px; color: var(--secondary); }
+.notices details {
+  border: 1px solid var(--warning-border); background: var(--warning-bg);
+  border-radius: 10px; padding: 10px 14px; font-size: 13px;
+}
+.notices summary { cursor: pointer; color: var(--warning); font-weight: 600; }
+.notices ul { margin: 8px 0 2px; padding-left: 18px; color: var(--secondary); }
+.notices li { margin: 4px 0; }
+.section-label { font-size: 12px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
+.section-label span { text-transform: none; letter-spacing: 0; }
+.rooms { display: flex; flex-direction: column; gap: 12px; }
+.room-card {
+  border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px;
+  background: var(--surface-soft); cursor: pointer;
+}
+.room-card:hover { border-color: var(--border-strong); background: var(--hover); }
+.room-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.room-title { font-weight: 650; font-size: 15px; }
+.room-meta { font-size: 12px; color: var(--muted); }
+.room-intro { margin: 6px 0 0; font-size: 12.5px; color: var(--secondary); }
+.room-entries { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+/* 目录卡里的资料入口：按钮（在房内面板里读），不是外链。 */
+.room-entry {
+  display: block; width: 100%; text-align: left; font: inherit; cursor: pointer;
+  color: var(--text); font-size: 12.5px; padding: 5px 9px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.room-entry:hover { border-color: var(--accent-border); background: var(--accent-bg); }
+.room-empty { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.diagnostics-panel {
+  margin-top: 18px; padding: 20px 22px; border: 1px solid var(--danger-border);
+  background: var(--danger-bg); border-radius: 14px;
+}
+.diagnostics-panel h2 { margin: 0 0 4px; font-size: 18px; color: var(--danger); }
+.diagnostics-note { margin: 0 0 12px; font-size: 13px; color: var(--secondary); }
+.problem-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.problem-item {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  padding: 9px 12px; border-radius: 8px; background: var(--surface);
+  border: 1px solid var(--border); font-size: 13px;
+}
+.problem-item[data-severity="error"] { border-color: var(--danger-border); }
+.problem-item[data-severity="warning"] { border-color: var(--warning-border); }
+.problem-code { flex: none; font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--muted); }
+.problem-message { flex: 1 1 30ch; }
+.problem-path {
+  font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px;
+  color: var(--accent);
+}
+@media (max-width: 1080px) {
+  .building-layout { grid-template-columns: 1fr; }
+  .building-directory { max-height: none; }
+  .building-viewport { height: 62vh; min-height: 420px; }
+  /* 窄屏上操作层与右下角提示、底部横幅会挤在一起：位置提示挪到提示行上方。 */
+  .walk-hud { bottom: 34px; }
+  .preview-banner { bottom: 78px; }
+}
+
+/* ── 建筑总览页的"全窗口"形态（作者 2026-09-25 提出）────────────────────
+   建筑生成成功后整页切到这一形态：页面不滚动，三维视图占满浏览器窗口，
+   资料目录改成浮在视口右侧的抽屉，点开关收起后视图占满全宽。
+   类由 building.js 在让舞台现身时加到 body 上——没有蓝图、诊断失败、未配置
+   这些页没有舞台、不加这个类，仍是普通滚动文档。 */
+.building-page.building-live { height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+/* 顶栏与页头压成两行，把高度让给视图；工作区行展开时浮在页面上，不把视图挤下去。 */
+.building-page.building-live .app-bar { flex: none; min-height: 60px; padding: 8px 22px; }
+.building-page.building-live .brand { font-size: 16px; }
+.building-page.building-live .brand-mark { width: 28px; height: 28px; font-size: 18px; border-radius: 8px; }
+.building-page.building-live .page-content {
+  flex: 1; min-height: 0; width: 100%; max-width: none; padding: 14px 22px 18px;
+  display: flex; flex-direction: column;
+  /* 正常窗口装得下、页面不滚动；窗口矮到装不下时（视图有最小高度）在这里滚，
+     不让内容被裁掉。 */
+  overflow: auto;
+}
+.building-page.building-live .top { flex: none; align-items: baseline; gap: 18px; margin-bottom: 10px; }
+.building-page.building-live .top > div { display: flex; align-items: baseline; gap: 4px 16px; flex-wrap: wrap; }
+.building-page.building-live .top h1 { margin: 0; font-size: 20px; }
+.building-page.building-live .top .crumbs { margin: 0; }
+/* 一句话说明压成一行（窄了截断），不让页头长高。 */
+.building-page.building-live .top .sub {
+  flex: 1 1 20ch; min-width: 0; margin: 0; font-size: 12.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.building-page.building-live .workspace-details { margin-top: 0; }
+.building-page.building-live .workspace-details p { position: absolute; z-index: 6; max-width: min(80ch, 90vw); box-shadow: var(--shadow); }
+.building-page.building-live .building-layout {
+  position: relative; flex: 1; min-height: 0; margin-top: 0;
+  display: flex; flex-direction: column;
+  /* 抽屉宽度是唯一来源：让位宽度由它算出来（抽屉 + 左右各 12px 间距），两者不会再对不上
+     ——按一半宽度让位时，窄窗口上提示会被更宽的抽屉盖住。 */
+  --panel-w: min(400px, calc(100% - 24px));
+  --dock: calc(var(--panel-w) + 24px);
+}
+.building-page.building-live .building-layout[data-directory="closed"] { --dock: 0px; }
+.building-page.building-live .building-viewport { flex: 1; min-height: 320px; height: auto; }
+.building-page.building-live .preview-banner {
+  left: calc((100% - var(--dock)) / 2); bottom: 16px; text-align: center;
+  /* 窄窗口上按剩余可见宽度收窄并折行。 */
+  max-width: max(120px, calc(100% - var(--dock) - 24px));
+}
+.building-page.building-live .scene-hint {
+  /* 提示就在操作行里：常态排布（不再是绝对定位的右下角浮字），窄屏跟着换行、由 --toolbar-h
+     一并算进让位高度——它不会再和底部横幅、左下角方向按钮区抢地方。 */
+  position: static; margin: 0; max-width: none;
+  font-size: 12px; color: #6c7d70; pointer-events: none;
+}
+/* 抽屉本身：从操作行下方开始（开关那一行始终露在外面），收起时移出右侧并退出命中与焦点。
+   起点按操作行的实际高度算（--toolbar-h 由 building.js 量，含窄屏换行与放大字号），
+   不让抽屉盖住收起开关。 */
+.building-page.building-live .building-directory {
+  position: absolute; top: calc(24px + var(--toolbar-h, 34px)); right: 12px; bottom: 12px; z-index: 3;
+  width: var(--panel-w); max-height: none;
+  box-shadow: var(--shadow);
+  transition: transform .18s ease, opacity .18s ease, visibility .18s;
+}
+.building-page.building-live .building-layout[data-directory="closed"] .building-directory {
+  transform: translateX(calc(100% + 20px)); opacity: 0; visibility: hidden;
+}
+/* 读资料时目录也让位（面板是浮在视口上的卡片，目录在它后面只露半截）：抽屉与它的开关一起
+   收起来，读完关掉面板就回来。这是显示规则，不改作者存的展开／收起选择。 */
+.building-page.building-live .building-layout[data-reading="true"] { --dock: 0px; }
+.building-page.building-live .building-layout[data-reading="true"] .building-directory {
+  transform: translateX(calc(100% + 20px)); opacity: 0; visibility: hidden;
+}
+.building-page.building-live .building-layout[data-reading="true"] .panel-toggle { visibility: hidden; }
+/* 读资料时锁住场景交互：卡片四周露出的画布不接拖动、滚轮与点牌子（关掉面板就恢复）；
+   屏幕方向按钮同样不生效并变淡（该停的输入一起停，页面那层还有一道闸）。
+   操作提示这时也收起：它介绍的几个动作此刻都做不了。 */
+.building-page.building-live .building-layout[data-reading="true"] .building-viewport canvas { pointer-events: none; }
+.building-page.building-live .building-layout[data-reading="true"] .walk-pad button { opacity: .45; pointer-events: none; }
+.building-page.building-live .building-layout[data-reading="true"] .scene-hint { visibility: hidden; }
+/* 资料卡片顶部让开操作行（含换行后的实际高度），底部让开"完整外观预览"横幅的实际高度
+   （窄屏它会折行）：两头都不许压住露在外面的东西。面板不是模态，露在外面的控制照常可用。 */
+.building-page.building-live .material-panel {
+  inset-block-start: max(clamp(28px, 6vh, 64px), calc(var(--toolbar-h, 34px) + 36px));
+  inset-block-end: max(clamp(28px, 6vh, 64px), calc(var(--banner-h, 0px) + 24px));
+}
+/* 窗口窄到抽屉几乎占满整幅（< 600px）：并排放不下提示，改成"抽屉让开底部一条带"——
+   横幅按实际高度留在带里（它是如实标注，不许被盖住）。操作提示此刻在操作行里，不受影响。 */
+@media (max-width: 600px) {
+  .building-page.building-live .building-layout { --dock: 0px; }
+  .building-page.building-live .building-directory {
+    bottom: calc(12px + var(--banner-h, 0px) + 16px);
+  }
+}
+/* 小窗口漫游时左下角是方向按钮区，横幅与它并排不下：让横幅退场——同一句话在页头状态行上
+   一直都有（"完整外观预览 · 不代表当前阶段（…）"），没有丢掉这条如实标注。 */
+@media (max-width: 1080px) {
+  .building-page.building-live .building-layout:has(.walk-hud:not([hidden])) .preview-banner { display: none; }
+}
+
+
+/* ── 房内打开资料：介绍＋资料清单＋正文／流程图都在这块面板里 ──────────
+   面板是浮在三维视口上的一张卡片：四周留一圈建筑（作者 2026-09-25 验收时提出——
+   全覆盖会让人看不出自己还在房子里），宽屏也不摊满；打开时暂停漫游输入，人留在原地，
+   关闭后位置与视角原样，接着走。 */
+.material-panel {
+  position: absolute; inset: clamp(28px, 6vh, 64px) clamp(28px, 4vw, 84px); z-index: 4;
+  display: flex; flex-direction: column;
+  max-width: 1480px; margin-inline: auto;
+  background: color-mix(in srgb, var(--surface) 97%, transparent);
+  border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+  /* 卡片压在浅色场景上，用比通用阴影更重的一档，两套主题下都看得出是浮层。 */
+  box-shadow: 0 16px 44px rgba(14, 26, 20, .22);
+}
+.material-panel[hidden] { display: none; }
+.material-head {
+  flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+}
+.material-kind {
+  margin: 0; font-size: 11.5px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase;
+}
+.material-heading h2 { margin: 5px 0 0; font-size: 19px; }
+.material-close {
+  flex: none; width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface-soft); color: var(--secondary); font-size: 16px; line-height: 1; cursor: pointer;
+}
+.material-close:hover { background: var(--hover); }
+.material-body {
+  flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+}
+.material-side { padding: 14px 16px; overflow-y: auto; border-right: 1px solid var(--border); }
+.material-intro { margin: 0 0 14px; font-size: 13px; color: var(--secondary); }
+.material-list-label {
+  margin: 0; font-size: 11.5px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase;
+}
+.material-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* 作者样式里的 display 会盖过 [hidden] 的 UA 规则：这两处显式收起来，别让"没有资料"时
+   还留着一个空清单框（DOM 测试看不见这条，只在浏览器里现形）。 */
+.material-list[hidden] { display: none; }
+.material-item {
+  width: 100%; display: block; text-align: left; font: inherit; font-size: 12.5px;
+  padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.material-item:hover { border-color: var(--accent-border); background: var(--accent-bg); }
+.material-item[aria-current="true"] { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.material-empty { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }
+.material-reader { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 14px 18px 18px; }
+.material-reader-hint { margin: 0; font-size: 13px; color: var(--muted); }
+.material-reader-title { flex: none; margin: 0 0 8px; font-size: 13px; color: var(--secondary); }
+.material-reader-status {
+  flex: none; margin: 0 0 10px; padding: 9px 12px; border-radius: 8px; font-size: 13px;
+  background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger);
+  overflow-wrap: anywhere;
+}
+.material-reader-status[data-kind="info"] {
+  background: var(--surface-soft); border-color: var(--border); color: var(--muted);
+}
+.material-reader-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.material-doc-heading { margin: 18px 0 8px; font-size: 16px; }
+.material-doc-heading[data-level="1"] { margin-top: 0; font-size: 20px; }
+.material-doc-heading[data-level="2"] { font-size: 17px; }
+.material-doc-paragraph { margin: 0 0 12px; color: var(--secondary); }
+.material-doc-list { margin: 0 0 12px; padding-left: 20px; color: var(--secondary); }
+.material-doc-list li { margin: 4px 0; }
+.material-reader-body code {
+  font-family: ui-monospace, Consolas, monospace; font-size: 12.5px;
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px;
+}
+.material-doc-empty { margin: 0; color: var(--muted); }
+.material-reader-frame {
+  flex: 1; width: 100%; min-height: 0; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--page);
+}
+@media (max-width: 1080px) {
+  /* 窄屏上视口本身不高：清单与正文改成上下排，阅读区保住最小高度。 */
+  .material-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .material-side { border-right: 0; border-bottom: 1px solid var(--border); max-height: 34%; }
 }

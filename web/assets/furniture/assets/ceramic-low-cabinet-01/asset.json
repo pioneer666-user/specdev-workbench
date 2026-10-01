@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "assetVersion": 1,
+  "status": "internal",
+  "assetId": "ceramic-low-cabinet-01",
+  "name": "暖白双门矮柜",
+  "category": "cabinet",
+  "description": "暖白半哑光完整柜体、浅木厚顶板、两扇关闭柜门与黄铜小把手。宽1.10、深0.56、高0.85米；+Z为双门正面。柜顶陈列区平整，可承载台灯、花瓶、盆栽、摆件；点击可打开已绑定的资料集合，不是开柜门或抽屉动画。",
+  "styleIds": [
+    "ceramic"
+  ],
+  "modelRef": "ceramic-low-cabinet-01",
+  "previewRef": "assets/ceramic-low-cabinet-01/preview.webp",
+  "placeholder": false,
+  "bounds": {
+    "minX": -0.55,
+    "maxX": 0.55,
+    "minY": 0,
+    "maxY": 0.85,
+    "minZ": -0.28,
+    "maxZ": 0.28
+  },
+  "placement": {
+    "allowedKinds": [
+      "floor"
+    ],
+    "allowedYawDeg": [
+      0,
+      90,
+      180,
+      270
+    ]
+  },
+  "clearanceBoxes": [
+    {
+      "name": "正面接近操作区",
+      "bounds": {
+        "minX": -0.65,
+        "maxX": 0.65,
+        "minY": 0,
+        "maxY": 1.9,
+        "minZ": 0.28,
+        "maxZ": 1.3
+      }
+    }
+  ],
+  "approachPoint": {
+    "x": 0,
+    "z": 0.9
+  },
+  "surfaces": [
+    {
+      "surfaceId": "cabinet-top",
+      "name": "矮柜顶部陈列区",
+      "rect": {
+        "minX": -0.48,
+        "maxX": 0.48,
+        "minZ": -0.21,
+        "maxZ": 0.21
+      },
+      "y": 0.85,
+      "allowedCategories": [
+        "lamp",
+        "vase",
+        "plant",
+        "ornament"
+      ]
+    }
+  ],
+  "capabilities": [
+    "open-document-collection"
+  ],
+  "recommendations": {
+    "note": "适合温暖阅读休憩房，与蜂蜜木书桌、书架、奶油布料及暖白陶瓷搭配；风格只是软推荐，混搭允许，摆放以空间和类别校验为准。"
+  },
+  "source": {
+    "origin": "自制",
+    "license": "MIT",
+    "note": "自制Three.js程序化实体几何，无外部模型或贴图；有木面者使用固定种子DataTexture。"
+  }
+}

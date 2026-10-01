@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "assetVersion": 1,
+  "status": "internal",
+  "assetId": "fairy-notice-board-01",
+  "name": "林间蜂蜜木告示牌",
+  "category": "notice-board",
+  "description": "童话风蜂蜜木落地告示牌：两根立柱下接向前后延伸的短脚，柱顶缀黄铜小球；蜂蜜色木框上沿微拱、边缘倒角收边，框内嵌暖米色软木正面板与木质背板，正面主要区域留白，框角与拱肩缀少量黄铜铆钉。宽 1 米、高 1.7 米、深 0.44 米，本地 +Z 为软木正面板方向。落地摆放，为项目介绍、流程说明等业务资料提供直观的资料集合入口：登记后点击可经现有 open-document-collection 能力在阅读面板查看绑定文档集合；板面只表现软木材质，不直接把业务文档正文、流程图或截图渲染到三维板面上。",
+  "styleIds": ["fairy"],
+  "modelRef": "fairy-notice-board-01",
+  "previewRef": "assets/fairy-notice-board-01/preview.webp",
+  "placeholder": false,
+  "bounds": { "minX": -0.5, "maxX": 0.5, "minY": 0, "maxY": 1.7, "minZ": -0.22, "maxZ": 0.22 },
+  "placement": { "allowedKinds": ["floor"], "allowedYawDeg": [0, 90, 180, 270] },
+  "clearanceBoxes": [
+    { "name": "告示牌前阅读区", "bounds": { "minX": -0.55, "maxX": 0.55, "minY": 0, "maxY": 1.9, "minZ": 0.22, "maxZ": 1.25 } }
+  ],
+  "approachPoint": { "x": 0, "z": 0.9 },
+  "surfaces": [],
+  "capabilities": ["open-document-collection"],
+  "recommendations": { "note": "推荐项目入口介绍区、流程说明区与童话房，与林间蜂蜜木书架、书桌、台灯同系列搭配；也允许混搭写实房间。风格只是软推荐，不构成摆放准入。" },
+  "source": { "origin": "自制", "license": "MIT", "note": "本包 model.js 自制 Three.js 程序化模型与固定种子 DataTexture 木纹、软木纹，无外部模型或贴图。" }
+}

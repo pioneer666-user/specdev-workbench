@@ -17,8 +17,8 @@ export function wsUrl(url) {
 
 // 面包屑里的"项目首页"是 HTML 里写死的裸地址，这里统一补上标识（首页自己没有面包屑，查不到就不动）。
 // 阅读页的"业务"链接有业务段、且必须在取数前绑定（失败页也要带标识），由 read.js 自己设置。
-document.querySelector('.crumbs a[href="/archify-manage/"]')?.setAttribute('href', wsUrl('/archify-manage/'))
-document.querySelectorAll('[data-home-link]').forEach((link) => link.setAttribute('href', wsUrl('/archify-manage/')))
+document.querySelector('.crumbs a[href="/specdev-workbench/"]')?.setAttribute('href', wsUrl('/specdev-workbench/'))
+document.querySelectorAll('[data-home-link]').forEach((link) => link.setAttribute('href', wsUrl('/specdev-workbench/')))
 // 站内其它裸地址入口（如首页进展示页的按钮）：写死 href 作无标识兜底，这里按本页标识补全。
 document.querySelectorAll('[data-ws-link]').forEach((link) => link.setAttribute('href', wsUrl(link.getAttribute('data-ws-link'))))
 
@@ -160,7 +160,7 @@ export function statusChips(charts) {
  *  底部图数与进入动作。说明文件读不开的业务不清点，异常说明如实显示。 */
 export function businessCard(business, index) {
   const card = el('a', 'card business-card')
-  card.href = wsUrl(`/archify-manage/business/${encodeURIComponent(business.id)}`)
+  card.href = wsUrl(`/specdev-workbench/business/${encodeURIComponent(business.id)}`)
   const top = el('div', 'business-card-top')
   const icon = el('span', 'business-icon')
   icon.setAttribute('aria-hidden', 'true')
@@ -286,7 +286,7 @@ export function renderRepoState(error) {
 
 /** 标签页标题：工作区模式带工作区名（两个标签好区分），手动模式保持原有后缀。 */
 export function pageTitle(main, repo) {
-  return repo && repo.mode === 'workspace' ? `${main} · ${repo.title}` : `${main} · 流程图管理`
+  return repo && repo.mode === 'workspace' ? `${main} · ${repo.title}` : `${main} · SpecDev 工作台`
 }
 
 /** 头部工作区行：工作区模式显示"工作区：名称（路径）"，手动模式标注"手动配置模式：路径"。 */

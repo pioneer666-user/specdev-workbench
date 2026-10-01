@@ -9,10 +9,10 @@
 - **archifyRoot** ＝ 实际含 `bin/`、`schemas/`、`renderers/` 的目录。本项目固定用插件携带的副本：
 
   ```text
-  <archify-manager 包根>/vendor/archify-renderer/archify
+  <SpecDev 工作台包根>/vendor/archify-renderer/archify
   ```
 
-- **定位方式（按顺序）**：会话已明确给出 archifyRoot 就直接用；否则在 archify-manager 包内找 `vendor/archify-renderer/archify`（源码仓里是 `archify-manager/` 目录；DSH 安装后在插件安装目录下）。两处都找不到就停下问作者，**不猜路径、不把任何本机盘符当通用默认值**。
+- **定位方式（按顺序）**：会话已明确给出 archifyRoot 就直接用；否则在 SpecDev 工作台包内找 `vendor/archify-renderer/archify`（源码仓里是 `specdev-workbench/` 目录；DSH 安装后在插件安装目录下）。两处都找不到就停下问作者，**不猜路径、不把任何本机盘符当通用默认值**。
 - **验位三件**：所认目录下应存在 `bin/archify.mjs`、`schemas/workflow.schema.json`、`schemas/common.schema.json`。三件不齐说明找错了地方或包不完整，如实报告。
 - **不用上游完整副本**：上游 Archify 的完整发行（不随本插件分发）只是 vendor 副本的升级来源，不是校验入口；版本以插件携带的固定副本为准，避免两处不一致。
 - **兼容性核对**：`vendor/archify-renderer/VERSION.md` 记录该副本的内容指纹（2026-09-17 拷贝，`sha256:298de55a65fb468e50cf8cdbe95b3fcefc88d25360090ff17bb613a0add65335`，安装态三案校验已过，验证记录由维护者保留）。指纹不一致或来源不明时：报告差异，等作者裁决，**不自行更新插件或外部包**；版本号相同不等于已验证兼容。

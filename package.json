@@ -1,10 +1,10 @@
 {
-  "name": "@specdev/dsh-archify-manage",
-  "version": "0.1.11",
+  "name": "@specdev/dsh-workbench",
+  "version": "0.2.0",
   "private": true,
   "license": "MIT",
   "type": "module",
-  "description": "DSH 流程图管理插件：浏览 Archify 业务流程图目录、按 Git 附注标签阅读历史版本、登记有名称的版本；唯一写操作是给提交挂附注标签，不改业务项目的文件、分支与提交。",
+  "description": "SpecDev 工作台：浏览业务说明、流程图、建筑与独立房间，按 Git 附注标签阅读和登记历史版本；插件页面唯一写操作是给提交挂附注标签，不改业务项目的文件、分支与提交。",
   "main": "./dist/index.js",
   "exports": {
     ".": "./dist/index.js",

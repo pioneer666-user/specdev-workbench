@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "assetVersion": 1,
+  "status": "internal",
+  "assetId": "ceramic-vase-01",
+  "name": "暖釉细颈花瓶",
+  "category": "vase",
+  "description": "暖白象牙釉面细颈花瓶：圆润瓶腹向下收出稳固底足，向上经溜肩收到短细颈，瓶口微微外翻成真实口沿；瓶身有外壁与内壁的真实壁厚，顶部中央是开口，内壁下行接封闭的内瓶底，是空瓶、不插花。宽深各 0.16 米、高 0.30 米，本地 +Z 正面为无文字的釉面，仅有轻微釉色变化。仅作陈列摆件，无任何资料动作；仅可依附接受 vase 类别的承载面（如陶瓷展示台台面），当前书桌桌面只接受台灯类别，不能因为“桌面摆件”的称呼承诺能放上书桌。",
+  "styleIds": ["ceramic"],
+  "modelRef": "ceramic-vase-01",
+  "previewRef": "assets/ceramic-vase-01/preview.webp",
+  "placeholder": false,
+  "bounds": { "minX": -0.08, "maxX": 0.08, "minY": 0, "maxY": 0.3, "minZ": -0.08, "maxZ": 0.08 },
+  "placement": { "allowedKinds": ["surface"], "allowedYawDeg": [0, 90, 180, 270] },
+  "clearanceBoxes": [],
+  "approachPoint": null,
+  "surfaces": [],
+  "capabilities": [],
+  "recommendations": { "note": "推荐写实项目展示区，与暖釉陶瓷展示台同系列搭配；也可混搭童话阅读房等其他风格。风格只是软推荐，不构成摆放准入；能否放置始终以承载面的类别与空间校验为准。" },
+  "source": { "origin": "自制", "license": "MIT", "note": "本包 model.js 自制 Three.js 程序化模型与固定种子 DataTexture 釉面粗糙度纹理，无外部模型或贴图。" }
+}

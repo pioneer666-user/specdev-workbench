@@ -9,10 +9,10 @@ Choose a DSH project, read business documents and workflows, or ask a bundled Sk
 Requires DSH and `dsh`, `pnpm` and `git` in your terminal. Verified environment: Windows, DSH 0.1.6-alpha.2, web profile. Other platforms and host versions are unverified.
 
 ~~~sh
-dsh plugin --profile web add https://github.com/pioneer666-user/dsh-archify-manage/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz
+dsh plugin --profile web add https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz
 ~~~
 
-[Download 0.2.0](https://github.com/pioneer666-user/dsh-archify-manage/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz) · [Release](https://github.com/pioneer666-user/dsh-archify-manage/releases/tag/v0.2.0)
+[Download 0.2.0](https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz) · [Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.0)
 
 Restart DSH and click “SpecDev 工作台 ↗” in the sidebar. A new tab lists workspace names and full paths; selecting one opens that project's home in the same tab and preserves the original chat. For an empty list, create a workspace in DSH and refresh. Failed requests can be retried; empty and error states retain a manual configuration entry.
 
@@ -26,7 +26,7 @@ dsh plugin --profile web remove @specdev/dsh-archify-manage
 # Development package (only if installed)
 dsh plugin --profile web remove @specdev/dsh-workbench
 # Install the single new package, then restart DSH
-dsh plugin --profile web add https://github.com/pioneer666-user/dsh-archify-manage/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz
+dsh plugin --profile web add https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz
 ~~~
 
 Sessions and business repository data are retained. For local tgz installation, use a path without spaces.

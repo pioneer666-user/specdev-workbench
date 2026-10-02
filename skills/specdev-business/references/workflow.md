@@ -24,7 +24,7 @@
 - `<archifyRoot>/schemas/workflow.schema.json` —— workflow 专属结构；
 - `<archifyRoot>/schemas/common.schema.json` —— 共享定义（id 格式、节点类型、连线样式、卡片等，前者的 `$defs` 引用都落在这里）。
 
-完整可运行的样图可看公开源码仓的 `sample/data/`（六类约定文件的完整样例；只借字段形状，不搬业务事实）：<https://github.com/pioneer666-user/dsh-archify-manage>。字段速览（依据 2026-09-17 副本的 schema 静态整理，权威以 schema 原文为准）：
+完整可运行的样图可看公开源码仓的 `sample/data/`（六类约定文件的完整样例；只借字段形状，不搬业务事实）：<https://github.com/pioneer666-user/specdev-workbench>。字段速览（依据 2026-09-17 副本的 schema 静态整理，权威以 schema 原文为准）：
 
 | 位置 | 必填 | 说明 |
 |---|---|---|

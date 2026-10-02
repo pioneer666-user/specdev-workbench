@@ -9,10 +9,10 @@
 前置：已安装 DSH，终端可用 `dsh`、`pnpm` 和 `git`。已验证 Windows、DSH 0.1.6-alpha.2、web profile；其他平台和宿主版本尚未验证。
 
 ~~~sh
-dsh plugin --profile web add https://github.com/pioneer666-user/dsh-archify-manage/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz
+dsh plugin --profile web add https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz
 ~~~
 
-[下载0.2.0安装包](https://github.com/pioneer666-user/dsh-archify-manage/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz) · [Release](https://github.com/pioneer666-user/dsh-archify-manage/releases/tag/v0.2.0)
+[下载0.2.0安装包](https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz) · [Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.0)
 
 重启 DSH，点击侧栏「SpecDev 工作台 ↗」。新标签的「选择项目」页显示名称和完整路径，选择后在同一标签进入对应项目，原聊天保留。空清单先回DSH创建工作区并刷新；读取失败可重试，两种状态均保留手动配置入口。
 
@@ -26,7 +26,7 @@ dsh plugin --profile web remove @specdev/dsh-archify-manage
 # 开发期新身份包（仅已安装此包时执行）
 dsh plugin --profile web remove @specdev/dsh-workbench
 # 安装唯一新包，再启动DSH
-dsh plugin --profile web add https://github.com/pioneer666-user/dsh-archify-manage/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz
+dsh plugin --profile web add https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz
 ~~~
 
 只移除实际存在的包。此过程保留会话及业务仓库数据；本地下载的tgz请放在无空格路径，再按其实际路径安装。

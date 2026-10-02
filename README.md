@@ -1,4 +1,4 @@
-# SpecDev Workbench 0.2.0
+# SpecDev Workbench 0.2.1
 
 English | [简体中文](README.zh.md)
 
@@ -6,30 +6,39 @@ Choose a DSH project, read business documents and workflows, or ask a bundled Sk
 
 ## Download and install
 
-Requires DSH and `dsh`, `pnpm` and `git` in your terminal. Verified environment: Windows, DSH 0.1.6-alpha.2, web profile. Other platforms and host versions are unverified.
+### Windows Desktop
 
-~~~sh
-dsh plugin --profile web add https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz
+Use the CLI bundled with your Desktop installation, not the global Web CLI. Save your work, exit Desktop from its menu or tray, and confirm its background instance has ended. Download the tgz to a local path without spaces.
+
+The following example uses a **custom data root**. Replace the installation and package paths; CLI and Desktop must use the same DSH_HOME. Existing users must keep their actual root. If DSH_HOME was previously unset, leave it unset rather than changing roots to install. This variable affects only the current terminal and its child processes, not system settings.
+
+~~~powershell
+$DesktopDir = 'C:\Apps\DSH' # Replace with your Desktop installation directory
+$Package = 'C:\DSHPackages\specdev-dsh-workbench-0.2.1.tgz'
+$env:DSH_HOME = 'C:\DSHData\desktop' # Custom-root example only; match your actual Desktop root
+& "$DesktopDir\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add $Package
+& "$DesktopDir\DeepSeek Harness.exe"
 ~~~
 
-[Download 0.2.0](https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz) · [Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.0)
+For an upgrade, remove only a package actually installed before add: use this same bundled CLI with 'plugin --profile desktop remove @specdev/dsh-workbench' for the current identity, or '@specdev/dsh-archify-manage' for 0.1.11 and earlier. Do not remove absent packages or clear the data root. Restart Desktop from the same environment; a normal shortcut may not inherit the terminal's custom root.
 
-Restart DSH and click “SpecDev 工作台 ↗” in the sidebar. A new tab lists workspace names and full paths; selecting one opens that project's home in the same tab and preserves the original chat. For an empty list, create a workspace in DSH and refresh. Failed requests can be retried; empty and error states retain a manual configuration entry.
+The Desktop sidebar opens SpecDev Workbench in the central panel. Choose a project, then use Return to chat to restore the original conversation.
 
-### Upgrade an existing installation
+### Web
 
-Finish active tasks and stop DSH. Remove only packages actually installed. If both identities are installed, remove both to avoid duplicate plugins.
+Existing Web hosts continue using their terminal command and original data root:
 
 ~~~sh
-# Old released package (0.1.11 and earlier)
-dsh plugin --profile web remove @specdev/dsh-archify-manage
-# Development package (only if installed)
-dsh plugin --profile web remove @specdev/dsh-workbench
-# Install the single new package, then restart DSH
-dsh plugin --profile web add https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.0/specdev-dsh-workbench-0.2.0.tgz
+dsh plugin --profile web add https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.1/specdev-dsh-workbench-0.2.1.tgz
 ~~~
 
-Sessions and business repository data are retained. For local tgz installation, use a path without spaces.
+For an upgrade, stop the corresponding Web instance and remove only the installed identity using 'dsh plugin --profile web remove @specdev/dsh-workbench' (or '@specdev/dsh-archify-manage' for the old identity), then add and restart. Do not use Web commands for Desktop profiles.
+
+The Web sidebar entry opens a new tab listing project names and full paths while preserving the chat. Create a workspace in DSH and refresh an empty list; retry failed reads. Both states retain manual configuration.
+
+[Download 0.2.1](https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.1/specdev-dsh-workbench-0.2.1.tgz) · [Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.1)
+
+The 0.2.1 URLs become available after publication; before that they are preparation addresses. Published 0.2.0 remains at its [original Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.0).
 
 ## Features
 
@@ -62,7 +71,7 @@ Only the new root, formats and tags are read. There is no automatic migration or
 
 No in-page furniture editing/saving, arbitrary scaling, wall placement, nested supports, jumping/stairs in independent rooms, cross-room links or sitting/sleeping animation. Floor placement and one level of tabletop support are supported; style is a soft recommendation. The CLI checks configuration, placement, bindings and registered material reading. Workflow checks stop at JSON syntax and do not prove diagram compilation/rendering.
 
-The author has verified project selection, room creation, document and workflow reading in real DSH use. Technical coverage is limited to the declared host and fixed package; other platforms and latest DSH versions are not claimed as verified.
+The 0.2.1 candidate was verified on Windows / DSH Desktop 0.2.0-rc.2 for the central entry, project ownership, room reading, internal navigation and chat draft retention. The three skills were confirmed discoverable with readable bodies and references through the host’s normal viewer. The final release package changes only the READMEs; runtime files match that tested candidate, and the final package was not reinstalled. Existing Web installation/use evidence covers 0.2.0 on Windows / DSH 0.1.6-alpha.2. The 0.2.1 source entry passed its 12 relevant regression checks; a separate isolated newer Web host check covered 0.2.0-rc.2. This does not claim installation of the final 0.2.1 package on every Web host. Other platforms and later host versions are unverified. A separate DSH_HOME isolates plugin/business data; Electron preferences, caches, single-instance behavior and protocol registration may still be shared within the account.
 
 ## Build and sample
 
@@ -75,7 +84,7 @@ node scripts/build.mjs
 npm pack --pack-destination .
 ~~~
 
-Produces `specdev-dsh-workbench-0.2.0.tgz`. The renderer and read-only validators are bundled; no private research repository is needed.
+Produces `specdev-dsh-workbench-0.2.1.tgz`. The renderer and read-only validators are bundled; no private research repository is needed.
 
 ~~~sh
 node sample/generate.mjs ./local-artifacts/demo-project

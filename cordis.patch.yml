@@ -3,6 +3,6 @@
 # （需重述该行全部键），保存后重启 DSH 生效。
 - insert:
     - id: specdev-workbench
-      name: '@specdev/dsh-workbench'
+      name: '@pioneer_zmc/dsh-workbench'
       config:
         repoRoot: ''

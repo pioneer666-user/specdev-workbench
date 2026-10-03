@@ -6,39 +6,38 @@ Choose a DSH project, read business documents and workflows, or ask a bundled Sk
 
 ## Download and install
 
+### npm channel (0.2.1 preparation; not published yet)
+
+The npm package is `@pioneer_zmc/dsh-workbench`; the existing GitHub package remains `@specdev/dsh-workbench`. Product name, plugin ID, routes and data paths stay the same. Use these commands only after npm publication. See the verification boundaries below.
+
 ### Windows Desktop
 
-Use the CLI bundled with your Desktop installation, not the global Web CLI. Save your work, exit Desktop from its menu or tray, and confirm its background instance has ended. Download the tgz to a local path without spaces.
-
-The following example uses a **custom data root**. Replace the installation and package paths; CLI and Desktop must use the same DSH_HOME. Existing users must keep their actual root. If DSH_HOME was previously unset, leave it unset rather than changing roots to install. This variable affects only the current terminal and its child processes, not system settings.
+Save work, exit via the menu or tray, and confirm the background instance ended. Use the bundled Desktop CLI and the actual Desktop DSH_HOME; leave it unset if it was unset before. This example demonstrates a custom root only. CLI and Desktop must share the same root; the variable affects this terminal and its children only.
 
 ~~~powershell
-$DesktopDir = 'C:\Apps\DSH' # Replace with your Desktop installation directory
-$Package = 'C:\DSHPackages\specdev-dsh-workbench-0.2.1.tgz'
-$env:DSH_HOME = 'C:\DSHData\desktop' # Custom-root example only; match your actual Desktop root
-& "$DesktopDir\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add $Package
+$DesktopDir = 'C:\Apps\DSH' # Replace with the actual installation directory
+$env:DSH_HOME = 'C:\DSHData\desktop' # Custom-root example; existing users keep their actual root
+& "$DesktopDir\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@pioneer_zmc/dsh-workbench@0.2.1' '--registry=https://registry.npmjs.org/'
 & "$DesktopDir\DeepSeek Harness.exe"
 ~~~
 
-For an upgrade, remove only a package actually installed before add: use this same bundled CLI with 'plugin --profile desktop remove @specdev/dsh-workbench' for the current identity, or '@specdev/dsh-archify-manage' for 0.1.11 and earlier. Do not remove absent packages or clear the data root. Restart Desktop from the same environment; a normal shortcut may not inherit the terminal's custom root.
+Before upgrading, record the installed package and custom plugin configuration. Remove only an actually installed package with the same bundled CLI's `plugin --profile desktop remove <installed-package>`: GitHub 0.2.x uses `@specdev/dsh-workbench`, earlier releases use `@specdev/dsh-archify-manage`, and npm uses `@pioneer_zmc/dsh-workbench`. Then add, verify the original custom configuration, and restart from the same environment. Do not install old and new packages together or clear data roots. Migration of every old version has not been tested.
 
-The Desktop sidebar opens SpecDev Workbench in the central panel. Choose a project, then use Return to chat to restore the original conversation.
+The sidebar opens SpecDev Workbench in the central panel. Choose a project and use Return to chat to restore the conversation.
 
 ### Web
 
-Existing Web hosts continue using their terminal command and original data root:
+Stop the corresponding instance and keep its original data root and Web CLI. Apply the same installed-package removal and configuration checks using the web profile.
 
 ~~~sh
-dsh plugin --profile web add https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.1/specdev-dsh-workbench-0.2.1.tgz
+dsh plugin --profile web add @pioneer_zmc/dsh-workbench@0.2.1 --registry=https://registry.npmjs.org/
 ~~~
 
-For an upgrade, stop the corresponding Web instance and remove only the installed identity using 'dsh plugin --profile web remove @specdev/dsh-workbench' (or '@specdev/dsh-archify-manage' for the old identity), then add and restart. Do not use Web commands for Desktop profiles.
+Restart that Web instance. The sidebar opens a new tab with project names and full paths, preserving chat. Create a workspace and refresh an empty list; retry read failures. Both states retain manual configuration. This task does not create a second Web installation, so this command is not evidence of a tested Web install.
 
-The Web sidebar entry opens a new tab listing project names and full paths while preserving the chat. Create a workspace in DSH and refresh an empty list; retry failed reads. Both states retain manual configuration.
+### GitHub fallback (original package identity)
 
-[Download 0.2.1](https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.1/specdev-dsh-workbench-0.2.1.tgz) · [Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.1)
-
-The 0.2.1 URLs become available after publication; before that they are preparation addresses. Published 0.2.0 remains at its [original Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.0).
+[Original-identity 0.2.1 package](https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.1/specdev-dsh-workbench-0.2.1.tgz) · [Original Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.1). Download to a path without spaces and use the appropriate profile's `plugin add <local-tgz-path>`. This existing asset remains `@specdev/dsh-workbench` and must not coexist with the new npm identity. The old [0.2.0 Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.0) remains available.
 
 ## Features
 
@@ -63,11 +62,13 @@ The management UI only writes snapshot tags, without changing business files, br
 
 ## Breaking changes from 0.1.x
 
-New package: `@specdev/dsh-workbench`. Plugin/sidebar ID: `specdev-workbench`. Client module: `@specdev/dsh-workbench/client`. Pages/APIs use `/specdev-workbench`; data uses `docs/specdev`, six formal `specdev/*/1` schemas, SpecDev building formats and `specdev/` snapshot tags. Old archify-maker/archify-house skills become specdev-business/specdev-building, with specdev-room added.
+Current npm package: `@pioneer_zmc/dsh-workbench`. Plugin/sidebar ID: `specdev-workbench`. Client module: `@pioneer_zmc/dsh-workbench/client`. Pages/APIs use `/specdev-workbench`; data uses `docs/specdev`, six formal `specdev/*/1` schemas, SpecDev building formats and `specdev/` snapshot tags. Old archify-maker/archify-house skills become specdev-business/specdev-building, with specdev-room added.
 
 Only the new root, formats and tags are read. There is no automatic migration or old URL/skill alias; old bookmarks are not guaranteed. Old files and tags remain intact. Agree migration separately for each old project; do not bulk rename. Registered material can retain its original repository path.
 
 ## Limits and verification
+
+The new npm identity candidate still requires this task’s isolated loading check, independent review and publication. Its identity changes are not covered by the old GitHub package byte-equivalence claim; the remaining implementation reuses existing evidence.
 
 No in-page furniture editing/saving, arbitrary scaling, wall placement, nested supports, jumping/stairs in independent rooms, cross-room links or sitting/sleeping animation. Floor placement and one level of tabletop support are supported; style is a soft recommendation. The CLI checks configuration, placement, bindings and registered material reading. Workflow checks stop at JSON syntax and do not prove diagram compilation/rendering.
 
@@ -84,7 +85,7 @@ node scripts/build.mjs
 npm pack --pack-destination .
 ~~~
 
-Produces `specdev-dsh-workbench-0.2.1.tgz`. The renderer and read-only validators are bundled; no private research repository is needed.
+Produces `pioneer_zmc-dsh-workbench-0.2.1.tgz`. The renderer and read-only validators are bundled; no private research repository is needed.
 
 ~~~sh
 node sample/generate.mjs ./local-artifacts/demo-project

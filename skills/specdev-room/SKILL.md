@@ -22,7 +22,7 @@ description: 为一个已有 SpecDev 业务创建或调整独立房间时使用�
 ## 先找到当前包
 
 1. 从本次技能加载返回的 `resourceBase.path`，或实际读取的 SKILL.md 绝对路径，取得 `skills/specdev-room/` 的真实目录；文件路径先取其所在目录。
-2. 从该技能目录向上两级得到包根。读取 package.json，核对 name 为 `@specdev/dsh-workbench`；确认同包 `dist/check-room.js`、`web/assets/rooms/templates.json`、`web/assets/rooms/placeholder-catalog.json`、`web/assets/furniture/index.json` 存在。
+2. 从该技能目录向上两级得到包根。读取 package.json，核对 name 为 `@pioneer_zmc/dsh-workbench`；确认同包 `dist/check-room.js`、`web/assets/rooms/templates.json`、`web/assets/rooms/placeholder-catalog.json`、`web/assets/furniture/index.json` 存在。
 3. 读取 index.json 的 assets，逐个读取候选条目的 metadataRef。它相对包内 `web/assets/furniture/`，不是相对业务仓或本技能。每件候选必须读自己的 asset.json；索引不是尺寸说明。另读占位目录作为当前可用补充，不维护第二份总目录或固定允许名单。
 
 缺实际技能路径、包身份不符或 CLI 不存在时，报告定位/版本问题。不要猜 DSH_HOME、个人安装位置、源码路径或工作区；不回退旧校验命令，不自动构建、安装、改插件或扫描旧实验/旧安装包补资产。所有资源只读，含空格的实际命令路径加引号。

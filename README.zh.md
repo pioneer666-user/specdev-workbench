@@ -6,39 +6,38 @@
 
 ## 下载与安装
 
+### npm 渠道（0.2.1 发布准备，尚未发布）
+
+新 npm 包名为 `@pioneer_zmc/dsh-workbench`，旧 GitHub 包名为 `@specdev/dsh-workbench`。产品名称、插件 ID、页面地址和数据路径不变。下面命令须在 npm 正式发布后使用；本轮安装/加载证据及未验证边界见末尾说明。
+
 ### Windows 桌面
 
-使用桌面安装目录中的随包命令，不使用全局 Web CLI。先保存任务，从菜单或托盘退出桌面并确认后台实例结束。下载 tgz 到无空格的本地路径。
-
-下面是**自选数据根**的示例：替换安装目录与文件路径，CLI 和桌面启动必须使用同一个 DSH_HOME。已有桌面用户应沿用实际数据根；原来未设置 DSH_HOME 就保持未设置，不要为了安装随意切换。此环境变量只影响当前终端及其子进程，不修改系统设置。
+先保存任务，从菜单或托盘正常退出并确认后台实例结束。使用桌面随包 CLI，沿用桌面实际 DSH_HOME；原来未设置就保持未设置，不为安装切换数据根。下面只演示自选根；CLI 与桌面必须使用同一个根，此变量只影响当前终端及子进程。
 
 ~~~powershell
-$DesktopDir = 'C:\Apps\DSH' # 替换为桌面安装目录
-$Package = 'C:\DSHPackages\specdev-dsh-workbench-0.2.1.tgz'
-$env:DSH_HOME = 'C:\DSHData\desktop' # 仅自选新根示例；须与桌面实际使用一致
-& "$DesktopDir\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add $Package
+$DesktopDir = 'C:\Apps\DSH' # 替换为实际桌面安装目录
+$env:DSH_HOME = 'C:\DSHData\desktop' # 仅自选根示例；已有用户沿用实际根
+& "$DesktopDir\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@pioneer_zmc/dsh-workbench@0.2.1' '--registry=https://registry.npmjs.org/'
 & "$DesktopDir\DeepSeek Harness.exe"
 ~~~
 
-更新已有插件时，在 add 前只移除实际已安装的包：当前身份用同一随包命令的 'plugin --profile desktop remove @specdev/dsh-workbench'；0.1.11及更早旧身份为 '@specdev/dsh-archify-manage'。未安装的包不执行 remove，不清空数据根。安装后从相同环境重启桌面；普通快捷方式不一定继承终端自选数据根。
+升级前记录原包名及自定义插件配置。仅对实际安装的包执行同一随包命令的 `plugin --profile desktop remove <原包名>`：旧 GitHub 0.2.x 为 `@specdev/dsh-workbench`，更早身份为 `@specdev/dsh-archify-manage`；已有 npm 包为 `@pioneer_zmc/dsh-workbench`。移除后再 add，核对原自定义配置并从同一环境重启。不同时安装新旧包，不清空数据根，不承诺所有旧版本已实测无损迁移。
 
-侧栏「SpecDev 工作台」在桌面中央面板展开；选择项目后进入相应业务，使用「返回聊天」回到原会话。
+侧栏「SpecDev 工作台」在中央面板展开，选择项目后进入业务，使用「返回聊天」回到原会话。
 
 ### Web
 
-已有 Web 宿主继续使用其终端命令和原数据根：
+停止对应实例，沿用原数据根和 Web CLI；旧包移除及配置核对要求同上，profile 使用 web。
 
 ~~~sh
-dsh plugin --profile web add https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.1/specdev-dsh-workbench-0.2.1.tgz
+dsh plugin --profile web add @pioneer_zmc/dsh-workbench@0.2.1 --registry=https://registry.npmjs.org/
 ~~~
 
-升级时先停止对应 Web 实例，只对实际安装的身份执行 'dsh plugin --profile web remove @specdev/dsh-workbench'（旧身份则为 '@specdev/dsh-archify-manage'），再 add 并重启。不要把 Web 命令用于桌面 profile。
+安装后重启对应 Web 实例。侧栏「SpecDev 工作台 ↗」在新标签列出项目名称和完整路径，原聊天保留。空清单先回 DSH 创建工作区并刷新；读取失败可重试，均保留手动配置入口。本轮不另建 Web 安装环境，以上命令不作为 Web 实装通过证据。
 
-Web 侧栏「SpecDev 工作台 ↗」在新标签显示项目名称和完整路径，原聊天保留。空清单先回 DSH 创建工作区并刷新；读取失败可重试，均保留手动配置入口。
+### GitHub 备用下载（原身份包）
 
-[下载0.2.1安装包](https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.1/specdev-dsh-workbench-0.2.1.tgz) · [Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.1)
-
-以上0.2.1链接在正式发布后可用；发布前是准备地址。已发布0.2.0仍见[原Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.0)。
+[旧身份0.2.1安装包](https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.1/specdev-dsh-workbench-0.2.1.tgz) · [原Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.1)。下载至无空格路径，用对应 profile 的 `plugin add <本地tgz路径>` 安装；此旧附件仍是 `@specdev/dsh-workbench`，不能与 npm 新身份包并存。旧0.2.0 [Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.0) 保留。
 
 ## 本版能力
 
@@ -63,11 +62,13 @@ Skill会引导确认业务、风格与布置方式，读取当前家具目录，
 
 ## 0.1.x升级边界
 
-新包 `@specdev/dsh-workbench`，插件/侧栏ID `specdev-workbench`，客户端模块 `@specdev/dsh-workbench/client`。页面和API前缀改为 `/specdev-workbench`，资料根为 `docs/specdev`，六类正式schema为 `specdev/*/1`，建筑格式及快照标签也改为SpecDev命名。旧技能archify-maker/archify-house改为specdev-business/specdev-building，新加specdev-room。
+现行 npm 包 `@pioneer_zmc/dsh-workbench`，插件/侧栏ID `specdev-workbench`，客户端模块 `@pioneer_zmc/dsh-workbench/client`。页面和API前缀改为 `/specdev-workbench`，资料根为 `docs/specdev`，六类正式schema为 `specdev/*/1`，建筑格式及快照标签也改为SpecDev命名。旧技能archify-maker/archify-house改为specdev-business/specdev-building，新加specdev-room。
 
 只读新根、新格式和新标签，不自动迁移旧项目，不保证旧书签可用，不注册旧URL或技能别名；旧数据和标签保留。每个旧项目需另行约定迁移，不能直接批量改名。已登记资料路径可继续指向仓库内原位置。
 
 ## 限制与验证
+
+npm 新身份候选尚待本轮隔离加载、独立审查及正式发布；其必要身份修改不能套用旧 GitHub 包的全字节一致结论。其余实现复用既有验收。
 
 不支持页内家具编辑/保存、任意缩放、墙挂、嵌套承载、跳跃上下楼、跨房连接或坐卧动画。支持地面摆放及一层桌面承载，风格是软推荐。CLI核对配置、摆放、绑定和登记资料读取；流程图只读到JSON语法，不等于图编译/渲染验证。
 
@@ -84,7 +85,7 @@ node scripts/build.mjs
 npm pack --pack-destination .
 ~~~
 
-生成 `specdev-dsh-workbench-0.2.1.tgz`。渲染器及只读校验已随包，不依赖外部研究仓。
+生成 `pioneer_zmc-dsh-workbench-0.2.1.tgz`。渲染器及只读校验已随包，不依赖外部研究仓。
 
 ~~~sh
 node sample/generate.mjs ./local-artifacts/demo-project

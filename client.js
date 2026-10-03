@@ -1,6 +1,6 @@
 // Web 保留新标签入口；桌面用宿主中央面板承载同一项目选择页。
 window.__ModuleLoader__.load({
-  id: '@specdev/dsh-workbench/client',
+  id: '@pioneer_zmc/dsh-workbench/client',
   factory(require) {
     const React = require('react')
     const desktop = window.location?.protocol === 'dsh-app:' && window.location?.hostname === 'app'

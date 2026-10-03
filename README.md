@@ -6,9 +6,9 @@ Choose a DSH project, read business documents and workflows, or ask a bundled Sk
 
 ## Download and install
 
-### npm channel (0.2.1 preparation; not published yet)
+### npm install (recommended; 0.2.1 released)
 
-The npm package is `@pioneer_zmc/dsh-workbench`; the existing GitHub package remains `@specdev/dsh-workbench`. Product name, plugin ID, routes and data paths stay the same. Use these commands only after npm publication. See the verification boundaries below.
+[Version 0.2.1 is available on npm](https://www.npmjs.com/package/@pioneer_zmc/dsh-workbench/v/0.2.1). Use the commands below to install from npm without downloading the package from GitHub. The npm package is `@pioneer_zmc/dsh-workbench`; the existing GitHub package remains `@specdev/dsh-workbench`. Product name, plugin ID, routes and data paths stay the same.
 
 ### Windows Desktop
 
@@ -68,11 +68,11 @@ Only the new root, formats and tags are read. There is no automatic migration or
 
 ## Limits and verification
 
-The new npm identity candidate still requires this task’s isolated loading check, independent review and publication. Its identity changes are not covered by the old GitHub package byte-equivalence claim; the remaining implementation reuses existing evidence.
+npm 0.2.1 passed independent review, full official-registry download verification, and installation by package name on Windows / DSH Desktop 0.2.0-rc.2. Installed files match the reviewed package. The author also confirmed a successful npm installation. The new package identity’s entry point and three skills were verified in an isolated desktop instance. Installation of the new npm package on Web, other platforms, and later host versions remains unverified.
 
 No in-page furniture editing/saving, arbitrary scaling, wall placement, nested supports, jumping/stairs in independent rooms, cross-room links or sitting/sleeping animation. Floor placement and one level of tabletop support are supported; style is a soft recommendation. The CLI checks configuration, placement, bindings and registered material reading. Workflow checks stop at JSON syntax and do not prove diagram compilation/rendering.
 
-The 0.2.1 candidate was verified on Windows / DSH Desktop 0.2.0-rc.2 for the central entry, project ownership, room reading, internal navigation and chat draft retention. The three skills were confirmed discoverable with readable bodies and references through the host’s normal viewer. The final release package changes only the READMEs; runtime files match that tested candidate, and the final package was not reinstalled. Existing Web installation/use evidence covers 0.2.0 on Windows / DSH 0.1.6-alpha.2. The 0.2.1 source entry passed its 12 relevant regression checks; a separate isolated newer Web host check covered 0.2.0-rc.2. This does not claim installation of the final 0.2.1 package on every Web host. Other platforms and later host versions are unverified. A separate DSH_HOME isolates plugin/business data; Electron preferences, caches, single-instance behavior and protocol registration may still be shared within the account.
+The earlier GitHub 0.2.1 candidate was verified on Windows / DSH Desktop 0.2.0-rc.2 for the central entry, project ownership, room reading, internal navigation and chat draft retention. The three skills were confirmed discoverable with readable bodies and references through the host’s normal viewer. The final GitHub release package changes only the READMEs; runtime files match that tested candidate, and that final package was not reinstalled. Existing Web installation/use evidence covers 0.2.0 on Windows / DSH 0.1.6-alpha.2. The 0.2.1 source entry passed its 12 relevant regression checks; a separate isolated newer Web host check covered 0.2.0-rc.2. This does not claim installation of the final 0.2.1 package on every Web host. Other platforms and later host versions are unverified. A separate DSH_HOME isolates plugin/business data; Electron preferences, caches, single-instance behavior and protocol registration may still be shared within the account.
 
 ## Build and sample
 

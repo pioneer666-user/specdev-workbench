@@ -1,0 +1,117 @@
+/* 仅首页加载：使用现有主题语义色，不改共用业务卡的结构或默认样式。 */
+html { scroll-behavior: auto; }
+.home-page { min-width: 0; }
+.home-page .home-width { width: calc(100% - 64px); max-width: 1120px; margin-inline: auto; }
+.home-page .project-hero {
+  display: grid;
+  min-height: calc(100vh - 110px);
+  min-height: calc(100svh - 110px);
+  padding-block: 24px 28px;
+  background: radial-gradient(ellipse 55% 58% at 50% 42%, var(--glow), transparent 78%);
+}
+.home-page .hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-width: 0;
+  padding-block: clamp(64px, 12vh, 128px);
+  padding-block: clamp(64px, 12svh, 128px);
+  text-align: center;
+}
+.home-page .project-hero h1 {
+  max-width: 100%;
+  margin: 0;
+  font-size: clamp(44px, 8.5vw, 96px);
+  font-weight: 650;
+  line-height: 1.16;
+  overflow-wrap: anywhere;
+}
+.home-page .hero-description {
+  max-width: 32em;
+  margin: 0;
+  color: var(--secondary);
+  font-size: 16px;
+  line-height: 1.9;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.home-page .browse-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  margin-top: 8px;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 500;
+}
+.home-page .browse-entry:hover { background: var(--accent-hover); text-decoration: none; }
+.home-page .business-section { padding-block: 24px 48px; scroll-margin-top: 24px; }
+.home-page #stateHeading { margin: 0 0 20px; font-size: 26px; overflow-wrap: anywhere; }
+.home-page .section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 12px;
+}
+.home-page .section-heading h2 { margin: 0; font-size: 22px; font-weight: 600; }
+.home-page .project-metrics { margin: 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.home-page .status { margin: 0 0 14px; white-space: normal; }
+.home-page .status[data-kind="ok"] { color: var(--muted); font-size: 12px; }
+.home-page .home-cards { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.home-page .business-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 20px;
+  min-height: 0;
+  padding: 18px 22px;
+  border-radius: 10px;
+  transition: none;
+}
+.home-page .business-card:hover { transform: none; }
+.home-page .business-card-top { display: none; }
+.home-page .business-card h3 { grid-column: 1; grid-row: 1; align-self: center; margin: 0; font-size: 18px; }
+.home-page .business-card .business-intro { grid-column: 1 / -1; grid-row: 2; margin: 0; color: var(--secondary); font-size: 14px; }
+.home-page .business-card .chip-row,
+.home-page .business-card .business-warning { grid-column: 1 / -1; grid-row: 3; margin: 0; }
+.home-page .business-card-footer { display: contents; }
+.home-page .business-card-footer > span:first-child { grid-column: 1 / -1; grid-row: 4; font-size: 12px; color: var(--muted); }
+.home-page .business-enter {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  padding: 6px 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: 7px;
+  background: var(--accent-bg);
+  font-size: 14px;
+  white-space: normal;
+}
+.home-page .project-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-top: 24px;
+}
+.home-page .workspace-details { margin: 0; }
+.home-page .project-links { display: flex; flex-wrap: wrap; gap: 12px; }
+@media (max-width: 640px) {
+  .home-page .home-width { width: calc(100% - 32px); }
+  .home-page .hero-copy { gap: 20px; }
+  .home-page .hero-description { font-size: 15px; }
+  .home-page .business-card { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .home-page .business-card h3 { grid-row: 1; }
+  .home-page .business-enter { grid-column: 1; grid-row: 5; justify-self: start; }
+}
+@media (max-height: 560px) {
+  .home-page .project-hero { padding-block: 18px; }
+  .home-page .hero-copy { padding-block: 40px; gap: 18px; }
+}

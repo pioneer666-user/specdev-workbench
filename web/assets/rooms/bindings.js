@@ -187,13 +187,14 @@ export function resolveRoomBindings(input) {
   const entryByChartId = new Map()
   for (const chart of chartList) {
     const entry = {
-      kind: 'workflow',
+      kind: chart.diagramType === 'lifecycle' ? 'chart' : 'workflow',
+      ...(chart.diagramType === 'lifecycle' ? { diagramType: 'lifecycle' } : {}),
       businessId: business.id,
       chartId: chart.id,
       title: chart.name,
       href: `/specdev-workbench/read/${encodeURIComponent(business.id)}/${encodeURIComponent(chart.id)}`,
     }
-    const unavailableReason = chart.descriptorError ?? chart.idConflict
+    const unavailableReason = chart.readingUnavailable ?? chart.descriptorError ?? chart.idConflict
     if (unavailableReason) entry.unavailableReason = unavailableReason
     entryByChartId.set(chart.id, entry)
     candidates.push(entry)
@@ -427,7 +428,7 @@ export function resolveRoomBindings(input) {
         chartsOk = false
         continue
       }
-      const unavailableReason = chart.descriptorError ?? chart.idConflict
+      const unavailableReason = chart.readingUnavailable ?? chart.descriptorError ?? chart.idConflict
       if (unavailableReason) {
         diagnostics.push(diag(
           'BINDING_CHART_UNAVAILABLE',

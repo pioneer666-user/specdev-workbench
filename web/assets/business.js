@@ -1,39 +1,33 @@
 // 业务页：业务介绍、文档入口、图列表（每图带快照数与当前状态）。
-import { $, chartStatusKind, countChartStatuses, el, fetchJson, pageTitle, renderEmptyWorkspaceParam, renderGuide, renderRepoLine, renderRepoState, setStatus, showError, STATUS_SUMMARY_ORDER, statusBadge, workspaceParamEmpty, wsUrl } from './common.js'
+import { $, chartStatusKind, el, fetchJson, pageTitle, renderEmptyWorkspaceParam, renderGuide, renderRepoState, setStatus, showError, workspaceParamEmpty, wsUrl } from './common.js'
+import { createDocumentReader } from './document-reader.js'
 
-/** 图列表上方的状态汇总行：点某个状态跳到第一张该状态的图卡并闪一下框，
- *  图多时不用逐张扫徽标找"要处理的"。 */
-function renderChartSummary(charts, root) {
-  const box = $('chartSummary')
-  if (!box) return
-  const counts = countChartStatuses(charts)
-  const present = STATUS_SUMMARY_ORDER.filter(([kind]) => counts[kind])
-  if (present.length === 0) return
-  for (const [kind, label] of present) {
-    const chip = el('button', 'badge')
-    chip.type = 'button'
-    chip.dataset.kind = kind
-    chip.textContent = `${label} ${counts[kind]}`
-    chip.addEventListener('click', () => {
-      const target = root.querySelector(`.card[data-status="${kind}"]`)
-      if (!target) return
-      target.scrollIntoView({ block: 'center' })
-      target.classList.add('flash')
-      setTimeout(() => target.classList.remove('flash'), 1200)
-    })
-    box.append(chip)
-  }
-  box.hidden = false
+function badge(text, kind) {
+  const n = el('span', 'badge')
+  n.dataset.kind = kind
+  n.textContent = text
+  return n
+}
+
+/** 图标只有本地固定几何，所有资料字符串仅写入textContent。 */
+function documentIcon() {
+  const ns = 'http://www.w3.org/2000/svg', icon = document.createElementNS(ns, 'svg')
+  for (const [key, value] of Object.entries({ class: 'business-doc-icon', viewBox: '0 0 24 28', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'aria-hidden': 'true' })) icon.setAttribute(key, value)
+  const p = document.createElementNS(ns, 'path')
+  p.setAttribute('d', 'M5 2h9l5 5v19H5zM14 2v6h5M8 13h8M8 17h8M8 21h5')
+  icon.append(p)
+  return icon
 }
 
 function businessIdFromLocation() {
   const parts = location.pathname.split('/').filter(Boolean) // ['specdev-workbench','business','<id>']
-  return parts[2] || ''
+  return decodeURIComponent(parts[2] || '')
 }
 
 async function main() {
   if (workspaceParamEmpty) return renderEmptyWorkspaceParam()
-  const id = businessIdFromLocation()
+  let id
+  try { id = businessIdFromLocation() } catch { return showError('业务 id 编码不正确，请从项目首页重新进入。') }
   if (!id) return showError('缺少业务 id（路径应为 /specdev-workbench/business/<业务id>）')
   let inventory
   try {
@@ -43,12 +37,10 @@ async function main() {
     return showError(error.message)
   }
   if (inventory.code === 'repo-not-configured') return renderGuide(inventory)
-  renderRepoLine(inventory.repo)
 
   const business = inventory.businesses.find((b) => b.id === id)
   if (!business) return showError(`业务不存在：${id}`)
   document.title = pageTitle(business.name, inventory.repo)
-  $('bizName').textContent = business.name
   $('title').textContent = business.name
   if (business.descriptorError) {
     $('intro').textContent = business.descriptorError
@@ -64,61 +56,90 @@ async function main() {
   $('roomEntryLine').hidden = false
 
   if (business.docs.length > 0) {
+    const reader = createDocumentReader({ root: $('documentReader'), background: document.querySelector('.page-content'), businessId: id, documents: business.docs })
     const list = $('docList')
     for (const doc of business.docs) {
       const li = el('li')
-      const a = el('a')
-      a.href = wsUrl(`/specdev-workbench/api/doc?business=${encodeURIComponent(id)}&path=${encodeURIComponent(doc)}`)
-      a.target = '_blank'
-      a.rel = 'noopener'
-      a.textContent = doc
+      const a = el('a', 'business-doc-entry')
+      a.href = '#documentReader'
+      a.addEventListener('click', event => { event.preventDefault(); reader.open(doc, a) })
+      const copy = el('span', 'business-doc-copy')
+      const name = el('span', 'business-doc-name')
+      name.textContent = doc.split('/').at(-1).replace(/\.md$/i, '')
+      const path = el('span', 'business-doc-path')
+      path.textContent = doc
+      copy.append(name, path)
+      const arrow = el('span', 'business-doc-arrow')
+      arrow.textContent = '→'
+      arrow.setAttribute('aria-hidden', 'true')
+      a.append(documentIcon(), copy, arrow)
       li.appendChild(a)
       list.appendChild(li)
     }
-    $('docs').hidden = false
   }
+  $('docsCount').textContent = String(business.docs.length)
+  $('docs').hidden = false
+  $('docList').hidden = business.docs.length === 0
+  $('docsEmpty').hidden = business.docs.length !== 0
 
   const root = $('root')
   root.textContent = ''
   for (const chart of business.charts) {
-    const card = el('a', 'card')
-    card.href = wsUrl(`/specdev-workbench/read/${id}/${chart.id}`)
+    const card = el('a', 'card business-chart-card')
+    card.href = wsUrl(`/specdev-workbench/read/${encodeURIComponent(id)}/${encodeURIComponent(chart.id)}`)
     card.dataset.status = chartStatusKind(chart)
-    const h = el('h2')
+    const h = el('h3')
     h.textContent = chart.name
-    h.insertAdjacentHTML('beforeend', statusBadge(chart.currentStatus, chart.compareError))
     card.appendChild(h)
-    if (chart.idConflict) {
-      const badge = el('span', 'badge')
-      badge.dataset.kind = 'invalid'
-      badge.textContent = '编号冲突'
-      card.appendChild(badge)
-      const p = el('p')
-      p.textContent = chart.idConflict
-      card.appendChild(p)
-    } else if (chart.descriptorError) {
-      const badge = el('span', 'badge')
-      badge.dataset.kind = 'invalid'
-      badge.textContent = '说明文件问题'
-      card.appendChild(badge)
-      const p = el('p')
-      p.textContent = chart.descriptorError
-      card.appendChild(p)
-    } else if (chart.summary) {
-      const p = el('p')
+    if (!chart.idConflict && !chart.descriptorError && chart.summary) {
+      const p = el('p', 'business-chart-summary')
       p.textContent = chart.summary
       card.appendChild(p)
     }
-    const meta = el('p', 'meta')
-    const invalidNote = chart.invalidTagCount > 0 ? `，另有 ${chart.invalidTagCount} 个不合约定的标签被忽略` : ''
-    meta.textContent = chart.snapshotCount > 0
-      ? `快照 ${chart.snapshotCount} 版${invalidNote}`
-      : `还没有保存过快照${invalidNote}`
-    card.appendChild(meta)
+    const state = el('div', 'business-chart-status')
+    const text = chart.currentStatus === 'identical' ? '一致' : chart.currentStatus === 'changed' ? '已改动'
+      : chart.currentStatus === 'compare-failed' ? '无法比较' : '无快照'
+    state.append(badge(text, chart.currentStatus))
+    if (chart.snapshotCount > 0) {
+      const meta = el('span', 'business-chart-meta')
+      meta.textContent = `快照 ${chart.snapshotCount} 版`
+      state.append(meta)
+    }
+    if (chart.idConflict) {
+      state.append(badge('编号冲突', 'invalid'))
+    }
+    if (chart.descriptorError) state.append(badge('说明文件问题', 'invalid'))
+    card.append(state)
+    if (chart.idConflict) {
+      const p = el('p', 'business-chart-issue')
+      p.textContent = chart.idConflict
+      card.appendChild(p)
+    }
+    if (chart.descriptorError) {
+      const p = el('p', 'business-chart-issue')
+      p.textContent = chart.descriptorError
+      card.appendChild(p)
+    }
+    if (chart.compareError) {
+      const p = el('p', 'business-chart-issue')
+      p.textContent = `无法比较：${chart.compareError}`
+      card.appendChild(p)
+    }
+    if (chart.invalidTagCount > 0) {
+      const p = el('p', 'business-chart-warning')
+      p.textContent = `另有 ${chart.invalidTagCount} 个不合约定的标签被忽略`
+      card.append(p)
+    }
+    const action = el('span', 'business-chart-action')
+    action.textContent = chart.diagramType === 'lifecycle' ? '查看生命周期图 →' : '查看流程 →'
+    card.append(action)
     root.appendChild(card)
   }
-  renderChartSummary(business.charts, root)
-  setStatus(`${business.name}：${business.charts.length} 张图`, 'ok')
+  $('chartsCount').textContent = String(business.charts.length)
+  $('charts').hidden = false
+  $('chartsEmpty').hidden = business.charts.length !== 0
+  // 成功页不重复报业务/图数；错误和警告分支仍使用既有status容器。
+  $('status').hidden = true
 }
 
 main()

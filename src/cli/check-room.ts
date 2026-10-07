@@ -27,7 +27,7 @@ interface Validation { ok: boolean; diagnostics: ModuleDiagnostic[] }
 interface PlacementModule { validatePlacement: (template: unknown, catalog: Catalog, layout: unknown) => Validation }
 /** 目录条目按 kind 区分（E9c）：文档＝登记路径，流程图＝业务与 chartId；不共用裸字符串键。 */
 interface DocumentDirectoryEntry { kind: 'document'; businessId: string; path: string }
-interface ChartDirectoryEntry { kind: 'workflow'; businessId: string; chartId: string; title: string; unavailableReason?: string }
+interface ChartDirectoryEntry { kind: 'workflow' | 'chart'; businessId: string; chartId: string; title: string; unavailableReason?: string }
 type DirectoryEntry = DocumentDirectoryEntry | ChartDirectoryEntry
 interface BindingsModule {
   resolveRoomBindings: (input: { business: unknown; layout: unknown; catalog: Catalog }) => Validation & {
@@ -161,7 +161,7 @@ export async function runRoomCheck(input: string, businessId: string): Promise<R
     // 文档按路径去重、图按 chartId 去重，两者不共用裸字符串键。
     for (const entry of resolved.directory) {
       if (entry.businessId !== businessId) continue
-      if (entry.kind === 'workflow') {
+      if (entry.kind !== 'document') {
         if (seenCharts.has(entry.chartId)) continue
         seenCharts.add(entry.chartId)
         if (entry.unavailableReason) {
@@ -179,19 +179,21 @@ export async function runRoomCheck(input: string, businessId: string): Promise<R
           continue
         }
         // workflowError/缺失可能是返回体错误（不一定抛异常）；有 workflow 文本才做解析检查。
-        if (page.version.workflowError || page.version.files.workflow == null) {
-          diagnostics.push({ stage: 'charts', code: 'CHART_UNREADABLE', targetId: entry.chartId, message: `流程图 ${entry.chartId} 的 workflow.json 缺失或读不开：${page.version.workflowError ?? 'readChartPage 未返回 workflow 内容'}` })
+        const lifecycle = page.version.diagramType === 'lifecycle', sourceText = lifecycle ? page.version.files.lifecycle : page.version.files.workflow
+        const sourceName = page.version.sourceFile ?? 'workflow.json'
+        if (page.version.sourceError || (!lifecycle && page.version.workflowError) || sourceText == null) {
+          diagnostics.push({ stage: 'charts', code: 'CHART_UNREADABLE', targetId: entry.chartId, message: `${lifecycle ? '生命周期图' : '流程图'} ${entry.chartId} 的 ${sourceName} 缺失或读不开：${(lifecycle ? page.version.sourceError : page.version.workflowError ?? page.version.sourceError) ?? '未返回图源内容'}` })
           continue
         }
         let workflow: unknown
         try {
-          workflow = JSON.parse(page.version.files.workflow)
+          workflow = JSON.parse(sourceText)
         } catch (error) {
-          diagnostics.push({ stage: 'charts', code: 'CHART_JSON_INVALID', targetId: entry.chartId, message: `流程图 ${entry.chartId} 的 workflow.json 不是合法 JSON：${reasonOf(error)}` })
+          diagnostics.push({ stage: 'charts', code: 'CHART_JSON_INVALID', targetId: entry.chartId, message: `图 ${entry.chartId} 的 ${sourceName} 不是合法 JSON：${reasonOf(error)}` })
           continue
         }
         if (!isObject(workflow)) {
-          diagnostics.push({ stage: 'charts', code: 'CHART_JSON_INVALID', targetId: entry.chartId, message: `流程图 ${entry.chartId} 的 workflow.json 顶层必须是 JSON 对象（实际是 ${Array.isArray(workflow) ? '数组' : typeof workflow}）` })
+          diagnostics.push({ stage: 'charts', code: 'CHART_JSON_INVALID', targetId: entry.chartId, message: `图 ${entry.chartId} 的 ${sourceName} 顶层必须是 JSON 对象（实际是 ${Array.isArray(workflow) ? '数组' : typeof workflow}）` })
           continue
         }
         // details/evidence 缺失或既有读取降级不改成必填（完整性由既有阅读页处理）；

@@ -1,9 +1,8 @@
 // 房间阅读面板（E3b-2；E9c 扩展流程图）：点书架、告示牌或"业务资料"后在房间之上
 // 打开的资料集合与阅读区。文档继续本模块正文阅读；流程图复用既有 read 页面装进
 // iframe（不开新标签、不另造图渲染）。本模块只负责 DOM 面板、资料请求、焦点与请求
-// 失效；不 import Three、场景、旧建筑模型或业务清单读取代码。解析内核复用 details.js
-//（parseDocument／splitInline），正文与行内标记的 DOM 做法迁用 building.js 的
-// renderDocumentBody／appendInline（不经 innerHTML，业务数据里的 HTML 字符一律按文字显示）。
+// 失效；不 import Three、场景、旧建筑模型或业务清单读取代码。正文共用 markdown.js
+// 的受控令牌 DOM 输出，HTML 字符一律按文字显示。
 // 流程图的打开做法迁用 building.js 的 openWorkflowReader：先 fetch 同工作区阅读入口，
 // 取不到如实报错并可重试；取到再设 iframe 地址——预检 200 只证明 read.html 可达，
 // 图文件缺失、坏 JSON 和编译问题由阅读页自己显示，不用 iframe 的 error 事件判断。
@@ -13,8 +12,10 @@
 // iframe 里的阅读页按既有约定（panel-link.js）把 ESC 转发回来关面板；它自己的
 // 节点详情等 dialog 开着时先按原行为关 dialog，不提前退出面板——本模块不改 read.js。
 import { el, wsUrl } from '../common.js'
-import { parseDocument, splitInline } from '../details.js'
+import { renderMarkdown } from '../markdown.js'
 import { listenMaterialClose } from '../panel-link.js'
+import { isChartMaterial, chartMaterialLabel } from '../chart-entities.js'
+import { materialFetch, offlineRuntime, listenOfflineClose } from '../runtime-mode.js'
 
 /** 接口失败时优先说后端给的中文原因（JSON 错误体的 error 字段），拿不到再按 HTTP 状态说。
  *  与 building.js 同口径（迁用，不 import 整个页面脚本）。 */
@@ -39,12 +40,12 @@ async function failureReason(response) {
  */
 
 /** 资料条目的稳定身份（与绑定层同口径）：文档＝登记路径、流程图＝图 ID；不按标题区分。 */
-const materialKey = (entry) => (entry.kind === 'workflow' ? `chart:${entry.chartId}` : `doc:${entry.path}`)
+const materialKey = (entry) => (isChartMaterial(entry) ? `chart:${entry.chartId}` : `doc:${entry.path}`)
 
 /** 清单与标题里的人话前缀。 */
-const kindLabel = (entry) => (entry.kind === 'workflow' ? '流程图' : '文档')
+const kindLabel = (entry) => (isChartMaterial(entry) ? chartMaterialLabel(entry) : '文档')
 
-export function createRoomReader({ root, onReadingChange = () => {}, focusFallback = null } = {}) {
+export function createRoomReader({ root, onReadingChange = () => {}, focusFallback = null, documents = [] } = {}) {
   const panel = root.querySelector('#readerPanel')
   const title = root.querySelector('#readerTitle')
   const closeBtn = root.querySelector('#readerClose')
@@ -60,7 +61,8 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
   const retryBtn = root.querySelector('#readerRetry')
   const frameHost = root.querySelector('#readerFrameHost')
   const listToggle = root.querySelector('#readerListToggle')
-  const sizeToggle = root.querySelector('#readerSizeToggle')
+  const listArrow = root.querySelector('#readerListArrow')
+  const appearanceToggle = root.querySelector('#readerAppearanceToggle')
   const side = root.querySelector('.material-side')
   const startGuard = root.querySelector('#readerFocusStart')
   const endGuard = root.querySelector('#readerFocusEnd')
@@ -68,9 +70,9 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
   let openState = false
   let disposed = false
   // 左侧清单收缩（作者令 2026-10-01）：换集合（open）时重置为展开——新集合要看清单；
-  // 同一次打开内自由切换。面板放大跨 open 保持——窗口大小是阅读偏好，不随换家具回弹。
+  // 同一次打开内自由切换。T15唯一大尺寸，外观选择仅存于本页句柄，跨open/缓存保持。
   let listCollapsed = false
-  let enlarged = false
+  let plainAppearance = false
   // 单调请求序号＝最终写入条件：换资料、换集合（resetReader）、关闭、dispose 都使旧序号
   // 失效；成功与失败分支在异步正文／错误体读取之后都复查"当前请求、面板仍开着、控制器仍存活"。
   let requestSeq = 0
@@ -84,6 +86,7 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
   // 也不能在关闭后复活面板。
   let frame = null
   let unlistenClose = null
+  let unlistenFrameLoad = null
 
   const setNote = (kind, text) => {
     status.hidden = !text
@@ -93,11 +96,13 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
 
   /** 撤掉当前图 iframe：先解绑关闭消息，再清空导航并移除节点。幂等。 */
   function clearFrame() {
+    if (unlistenFrameLoad) { unlistenFrameLoad(); unlistenFrameLoad = null }
     if (unlistenClose) {
       unlistenClose()
       unlistenClose = null
     }
     if (frame) {
+      frame.removeAttribute('srcdoc')
       frame.setAttribute('src', 'about:blank')
       frame.remove()
       frame = null
@@ -161,17 +166,19 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
    *  （含已脱离文档的）不能再触发加载状态或发起新请求（E3b-2 验收补齐 R1）。 */
   async function openEntry(entry) {
     if (disposed || !openState) return
+    if (body.contains(document.activeElement)) closeBtn.focus()
     requestSeq += 1 // 所有切换都先作废旧请求，包括不发请求的不可用图。
     currentEntry = entry
     markActive()
     hint.hidden = true
     docTitle.textContent = `${kindLabel(entry)} · ${entry.title}`
-    docTitle.hidden = false
+    docTitle.title = docTitle.textContent
+    docTitle.hidden = isChartMaterial(entry) // 图内已有标题，不重复占正文上沿。
     body.textContent = ''
     body.hidden = true
     retryLine.hidden = true
     clearFrame() // 换目标：旧图先让位（含解绑监听），文档与图互不残留
-    return entry.kind === 'workflow' ? openChart(entry) : openDocument(entry)
+    return isChartMaterial(entry) ? openChart(entry) : openDocument(entry)
   }
 
   /** 文档正文：错误体读取也是等待，期间用户可能已换目标/关面板。 */
@@ -179,7 +186,7 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
     setNote('info', '正在读取文档…')
     const seq = ++requestSeq
     try {
-      const response = await fetch(wsUrl(entry.href))
+      const response = await materialFetch(wsUrl(entry.href))
       if (seq !== requestSeq || !openState || disposed) return
       if (!response.ok) {
         const reason = await failureReason(response) // 异步读错误体期间用户可能已换目标
@@ -189,7 +196,7 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
       const text = await response.text()
       if (seq !== requestSeq || !openState || disposed) return
       setNote('', '')
-      renderDocumentBody(text)
+      renderDocumentBody(text, entry)
     } catch (error) {
       if (seq !== requestSeq || !openState || disposed) return
       showFailure(error instanceof Error ? error.message : String(error))
@@ -207,10 +214,12 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
     }
     setNote('info', '正在打开阅读页…')
     const seq = ++requestSeq
-    const url = wsUrl(entry.href)
+    const offline = offlineRuntime(), offlinePage = offline?.chartDocument(entry.chartId)
+    if (offline && !offlinePage) { setNote('bad', '此资料未随包导出'); retryLine.hidden = true; return }
+    const url = offline ? 'about:srcdoc' : wsUrl(entry.href)
     let response
     try {
-      response = await fetch(url)
+      response = offline ? { ok: true } : await fetch(url)
     } catch (error) {
       if (seq !== requestSeq || !openState || disposed) return
       return showFailure(`阅读页没有打开（${error instanceof Error ? error.message : String(error)}）`)
@@ -222,98 +231,76 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
       return showFailure(`阅读页打不开（${reason}）`)
     }
     if (seq !== requestSeq || !openState || disposed) return
-    // 说明行留到用户换资料/关闭为止：iframe 导航失败不触发 error 事件，"正在打开"
-    // 比一片空白诚实；图内容问题由阅读页自己那套说法显示（缺图、坏 JSON、编号冲突）。
+    // 预检负责HTTP失败；load只结束外层重复提示，图API/编译成败仍由阅读页说明。
     const node = el('iframe', 'material-reader-frame')
     node.title = `流程图阅读：${entry.title}`
     frameHost.textContent = ''
     frameHost.appendChild(node)
     frameHost.hidden = false
     frame = node
+    const expected = new URL(url, location.href)
+    const onLoad = () => {
+      if (disposed || !openState || frame !== node || currentEntry !== entry) return
+      let actual
+      try { actual = new URL(node.contentWindow.location.href) } catch { clearFrame(); showFailure('阅读页来源已变化，请重新选择流程图'); return }
+      if (actual.href === 'about:blank') return
+      if (offline ? actual.href !== 'about:srcdoc' || node.srcdoc !== offlinePage : actual.origin !== expected.origin || actual.pathname !== expected.pathname || actual.searchParams.get('workspace') !== expected.searchParams.get('workspace')) {
+        clearFrame()
+        showFailure('阅读页离开了当前流程图，请重新选择流程图')
+        return
+      }
+      setNote('', '')
+    }
+    node.addEventListener('load', onLoad)
+    unlistenFrameLoad = () => node.removeEventListener('load', onLoad)
     node.setAttribute('src', url)
+    if (offline) node.srcdoc = offlinePage
     // 阅读页里按 ESC 会经 panel-link.js 转发关面板；只认当前 iframe 的同源消息。
-    unlistenClose = listenMaterialClose(window, frame, () => close())
+    unlistenClose = offline ? listenOfflineClose(window, frame, () => close()) : listenMaterialClose(window, frame, () => close())
   }
 
-  /** 正文按块呈现（迁用 building.js 的 DOM 做法）：标题成标题、列表成列表、空文件给空态。 */
-  function renderDocumentBody(text) {
-    body.textContent = ''
-    const blocks = parseDocument(text)
-    if (!blocks.length) {
-      const empty = el('p', 'material-doc-empty')
-      empty.textContent = '这份文档没有正文（文件是空的）。'
-      body.appendChild(empty)
-    }
-    let listNode = null
-    for (const block of blocks) {
-      if (block.kind === 'bullet') {
-        if (!listNode) {
-          listNode = el('ul', 'material-doc-list')
-          body.appendChild(listNode)
-        }
-        const item = el('li')
-        appendInline(item, block.text)
-        listNode.appendChild(item)
-        continue
-      }
-      listNode = null
-      if (block.kind === 'heading') {
-        const heading = el('h3', 'material-doc-heading')
-        heading.dataset.level = String(block.level)
-        appendInline(heading, block.text)
-        body.appendChild(heading)
-        continue
-      }
-      const paragraph = el('p', 'material-doc-paragraph')
-      appendInline(paragraph, block.text)
-      body.appendChild(paragraph)
-    }
-    body.hidden = false
+  /** 三入口共用正文；相对链接仅从完整、已验证的本业务文档目录取目标。 */
+  function renderDocumentBody(text, entry) {
+    const available = documents.length ? documents : [...entryByButton.values()]
+    const docs = available.filter(item => item.kind === 'document')
+    renderMarkdown(body, text, { path: entry.path, documents: docs.map(item => item.path), openDocument: path => {
+      const target = docs.find(item => item.path === path)
+      if (target) void openEntry(target)
+    } })
   }
 
-  /** 行内 **加粗**／`代码` 拼成 DOM，不经 innerHTML（迁用 building.js）。 */
-  function appendInline(host, text) {
-    for (const part of splitInline(text)) {
-      if (part.strong) {
-        const node = el('strong')
-        node.textContent = part.text
-        host.appendChild(node)
-      } else if (part.code) {
-        const node = el('code')
-        node.textContent = part.text
-        host.appendChild(node)
-      } else {
-        host.appendChild(document.createTextNode(part.text))
-      }
-    }
-  }
-
-  /** 清单收缩与面板放大（作者令 2026-10-01）只改 root 的 data 属性，样式在 room.css；
-   *  按钮文案与 aria-pressed 同步，两按钮照常参与 Tab 焦点循环。 */
+  /** 清单与外观只改局部属性，不重置正文/iframe/请求，也不通知场景。 */
   const syncListToggle = () => {
     side.hidden = listCollapsed // DOM 与样式同步隐藏，焦点循环也能排除收起清单。
+    side.toggleAttribute('inert', listCollapsed)
     if (listCollapsed) root.dataset.list = 'collapsed'
     else delete root.dataset.list
-    listToggle.textContent = listCollapsed ? '展开清单' : '收起清单'
-    listToggle.setAttribute('aria-pressed', String(listCollapsed))
+    const label = listCollapsed ? '展开资料清单' : '收起资料清单'
+    listArrow.textContent = listCollapsed ? '→' : '←'
+    listToggle.setAttribute('aria-label', label)
+    listToggle.title = label
+    listToggle.setAttribute('aria-expanded', String(!listCollapsed))
   }
-  const syncSizeToggle = () => {
-    if (enlarged) root.dataset.size = 'large'
-    else delete root.dataset.size
-    sizeToggle.textContent = enlarged ? '还原' : '放大'
-    sizeToggle.setAttribute('aria-pressed', String(enlarged))
+  const syncAppearanceToggle = () => {
+    root.dataset.appearance = plainAppearance ? 'plain' : 'material'
+    appearanceToggle.textContent = plainAppearance ? '房间材质' : '朴素外观'
+    appearanceToggle.title = `切换为${appearanceToggle.textContent}，保留当前资料与阅读位置`
+    appearanceToggle.setAttribute('aria-pressed', String(plainAppearance))
   }
 
-  function onListToggleClick() {
-    if (disposed) return
+  function onListToggleClick(event) {
+    if (disposed || !openState) return
+    event.stopPropagation()
+    if (!listCollapsed && side.contains(document.activeElement)) listToggle.focus()
     listCollapsed = !listCollapsed
     syncListToggle()
   }
 
-  function onSizeToggleClick() {
-    if (disposed) return
-    enlarged = !enlarged
-    syncSizeToggle()
+  function onAppearanceToggleClick(event) {
+    if (disposed || !openState) return
+    event.stopPropagation()
+    plainAppearance = !plainAppearance
+    syncAppearanceToggle()
   }
 
   function open({ title: heading = '', entries = [], emptyText = '', returnFocus: focusTarget = null } = {}) {
@@ -322,8 +309,9 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
     openState = true
     returnFocus = focusTarget || focusFallback
     title.textContent = heading
+    title.title = heading
     renderList(Array.isArray(entries) ? entries : [], emptyText)
-    listCollapsed = false // 换集合重置清单为展开（新集合要看清单）；放大状态保持
+    listCollapsed = false // 换集合重置清单为展开；外观选择保持。
     syncListToggle()
     resetReader()
     root.hidden = false
@@ -359,7 +347,7 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
     retryBtn.removeEventListener('click', onRetryClick)
     list.removeEventListener('click', onListClick)
     listToggle.removeEventListener('click', onListToggleClick)
-    sizeToggle.removeEventListener('click', onSizeToggleClick)
+    appearanceToggle.removeEventListener('click', onAppearanceToggleClick)
     startGuard.removeEventListener('focus', onStartGuardFocus)
     endGuard.removeEventListener('focus', onEndGuardFocus)
     entryByButton.clear()
@@ -372,7 +360,7 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
     openEntry(currentEntry) // 重试取当前资料类型：文档重取正文、图重走入口预检
   }
 
-  const visibleFocusables = () => [...root.querySelectorAll('button:not([disabled]), iframe')]
+  const visibleFocusables = () => [...root.querySelectorAll('button:not([disabled]), a[href], .markdown-table[tabindex="0"], iframe')]
     .filter((node) => !node.closest('[hidden]'))
 
   // 子文档键盘事件不会冒泡到父页：靠原生 Tab 离开 iframe 后到达的边界守卫回环。
@@ -391,6 +379,7 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
    *  不深入改子页控件。iframe 里的 ESC 由 read.js 经 panel-link.js 转发回来，不在这里处理。 */
   function onRootKeydown(event) {
     if (disposed || !openState) return
+    event.stopPropagation() // 阅读器内按键不送到背景行走/拾取；保留控件原生按键默认行为。
     if (event.key === 'Escape') {
       event.preventDefault()
       close()
@@ -428,14 +417,19 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
   retryBtn.addEventListener('click', onRetryClick)
   list.addEventListener('click', onListClick)
   listToggle.addEventListener('click', onListToggleClick)
-  sizeToggle.addEventListener('click', onSizeToggleClick)
+  appearanceToggle.addEventListener('click', onAppearanceToggleClick)
   startGuard.addEventListener('focus', onStartGuardFocus)
   endGuard.addEventListener('focus', onEndGuardFocus)
+
+  syncListToggle()
+  syncAppearanceToggle()
 
   return {
     open,
     close,
     isOpen: () => !disposed && openState,
+    getAppearance: () => plainAppearance ? 'plain' : 'material',
+    setAppearance: (value) => { plainAppearance = value === 'plain'; syncAppearanceToggle() },
     dispose,
   }
 }

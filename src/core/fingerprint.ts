@@ -6,10 +6,22 @@
 import { createHash } from 'node:crypto'
 import { CHART_FILE_NAMES, FILE_KEY } from './chart-files.ts'
 import type { ChartFiles } from './types.ts'
+import { LIFECYCLE_FINGERPRINT_SCHEME, TYPED_FILE_KEY } from './chart-files.ts'
+import type { ChartContract } from './chart-contract.ts'
 
 /** \r\n → \n：提交里 LF、工作区 CRLF 只差换行不算修改（Windows autocrlf=true 常态）。 */
 export function normalizeEol(text: string): string {
   return text.replace(/\r\n/g, '\n')
+}
+
+/** typed生命周期按固定版本、类型、文件名/文本四对绑定；旧图不进入此算法。 */
+export function fingerprintFor(contract: ChartContract, files: ChartFiles): string {
+  if (contract.diagramType === 'workflow') return fingerprintOf(files)
+  const sequence = [LIFECYCLE_FINGERPRINT_SCHEME, 'lifecycle', contract.names.map(name => {
+    const text = files[TYPED_FILE_KEY[name]] ?? null
+    return [name, text === null ? null : normalizeEol(text)]
+  })]
+  return createHash('sha256').update(JSON.stringify(sequence), 'utf8').digest('hex')
 }
 
 /** 三个文件的内容摘要（hex）；缺文件是 null，空文件是空串，两者摘要不同。 */

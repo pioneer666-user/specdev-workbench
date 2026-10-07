@@ -2,6 +2,7 @@
 // 任何一条引用不满足约束 → 该引用明确报错（写明哪条、差在哪）；
 // 绝不自动收紧行范围，绝不展示近似内容。文件后来变了不算引用错误——证据永远按固定提交读。
 import { gitShowFileOptional, resolveCommit } from './git.ts'
+import type { GitReadOptions } from './git.ts'
 import { CoreError } from './errors.ts'
 import type { EvidenceRefResult, EvidenceResult } from './types.ts'
 
@@ -18,15 +19,16 @@ interface RefFieldError { refIndex: number; error: string }
 export async function resolveEvidenceRefs(
   repoRoot: string,
   refs: readonly unknown[],
+  options: GitReadOptions = {},
 ): Promise<EvidenceRefResult[]> {
   const results: EvidenceRefResult[] = []
   for (let i = 0; i < refs.length; i++) {
-    results.push(await resolveOneRef(repoRoot, refs[i], i))
+    results.push(await resolveOneRef(repoRoot, refs[i], i, options))
   }
   return results
 }
 
-async function resolveOneRef(repoRoot: string, raw: unknown, index: number): Promise<EvidenceRefResult> {
+async function resolveOneRef(repoRoot: string, raw: unknown, index: number, options: GitReadOptions): Promise<EvidenceRefResult> {
   const where = `refs[${index}]`
   const base = { id: `refs[${index}]`, label: `引用 ${index + 1}` }
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
@@ -51,7 +53,7 @@ async function resolveOneRef(repoRoot: string, raw: unknown, index: number): Pro
   }
 
   try {
-    await resolveCommit(repoRoot, ref.commit)
+    await resolveCommit(repoRoot, ref.commit, options)
   } catch (error) {
     // 仅"确认不存在/不是提交"计入该引用的报错；超时、git 不可用等继续向上传递（评审 #3）。
     if (!(error instanceof CoreError) || error.code !== 'not-found') throw error
@@ -59,7 +61,7 @@ async function resolveOneRef(repoRoot: string, raw: unknown, index: number): Pro
   }
   let text: string | null
   try {
-    text = await gitShowFileOptional(repoRoot, ref.commit, ref.path)
+    text = await gitShowFileOptional(repoRoot, ref.commit, ref.path, options)
   } catch (error) {
     // 大小超限等读取错误也按该引用报错，不让整页崩掉。
     return bad((error as Error).message)

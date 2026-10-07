@@ -17,14 +17,19 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/specdev-workbench/assets/markdown.css">
 </head>
-<body class="room-page">
+<body class="room-page room-loading" aria-busy="true">
+<section id="roomLoading" class="room-loading-screen" aria-label="房间加载">
+  <div class="room-loading-copy" role="status" aria-live="polite">
+    <h1>正在布置你的房间</h1>
+    <p id="roomLoadingPhase">读取房间配置…</p>
+    <div class="room-loading-track" aria-hidden="true"><span></span></div>
+  </div>
+  <a id="loadingBack" class="room-loading-back" href="/specdev-workbench/">返回项目首页</a>
+</section>
+<div class="page-content" inert>
 <a class="skip-link" href="#main">跳到主要内容</a>
-<header class="app-bar">
-  <a class="brand" data-home-link href="/specdev-workbench/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">工作台</span></span></a>
-  <div class="theme-switch" role="group" aria-label="页面主题"><button type="button" data-theme-choice="light" aria-pressed="false"><span aria-hidden="true">☼</span> 浅色</button><button type="button" data-theme-choice="dark" aria-pressed="true"><span aria-hidden="true">☾</span> 深色</button></div>
-</header>
-<div class="page-content">
 <header class="top">
   <div>
     <!-- 业务链接在取数前由 room.js 绑定（带上工作区标识）；读取失败时也要能点回去。 -->
@@ -50,13 +55,16 @@
 <main id="main">
 <!-- 三维视图占主要面积：场景成功创建后才显示（room.js 去掉 hidden）。 -->
 <section id="roomStage" class="room-stage" hidden>
-  <div id="viewport" class="room-viewport" tabindex="-1" aria-label="三维房间视图：默认门外行走（WASD／方向键移动、Shift 加速、拖动环顾），可回总览拖动旋转、滚轮缩放，点击家具查看身份">
+  <div id="viewport" class="room-viewport" tabindex="-1" aria-label="三维房间视图：默认门前总览（拖动旋转、滚轮缩放），继续行走可用 WASD／方向键移动、Shift 加速、拖动环顾，点击家具查看身份">
+    <div class="room-controls">
     <div class="room-toolbar" role="group" aria-label="浏览方式">
+      <button id="toolbarToggle" class="toolbar-toggle" type="button" aria-label="收起房间工具栏" aria-expanded="true" aria-controls="toolbarActions" disabled><span id="toolbarArrow" aria-hidden="true">←</span><svg class="toolbar-leaves" aria-hidden="true" viewBox="0 0 32 26"><path d="M3 23Q14 17 24 3M12 17Q3 16 4 7Q14 6 12 17M18 11Q17 1 28 2Q30 12 18 11"/><path class="leaf-vein" d="M5 9L12 17M26 4L18 11"/></svg></button>
+      <div id="toolbarActions" class="room-actions">
       <!-- 全窗口形态下页头（面包屑）被隐藏：返回业务页的入口常驻工具条，错误状态外也始终可用。
            行走／总览／门按钮（P1c-2c-2）默认禁用，场景成功装配后才启用；当前模式的按钮呈禁用态。
            "业务资料"（E3b-2；E9c 起含流程图）同样场景成功才启用：打开登记的完整资料目录，
            家具绑定有误也能从这里读。 -->
-      <a id="backLink" class="room-back" href="/specdev-workbench/business">← 返回业务页</a>
+      <a id="backLink" class="room-back" href="/specdev-workbench/business">返回业务页</a>
       <!-- E9b：图鉴入口常驻工具条（成功进入全窗口后页头入口已隐藏，从这里仍可打开）；
            新标签打开并保留房间页。 -->
       <a id="furnitureToolbarLink" class="room-back" data-ws-link="/specdev-workbench/furniture" href="/specdev-workbench/furniture" target="_blank" rel="noopener">家具图鉴</a>
@@ -64,8 +72,21 @@
       <button id="resetView" class="reset-button" type="button" disabled>回到总览</button>
       <button id="doorToggle" class="reset-button" type="button" disabled>开门</button>
       <button id="bizDocs" class="reset-button" type="button" disabled>业务资料</button>
-      <p id="sceneHint" class="scene-hint" role="status" aria-live="polite">拖动环绕 · 滚轮缩放 · 点家具看身份</p>
+      <button id="roomExport" class="reset-button" type="button" disabled hidden>导出房间</button>
+      <button id="captionToggle" type="button" aria-expanded="true" aria-controls="styleCaption" disabled>收起介绍</button>
+      <button id="helpToggle" type="button" aria-expanded="false" aria-controls="sceneHelp" disabled>帮助</button>
+      </div>
     </div>
+    </div>
+    <p id="sceneHelp" class="room-help" hidden></p>
+    <p id="sceneHint" class="scene-hint" role="status" aria-live="polite" hidden></p>
+    <!-- 文案刷新与作者的显隐选择分开；只在当前页面会话保留。 -->
+    <aside id="styleCaption" class="intro" hidden>
+      <p id="captionEyebrow" class="eyebrow"></p>
+      <h1 id="captionTitle"></h1>
+      <p id="captionDesc"></p>
+      <div class="material-note"><span id="captionChip" class="material-chip"></span><span id="captionMaterial"></span></div>
+    </aside>
     <!-- 家具资料绑定有误（E3b-2）：场景照常创建，这里给出可展开的诊断；
          code／fieldPath／实例／中文原因全部 textContent 填充。 -->
     <details id="bindingNote" class="binding-note" hidden>
@@ -74,21 +95,11 @@
     </details>
     <!-- 点击家具后的身份一行（textContent 填充，不拼 HTML）。 -->
     <p id="pickInfo" class="pick-info" role="status" hidden></p>
-    <p id="placeholderNote" class="placeholder-note">家具按房间配置加载，可包含正式资产与占位模型。</p>
-    <!-- 底座风格字幕（2026-09-28 作者令：照抄旧底座页面样式与文案，仅去掉数字编号；
-         结构与类名同 experiments/2026-09-27-空房间风格底座 的 .intro 区）。 -->
-    <aside id="styleCaption" class="intro" hidden>
-      <p id="captionEyebrow" class="eyebrow"></p>
-      <h1 id="captionTitle"></h1>
-      <p id="captionDesc"></p>
-      <div class="material-note"><span id="captionChip" class="material-chip"></span><span id="captionMaterial"></span></div>
-    </aside>
-    <!-- 昼夜切换（作者令保留）：只有童话底座显示，默认晴昼；样式同旧页 .period-panel。 -->
-    <aside id="periodSwitch" class="period-panel" hidden>
-      <span class="small-label">窗外的时间</span>
-      <div class="period-switch" role="group" aria-label="昼夜氛围">
-        <button type="button" id="periodDay" aria-pressed="true">☀ 晴昼</button>
-        <button type="button" id="periodNight" aria-pressed="false">☾ 星夜</button>
+    <aside id="brightnessControls" class="brightness-controls" aria-label="房间亮度">
+      <button id="brightnessToggle" type="button" aria-label="调节房间亮度" aria-expanded="false" aria-controls="brightnessPanel" disabled><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4 4l2 2m12 12l2 2M4 20l2-2M18 6l2-2"/></svg></button>
+      <div id="brightnessPanel" class="brightness-panel" hidden inert>
+        <label for="brightnessSlider">亮度 <output id="brightnessValue" for="brightnessSlider">100</output></label>
+        <input id="brightnessSlider" type="range" min="0" max="100" step="1" value="100" aria-label="房间亮度" disabled>
       </div>
     </aside>
     <div id="sceneFallback" class="scene-fallback" hidden>
@@ -100,9 +111,8 @@
   <!-- 阅读覆盖层（E3b-2；E9c 扩展流程图）：唯一的阅读面板，放在 viewport 外、roomStage 内——
        阅读时背景视口加 inert，面板本身不受影响。结构与类名沿用建筑页 .material-*，
        房间侧布局在 room.css。E9c：清单标"文档／流程图"，图阅读页装进 #readerFrameHost
-       里的 iframe（reader.js 每次选图新建、切走移除）；面板头有清单收缩与放大还原
-       （作者令 2026-10-01）。 -->
-  <div id="readerRoot" class="room-reader-root" hidden>
+       里的 iframe（每次选图新建、切走移除）。T15统一大尺寸，外观与清单切换不重建资料。 -->
+  <div id="readerRoot" class="room-reader-root" data-appearance="material" hidden>
     <section id="readerPanel" class="material-panel room-reader-panel" role="dialog" aria-modal="true" aria-labelledby="readerTitle">
       <!-- 原生 Tab 从 iframe 子文档离开时落到守卫，由 reader.js 将焦点留在面板。 -->
       <span id="readerFocusStart" class="reader-focus-guard" tabindex="0"></span>
@@ -111,20 +121,22 @@
           <p class="material-kind" id="readerKind">资料集合</p>
           <h2 id="readerTitle"></h2>
         </div>
-        <!-- DOM 序关闭钮在前（焦点循环首位与打开焦点一致），视觉上仍最右（room.css order）。
-             作者令（2026-10-01）：清单可收起（看图时不占宽）、面板可放大（四周留边，
-             仍看得出在房间里，不是跳转页面）。reader.js 切换 root 的 data 属性。 -->
+        <!-- 关闭钮仍是焦点循环首位；视觉上独立且最靠右。外观选择只影响此阅读器。 -->
         <button id="readerClose" class="material-close" type="button" aria-label="关闭阅读面板">×</button>
         <div class="material-tools">
-          <button id="readerListToggle" class="material-tool" type="button" aria-pressed="false">收起清单</button>
-          <button id="readerSizeToggle" class="material-tool" type="button" aria-pressed="false">放大</button>
+          <button id="readerAppearanceToggle" class="material-tool" type="button" aria-pressed="false" title="切换为朴素外观，保留当前资料与阅读位置">朴素外观</button>
         </div>
       </div>
       <div class="material-body">
-        <div class="material-side">
-          <p id="readerListLabel" class="material-list-label">资料清单 <span id="readerCount"></span></p>
+        <div class="reader-sidebar">
+          <div class="reader-side-head">
+            <p id="readerListLabel" class="material-list-label">资料清单 <span id="readerCount"></span></p>
+            <button id="readerListToggle" class="material-tool reader-list-toggle" type="button" aria-label="收起资料清单" title="收起资料清单" aria-expanded="true" aria-controls="readerSide"><span id="readerListArrow" aria-hidden="true">←</span></button>
+          </div>
+          <div id="readerSide" class="material-side">
           <ul id="readerList" class="material-list" hidden></ul>
           <p id="readerEmpty" class="material-empty" hidden></p>
+          </div>
         </div>
         <div class="material-reader">
           <p id="readerHint" class="material-reader-hint">选择一份资料开始阅读。</p>
@@ -135,7 +147,22 @@
           <p id="readerRetryLine" class="reader-retry-line" hidden><button id="readerRetry" class="reset-button" type="button">重试</button></p>
         </div>
       </div>
+      <!-- 与房间工具栏同形、同色的小叶片，只装饰外框底角，不盖住任何内容或关闭键。 -->
+      <svg class="reader-leaves reader-leaves-left" aria-hidden="true" focusable="false" viewBox="0 0 32 26"><path d="M3 23Q14 17 24 3M12 17Q3 16 4 7Q14 6 12 17M18 11Q17 1 28 2Q30 12 18 11"/><path class="leaf-vein" d="M5 9L12 17M26 4L18 11"/></svg>
+      <svg class="reader-leaves reader-leaves-right" aria-hidden="true" focusable="false" viewBox="0 0 32 26"><path d="M3 23Q14 17 24 3M12 17Q3 16 4 7Q14 6 12 17M18 11Q17 1 28 2Q30 12 18 11"/><path class="leaf-vein" d="M5 9L12 17M26 4L18 11"/></svg>
       <span id="readerFocusEnd" class="reader-focus-guard" tabindex="0"></span>
+    </section>
+  </div>
+  <div id="exportRoot" class="room-reader-root room-export-root" data-appearance="material" hidden>
+    <section class="material-panel room-reader-panel room-export-panel" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+      <div class="material-head"><div class="material-heading"><h2 id="exportTitle">导出房间</h2></div><div class="material-tools"><button id="exportAppearance" class="material-tool" type="button" aria-pressed="false">朴素外观</button></div><button id="exportClose" class="material-close" type="button" aria-label="关闭导出面板">×</button></div>
+      <div class="room-export-content">
+        <p>导出一个 HTML，房间与所选资料可离线阅读；源码仅提供远端链接，查看需联网，私有仓库还需权限。所选文档可能包含你写入的代码或敏感内容，请确认分享范围。</p>
+        <p class="room-export-select-tools"><button id="exportAll" class="material-tool" type="button">全选</button><button id="exportNone" class="material-tool" type="button">全不选</button><span>空选择也能导出房间。最多 64 份文档、16 张图，HTML 不超过 64 MiB。</span></p>
+        <fieldset id="exportList" class="room-export-list" aria-label="要分享的资料"></fieldset>
+        <p id="exportStatus" role="status" aria-live="polite"></p>
+        <div class="room-export-select-tools"><button id="exportGenerate" class="material-tool" type="button">导出 HTML</button><button id="exportCancel" class="material-tool" type="button" hidden>取消生成</button><a id="exportDownload" class="material-tool" hidden>下载文件</a></div>
+      </div>
     </section>
   </div>
 </section>

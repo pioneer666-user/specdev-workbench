@@ -11,6 +11,8 @@ export const SCHEMA = {
   evidence: 'specdev/evidence/1',
   snapshot: 'specdev/snapshot/1',
 } as const
+/** 新类型单独命名空间，原SCHEMA五键公开对象保持不变。 */
+export const TYPED_SCHEMA = { chart: 'specdev/chart/2', snapshot: 'specdev/snapshot/2' } as const
 
 export type SnapshotStage = 'design' | 'implemented'
 
@@ -34,6 +36,7 @@ export interface ChartInfo {
   id: string
   name: string
   summary?: string
+  diagramType?: 'workflow' | 'lifecycle'
 }
 
 /** 校验通过的快照（附注标签剥壳后的登记记录）。 */
@@ -52,8 +55,7 @@ export interface SnapshotEntry {
   meta: SnapshotMeta
 }
 
-export interface SnapshotMeta {
-  schema: 'specdev/snapshot/1'
+interface SnapshotMetaBase {
   chart: string
   name: string
   stage: SnapshotStage
@@ -61,6 +63,10 @@ export interface SnapshotMeta {
   dir: string
   savedAt?: string
 }
+export type SnapshotMeta = SnapshotMetaBase & (
+  { schema: 'specdev/snapshot/1' } |
+  { schema: 'specdev/snapshot/2'; diagramType: 'lifecycle'; sourceFile: 'lifecycle.json'; fingerprintScheme: typeof import('./chart-files.ts').LIFECYCLE_FINGERPRINT_SCHEME }
+)
 
 /** 一张图的快照清单（无效标签跳过并计数，绝不当作快照）。 */
 export interface ChartSnapshots {
@@ -110,6 +116,9 @@ export interface ChartSummary {
   idConflict?: string
   /** 工作区是否有 workflow.json（没有则该图明确报错，不给空白页）。 */
   hasWorkflow: boolean
+  diagramType?: 'workflow' | 'lifecycle'
+  hasSource?: boolean
+  readingUnavailable?: string
   snapshotCount: number
   invalidTagCount: number
   currentStatus: ChartCurrentStatus
@@ -143,10 +152,17 @@ export interface ChartFiles {
   workflow: string | null
   details: string | null
   evidence: string | null
+  /** 仅 typed lifecycle 使用；旧公开三文件结构不增伪 workflow 内容。 */
+  descriptor?: string | null
+  lifecycle?: string | null
 }
 
 /** 阅读页一屏所需的全部数据（API /specdev-workbench/api/chart 的返回体）。 */
 export interface ChartPageData {
+  diagramType?: 'workflow' | 'lifecycle'
+  readingUnavailable?: string
+  renderer?: 'legacy' | '3.0.1' | null
+  rendererError?: string
   business: { id: string; name: string }
   chart: { id: string; name: string; summary?: string }
   snapshots: ChartSnapshots
@@ -173,6 +189,9 @@ export interface ChartPageData {
     note?: string
     savedAt?: string
     files: ChartFiles
+    diagramType?: 'workflow' | 'lifecycle'
+    sourceFile?: 'workflow.json' | 'lifecycle.json'
+    sourceError?: string
     /** workflow.json 不可读的明确错误（图不可读，不是空白页）；kind 区分"缺失"与"读不开"。 */
     workflowError?: string
     workflowErrorKind?: 'missing' | 'unreadable'
@@ -218,7 +237,8 @@ export interface BuildingRoomBinding {
 
 /** 资料目录条目：身份明确（文档＝登记过的仓库相对路径，流程图＝业务 id＋图 id），不依赖标题或序号。 */
 export interface CatalogEntry {
-  kind: 'document' | 'workflow'
+  kind: 'document' | 'workflow' | 'chart'
+  diagramType?: 'workflow' | 'lifecycle'
   businessId: string
   /** kind=document：business.json 的 docs 里登记的仓库相对路径。 */
   path?: string
@@ -620,6 +640,8 @@ export interface RoomLayoutFile {
  *  business.json 没有 charts 登记数组——图由业务目录内 chart.json/workflow.json 等
  *  按既有规则扫描；hasWorkflow=false 仅表示文件不存在，绑定仍允许，缺图由阅读页/CLI 说明。 */
 export interface RoomChartSummary {
+  diagramType?: 'workflow' | 'lifecycle'
+  readingUnavailable?: string
   id: string
   name: string
   summary?: string

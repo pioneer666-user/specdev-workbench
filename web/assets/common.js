@@ -1,6 +1,7 @@
 // 三个页面共用的小工具：取数、错误与"repoRoot 未配置"指引渲染。
 // 第二期第 2 步：链接带 ?workspace=<工作区标识> 时整条链路按该工作区读写——
 // 本页标识在这里取一次，站内所有跳转与取数都经 wsUrl() 补上它（丢了就会串回手动模式的项目）。
+import { offlineRuntime } from './runtime-mode.js'
 export const $ = (id) => document.getElementById(id)
 
 // null＝链接里没有 workspace 参数（允许手动模式）；''＝有参数但为空（必须报错：
@@ -18,7 +19,6 @@ export function wsUrl(url) {
 // 面包屑里的"项目首页"是 HTML 里写死的裸地址，这里统一补上标识（首页自己没有面包屑，查不到就不动）。
 // 阅读页的"业务"链接有业务段、且必须在取数前绑定（失败页也要带标识），由 read.js 自己设置。
 document.querySelector('.crumbs a[href="/specdev-workbench/"]')?.setAttribute('href', wsUrl('/specdev-workbench/'))
-document.querySelectorAll('[data-home-link]').forEach((link) => link.setAttribute('href', wsUrl('/specdev-workbench/')))
 // 站内其它裸地址入口（如首页进展示页的按钮）：写死 href 作无标识兜底，这里按本页标识补全。
 document.querySelectorAll('[data-ws-link]').forEach((link) => link.setAttribute('href', wsUrl(link.getAttribute('data-ws-link'))))
 
@@ -56,7 +56,7 @@ function withBody(error, body) {
 export async function fetchJson(url) {
   let body
   try {
-    const response = await fetch(url)
+    const response = await (offlineRuntime()?.fetch(url) ?? fetch(url))
     body = await response.json()
     if (response.status === 400 && body.code === 'repo-not-configured') return body
     if (!response.ok) throw withBody(new Error(body.error || `HTTP ${response.status}`), body)

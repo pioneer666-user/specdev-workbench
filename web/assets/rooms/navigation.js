@@ -4,7 +4,7 @@
 // 不复制、不改造，也不重新计算家具尺寸或承载关系；调用前置条件是产品校验成功，
 // API 读取成功不能直接调用。
 // 边界语义：zones 是摆放区、reservedVolumes 是禁放区，二者都不是人物唯一可走范围、
-// 也不是碰撞障碍。室内版（buildRoomWalkData）整个室内空地都能走，房间边界由行走面
+// 入口／通路也不是碰撞障碍；fixture 仅按实际固定构件盒参与避障。室内版整个室内空地都能走，房间边界由行走面
 // 的支撑检查约束（人物保留约 0.26 米支撑半径，门洞处停在房内），不伪造墙厚或外部
 // 碰撞盒，适用范围不随室外版收紧。室外版（buildRoomOutdoorWalkData）另加封闭墙壳、
 // 真实门盒与外围隐形墙碰撞，人物可绕屋与经门进出。
@@ -35,6 +35,13 @@ function toFurnitureColliders(assembly) {
   }))
 }
 
+/** 仅实体 fixture 转为高度保真的碰撞盒，入口/通路仍只是摆放与可达性约束。 */
+function toFixtureColliders(template) {
+  return template.reservedVolumes.filter((volume) => volume.purpose === 'fixture').map(({ id, bounds: b }) => ({
+    id: `fixture:${id}`, x0: b.minX, x1: b.maxX, y0: b.minY, y1: b.maxY, z0: b.minZ, z1: b.maxZ,
+  }))
+}
+
 /**
  * template＋assembly → { model, presentation }（可直接交给 createNavigator／entryPoint）。
  * 纯函数：不缓存上一次房间，不改写输入；输出范围对象全部重新构造，不与输入共用引用。
@@ -54,8 +61,8 @@ export function buildRoomWalkData(template, assembly) {
     },
     presentation: {
       surfaces: [{ kind: 'flat', y: minY, bounds: { x0: minX, x1: maxX, z0: minZ, z1: maxZ } }],
-      // 一一对应装配实例；室内输出的 collider 不带 kind，保持 P1c-1 契约不变。
-      colliders: toFurnitureColliders(assembly),
+      // 家具一一对应实例，另有实际 fixture；室内 collider 仍不带 kind。
+      colliders: [...toFurnitureColliders(assembly), ...toFixtureColliders(template)],
     },
   }
 }
@@ -247,6 +254,7 @@ export function buildRoomOutdoorWalkData(template, assembly, options) {
       surfaces: [{ kind: 'flat', y: ROOM_FLOOR_Y, bounds: { x0: sx0, x1: sx1, z0: sz0, z1: sz1 } }],
       colliders: [
         ...toFurnitureColliders(assembly).map((collider) => ({ ...collider, kind: 'furniture' })),
+        ...toFixtureColliders(template).map((collider) => ({ ...collider, kind: 'fixture' })),
         ...toWallColliders(wallThickness),
         doorCollider,
         ...toBoundaryColliders(),

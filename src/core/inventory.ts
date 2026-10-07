@@ -6,6 +6,7 @@ import { CoreError } from './errors.ts'
 import { listSpecdevTags, snapshotsForChart, type RawTagRecord } from './snapshots.ts'
 import { compareCurrentWithLatest, chartIdOwners } from './chart.ts'
 import { readDescriptor, isPlainObject, requireStringFields } from './descriptor.ts'
+import { parseChartContract, readChartSet, LIFECYCLE_READING_UNAVAILABLE } from './chart-contract.ts'
 import {
   CONVENTION_ROOT,
   SCHEMA,
@@ -66,7 +67,7 @@ export async function readInventory(repoRoot: string): Promise<Inventory> {
       businesses.push(summary)
       continue
     }
-    const fieldError = requireStringFields(data, ['id', 'name'])
+    const fieldError = requireStringFields(data as unknown as Record<string, unknown>, ['id', 'name'])
     if (fieldError) {
       summary.descriptorError = `${businessDir}/business.json：${fieldError}`
       businesses.push(summary)
@@ -131,12 +132,17 @@ async function readChartSummaries(
       charts.push(summary)
       continue
     }
-    if (!isPlainObject(data) || data.schema !== SCHEMA.chart) {
-      summary.descriptorError = `${chartDir}/chart.json 的 schema 必须是 ${SCHEMA.chart}`
+    let contract
+    try { contract = parseChartContract(JSON.stringify(data), chartId) } catch (error) {
+      summary.descriptorError = error instanceof Error ? error.message : String(error)
       charts.push(summary)
       continue
     }
-    const fieldError = requireStringFields(data, ['id', 'name'])
+    summary.diagramType = contract.diagramType
+    summary.hasSource = await worktreeFileExists(repoRoot, `${chartDir}/${contract.sourceFile}`)
+    const set = await readChartSet(name => readWorktreeFileOptional(repoRoot, `${chartDir}/${name}`), chartId)
+    if (set.sourceError) summary.descriptorError = set.sourceError
+    const fieldError = requireStringFields(data as unknown as Record<string, unknown>, ['id', 'name'])
     if (fieldError) {
       summary.descriptorError = `${chartDir}/chart.json：${fieldError}`
       charts.push(summary)

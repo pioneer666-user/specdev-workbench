@@ -24,13 +24,17 @@
 //   复查修复（审查 P1/P2）：两条状态规则搬到 save-result.js（能直接跑断言）——
 //   ① 页面正展示内容的摘要只由"加载并展示内容"写定，刷新版本条不覆盖它；
 //   ② 保存请求的成功只认"状态成功 + 正文完整"，并区分"版本已写上、只是没核完"。
-import { $, el, fetchJson, pageTitle, postJson, renderEmptyWorkspaceParam, renderGuide, renderRepoLine, renderRepoState, setStatus, showError, workspaceParamEmpty, wsUrl } from './common.js'
+import { $, el, fetchJson, pageTitle, postJson, renderEmptyWorkspaceParam, renderGuide, renderRepoState, setStatus, showError, workspaceParamEmpty, wsUrl } from './common.js'
 import { buildDetails, parseBody, splitInline } from './details.js'
 import { describeSource, displayError, evidenceSummary, formatCodeBlock } from './evidence.js'
 import { stripExternalFonts } from './template.js'
+import { adaptChartTemplate, connectChartTheme } from './chart-theme.js'
+import { adaptChartLayout, connectChartLayout } from './chart-layout.js'
 import { connectChartSelection } from './chart-link.js'
-import { loadDetailEvidence, renderNodeDetail } from './node-detail.js'
-import { forwardEscapeToHost } from './panel-link.js'
+import { loadDetailEvidence, renderNodeDetail, renderOfficialDetail, updateOfficialReference, locateOfficialReference } from './node-detail.js'
+import { officialHtml, connectOfficialFrame, rendererURL } from './official-reader.js'
+import { isLifecycle, detailEntities, sourceSelection } from './chart-entities.js'
+import { forwardEscapeToHost, MATERIAL_CLOSE_REQUEST } from './panel-link.js'
 // 保存弹层的两条状态规则（自查放行与否、请求结果怎么算）；摘要在那个模块里保管，见文件头注释
 import { rememberShown, shownFingerprint, saveGate, saveOutcome } from './save-result.js'
 // process 垫片必须先于编译器求值（Archify 模块顶层读 process.env；浏览器里没有 process）。
@@ -49,6 +53,67 @@ let currentSelection = null
 let pageState = null
 // 保存弹层打开时那次检查的结果（确认过的提交号与服务端摘要），提交时原样送回服务端再核一遍。
 let saveCheck = null
+let stopChartTheme = () => {}
+let chartURL = null
+let pageAlive = true
+let loadGeneration = 0
+let nativeContext = null, nativeRequestId = null, nativeAbort = null, nativeQuery = '', nativeReadAbort = null, nativeReadSeq = 0
+const chosenRenderer = new URLSearchParams(location.search).get('renderer')
+let nativeMode = chosenRenderer === '3.0.1'
+async function nativeJson(url, options = {}) {
+  const response = await fetch(url, options), body = await response.json()
+  if (!response.ok) throw Object.assign(new Error(body.error || '新版阅读请求失败'), { code: body.code, repo: body.repo })
+  return body
+}
+function releaseNative() {
+  nativeAbort?.abort(); nativeReadAbort?.abort(); nativeReadSeq += 1
+  if (!nativeRequestId || !nativeQuery) return
+  const requestId = nativeRequestId, contextId = nativeContext
+  nativeContext = null; nativeRequestId = null
+  void fetch(wsUrl(`/specdev-workbench/api/reader-release?${nativeQuery}`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId, ...(contextId ? { contextId } : {}) }), keepalive: true }).catch(() => {})
+}
+function versionURL(business, chart, v) {
+  const url = new URL(location.href); url.searchParams.set('v', v); return url.href
+}
+
+// 房间内嵌页的旧返回链接即使被脚本触发，也只能关闭外层面板，不能在iframe继续导航。
+let roomReaderContext = false
+try { roomReaderContext = !!window.frameElement?.closest('.room-reader-root') } catch { /* 跨源不接管。 */ }
+const onRoomReturn = event => {
+  if (!pageAlive || !roomReaderContext) return
+  event.preventDefault(); event.stopPropagation()
+  window.parent.postMessage({ type: MATERIAL_CLOSE_REQUEST }, location.origin)
+}
+if (roomReaderContext) {
+  document.documentElement.dataset.roomReader = 'true'
+  $('bizLink').closest('.read-back').hidden = true
+  $('bizLink').addEventListener('click', onRoomReturn)
+}
+
+function connectRenderedFrame(frame, url) {
+  let live = true, stopEscape = () => {}
+  const stopTheme = connectChartTheme(frame, url, window.SpecDevTheme)
+  const stopLayout = connectChartLayout(frame, url, {
+    title: $('title').textContent, summary: $('summary').textContent,
+    onFailure: reason => { $('layoutWarning').textContent = reason; $('layoutWarning').hidden = false },
+  })
+  const bindEscape = () => {
+    stopEscape(); stopEscape = () => {}
+    if (!live || !frame.isConnected || frame.src !== url) return
+    try {
+      const doc = frame.contentDocument
+      if (doc?.defaultView.location.href === url) stopEscape = forwardEscapeToHost(window, doc)
+    } catch { /* 失效文档不注册。 */ }
+  }
+  const observer = new MutationObserver(() => { if (!frame.isConnected || frame.src !== url) dispose() })
+  function dispose() {
+    if (!live) return
+    live = false; stopTheme(); stopLayout(); stopEscape(); observer.disconnect(); frame.removeEventListener('load', bindEscape)
+  }
+  observer.observe(frame.ownerDocument, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] })
+  frame.addEventListener('load', bindEscape); bindEscape()
+  return dispose
+}
 
 /**
  * 当场编译 + 按 Archify 原生装配（applyTemplate）拼出完整页面，装进 iframe。
@@ -82,7 +147,7 @@ async function renderChart(workflowText, host, chartName) {
   }
 
   const meta = workflow.meta || {}
-  const html = applyTemplate(template, {
+  const html = applyTemplate(adaptChartLayout(adaptChartTemplate(template, document.documentElement.dataset.theme)), {
     title: meta.title || chartName,
     subtitle: meta.subtitle,
     svg: result.svg,
@@ -94,17 +159,34 @@ async function renderChart(workflowText, host, chartName) {
   })
 
   const frame = document.createElement('iframe')
+  if (!pageAlive) throw Error('阅读页已离开')
   frame.className = 'chart-frame'
   frame.title = `${meta.title || chartName} 交互图`
-  frame.src = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
-  // 图是同一来源的 blob：点进图里之后焦点落在那份文档，键盘一样到不了外层，
-  // 所以那份文档也转发一次"关掉资料面板"的 ESC（图每次重渲染换一份文档，跟着 load 重新接）。
-  frame.addEventListener('load', () => {
-    if (frame.contentDocument) forwardEscapeToHost(window, frame.contentDocument)
-  })
+  stopChartTheme()
+  if (chartURL) URL.revokeObjectURL(chartURL)
+  chartURL = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+  frame.src = chartURL
   host.replaceChildren(frame)
+  stopChartTheme = connectRenderedFrame(frame, chartURL)
   return { kb: (result.svg.length / 1024).toFixed(1), ms, frame }
 }
+
+window.addEventListener('pagehide', event => {
+  loadGeneration += 1
+  releaseNative()
+  stopChartTheme()
+  if (!event.persisted) { pageAlive = false; $('bizLink').removeEventListener('click', onRoomReturn); if (chartURL) URL.revokeObjectURL(chartURL); chartURL = null }
+})
+window.addEventListener('pageshow', event => {
+  if (event.persisted && !pageState) { location.reload(); return }
+  if (event.persisted && chartURL) {
+    if (nativeMode) { location.reload(); return }
+    const frame = $('stage')?.querySelector('iframe')
+    if (frame?.src === chartURL) {
+      stopChartTheme = connectRenderedFrame(frame, chartURL)
+    }
+  }
+})
 
 /**
  * 「已选」状态条（E·选中同步）：图里恰好一个步骤被原生选中时，把图上的名字写在这一条上，
@@ -281,12 +363,26 @@ function detailBlock(block) {
  * 没写说明文档、没按约定分节、图上没写说明的步骤、图外多余的条目，都如实说明，都不算错误。
  * doc 是 main 里算好的一份（与详情弹层共用），这里只负责渲染，不再重复解析。
  */
-function renderDetailsPanel(version, doc) {
+function renderDetailsPanel(version, doc, onOpen) {
   const host = $('detailsPanel')
   host.textContent = ''
   const heading = el('h2')
   heading.textContent = '说明文档'
   host.appendChild(heading)
+  if (isLifecycle(version)) {
+    heading.textContent = '生命周期图阅读资料'
+    for (const [kind, title] of [['state', '状态说明'], ['transition', '转移说明']]) {
+      const groupTitle = el('h3'); groupTitle.textContent = title; host.append(groupTitle)
+      for (const entity of detailEntities(version).filter(entity => entity.kind === kind)) {
+        const button = el('button'); button.textContent = entity.label; button.dataset.detailEntity = entity.id
+        button.addEventListener('click', () => { $('materialsDialog').close(); onOpen(entity, $('materialsOpen')) })
+        const row = el('p'); row.append(button); host.append(row)
+      }
+    }
+    if (version.detailsError) { const warn = el('p', 'details-warn'); warn.textContent = `说明文档读不开：${version.detailsError}`; host.append(warn) }
+    host.hidden = false
+    return
+  }
 
   // 文件在但读不开（如超过大小上限）：如实说明，不误报"没写"，也不算错误以外的事故
   if (version.detailsError) {
@@ -393,70 +489,158 @@ function evidenceBlock(ref) {
 
 function parseLocation() {
   const parts = location.pathname.split('/').filter(Boolean) // ['specdev-workbench','read','<biz>','<chart>']
-  return { business: parts[2] || '', chart: parts[3] || '', v: new URLSearchParams(location.search).get('v') || 'current' }
+  return { business: decodeURIComponent(parts[2] || ''), chart: decodeURIComponent(parts[3] || ''), v: new URLSearchParams(location.search).get('v') || 'current' }
 }
 
 async function main() {
+  const rendererValues = new URLSearchParams(location.search).getAll('renderer')
+  if (rendererValues.length > 1 || (chosenRenderer !== null && !['3.0.1', 'legacy'].includes(chosenRenderer))) return showError('阅读兼容参数无效，请移除无效或重复的 renderer 参数后重开')
+  $('bizLink').href = wsUrl('/specdev-workbench/')
   const { business, chart, v } = parseLocation()
   if (!business || !chart) return showError('路径应为 /specdev-workbench/read/<业务id>/<图id>')
   if (workspaceParamEmpty) return renderEmptyWorkspaceParam()
   // "业务"面包屑在取数开始前就绑好业务段与工作区标识：
   // 图不存在、工作区失效或请求失败时它也不再是裸地址，错误页上点它仍回到本工作区的业务页。
-  $('bizLink').href = wsUrl(`/specdev-workbench/business/${business}`)
+  $('bizLink').href = wsUrl(`/specdev-workbench/business/${encodeURIComponent(business)}`)
   let data
+  const generation = loadGeneration
   try {
-    data = await fetchJson(wsUrl(`/specdev-workbench/api/chart?business=${encodeURIComponent(business)}&chart=${encodeURIComponent(chart)}&v=${encodeURIComponent(v)}`))
+    nativeQuery = `business=${encodeURIComponent(business)}&chart=${encodeURIComponent(chart)}&v=${encodeURIComponent(v)}`
+    nativeAbort = new AbortController()
+    data = await nativeJson(wsUrl(`/specdev-workbench/api/chart?${nativeQuery}${chosenRenderer ? '&renderer=' + encodeURIComponent(chosenRenderer) : ''}`), { signal: nativeAbort.signal })
+    if (!pageAlive || generation !== loadGeneration) return
+    nativeMode = chosenRenderer ? chosenRenderer === '3.0.1' : data.renderer === '3.0.1'
+    const notice = $('readingNotice')
+    if (!data.rendererError && data.authoredRenderer === 'legacy') notice.append('此图使用旧版格式，仍可正常阅读。')
+    if (!data.rendererError && chosenRenderer && data.authoredRenderer && chosenRenderer !== data.authoredRenderer) {
+      notice.append(' 当前使用兼容链接指定的阅读方式。')
+      const link = el('a'); link.textContent = '按图默认方式打开'; link.href = rendererURL(location.href, null); notice.append(link)
+    }
+    notice.hidden = !notice.textContent
+    if (nativeMode && !data.rendererError) {
+      nativeRequestId = crypto.randomUUID(); nativeAbort = new AbortController()
+      const selectedFiles = JSON.stringify(data.version.files)
+      data = await nativeJson(wsUrl(`/specdev-workbench/api/reader-render?${nativeQuery}`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId: nativeRequestId }), signal: nativeAbort.signal })
+      nativeContext = data.contextId
+      if (JSON.stringify(data.version.files) !== selectedFiles) throw Error('所选图在准备阅读期间发生变化，请刷新重开')
+    }
   } catch (error) {
+    if (nativeMode) releaseNative()
+    if (!pageAlive || generation !== loadGeneration) return
     if (renderRepoState(error)) return
     return showError(error.message)
   }
+  if (!pageAlive || generation !== loadGeneration) return
   if (data.code === 'repo-not-configured') return renderGuide(data)
 
   document.title = pageTitle(data.chart.name, data.repo)
-  $('bizLink').textContent = data.business.name
-  $('bizLink').href = wsUrl(`/specdev-workbench/business/${business}`)
-  $('chartName').textContent = data.chart.name
+  $('bizLink').textContent = `← 返回${data.business.name}`
+  $('bizLink').href = wsUrl(`/specdev-workbench/business/${encodeURIComponent(business)}`)
   $('title').textContent = data.chart.name
   if (data.chart.summary) $('summary').textContent = data.chart.summary
-  renderRepoLine(data.repo)
   let rendered = null
   let failure = null
-  if (data.version.workflowError) {
+  if (data.rendererError && chosenRenderer !== 'legacy') {
+    nativeMode = false
+    failure = failureInfo('unreadable', data.version, data.rendererError)
+  } else if (data.version.sourceError || (!isLifecycle(data.version) && data.version.workflowError)) {
     failure = failureInfo(
       data.version.workflowErrorKind === 'unreadable' ? 'unreadable' : 'missing',
       data.version,
-      data.version.workflowError,
+      data.version.sourceError || data.version.workflowError,
     )
   } else {
     try {
-      rendered = await renderChart(data.version.files.workflow, $('stage'), data.chart.name)
+      if (nativeMode) {
+        const frame = document.createElement('iframe'); frame.className = 'chart-frame official-frame'; frame.title = `${data.chart.name} 新版交互图`
+        chartURL = URL.createObjectURL(new Blob([officialHtml(data.html, document.documentElement.dataset.theme)], { type: 'text/html' })); frame.src = chartURL
+        $('stage').replaceChildren(frame); rendered = { frame, kb: (data.html.length / 1024).toFixed(1), ms: 0 }
+      } else rendered = await renderChart(data.version.files.workflow, $('stage'), data.chart.name)
     } catch (error) {
       // 失败不当成整页事故：版本条照常出来，画布区换成说明卡，看的人能自己换版本
       failure = failureInfo(error.kind === 'broken-json' ? 'broken-json' : 'compile-failed', data.version, error)
     }
   }
-  if (failure) renderFailureCard($('stage'), failure, data.chart.name)
+  if (!pageAlive) return
+  if (failure) {
+    renderFailureCard($('stage'), failure, data.chart.name)
+    if (data.rendererError && chosenRenderer !== 'legacy') {
+      const recovery = el('details', 'reading-recovery'), summary = el('summary'), link = el('a')
+      summary.textContent = '兼容读取'; link.textContent = '尝试旧版兼容读取（不含官方源码证据）'
+      link.href = rendererURL(location.href, 'legacy'); recovery.append(summary, link); $('stage').append(recovery)
+    }
+  }
   // 本页状态：保存成功后重画版本条与状态行要读它（图与说明面板不重画，因此不看这里）
   pageState = { business, chart, v, data, rendered, failure }
   // 记下"页面上展示的这一份内容是哪个摘要"——只在真正加载并展示内容时登记一次。
   // 保存成功后原地刷新版本条不走这里：屏幕上还是这一份图与说明，过期检查就得按它算（审查 P1）。
   rememberShown(data)
   // 说明文档只解析一次：说明面板与详情弹层用同一份结果，两处说法必然一致
-  const details = buildDetails(data.version.files.details, chartNodes(data.version.files.workflow))
+  const details = buildDetails(data.version.files.details, detailEntities(data.version))
   let evidence = { loading: true, refs: [] }
   let openedSelection = null
   let returnFocus = null
+  const nativeResults = new Map()
+  const renderDetail = selection => nativeMode
+    ? renderOfficialDetail($('detailContent'), data.version, details, selection, data.references, nativeResults)
+    : renderNodeDetail($('detailContent'), data.version, details, selection, evidence)
   const openDetail = (selection, target) => {
     if (!selection) return
+    const sameNode = nativeMode && $('detailDialog').open && openedSelection?.id === selection.id
+    if (nativeMode && !sameNode) cancelReference()
     openedSelection = selection
     returnFocus = target || $('detailOpen')
-    renderNodeDetail($('detailContent'), data.version, details, selection, evidence)
+    if (!sameNode) renderDetail(selection)
+    $('detailContent').classList.toggle('official-comparison', nativeMode)
+    $('detailTitle').textContent = nativeMode ? selection.label : '节点详情'
     $('detailSource').textContent = '关闭后继续看图 · Esc 关闭'
     if (!$('detailDialog').open) $('detailDialog').showModal()
-    $('detailContent').scrollTop = 0
+    if (!sameNode) $('detailContent').scrollTop = 0
+  }
+  function cancelReference() {
+    nativeReadAbort?.abort(); nativeReadSeq += 1
+    for (const [id, result] of nativeResults) if (result.loading) {
+      nativeResults.delete(id)
+      const ref = data.references?.find(x => x.id === id)
+      if (ref) updateOfficialReference($('detailContent'), ref)
+    }
   }
   if (rendered) {
-    connectChartSelection(rendered.frame, {
+    if (nativeMode) {
+      const openReference = async (ref, target) => {
+        const selection = sourceSelection(data.version, ref.entityId)
+        openDetail(selection, target)
+        if (nativeResults.get(ref.id)?.loading) { locateOfficialReference($('detailContent'), ref.id); return }
+        cancelReference()
+        if (nativeResults.get(ref.id)?.ok) { locateOfficialReference($('detailContent'), ref.id); return }
+        nativeReadAbort = new AbortController(); const sequence = ++nativeReadSeq
+        nativeResults.set(ref.id, { loading: true })
+        updateOfficialReference($('detailContent'), ref, nativeResults.get(ref.id))
+        locateOfficialReference($('detailContent'), ref.id)
+        try {
+          const result = await nativeJson(wsUrl(`/specdev-workbench/api/reader-evidence?${nativeQuery}&context=${encodeURIComponent(nativeContext)}&ref=${encodeURIComponent(ref.id)}`), { signal: nativeReadAbort.signal })
+          if (!pageAlive || sequence !== nativeReadSeq || !$('detailDialog').open || openedSelection?.id !== selection.id) return
+          nativeResults.set(ref.id, result); updateOfficialReference($('detailContent'), ref, result)
+        } catch (error) {
+          if (sequence !== nativeReadSeq || error.name === 'AbortError' || !pageAlive || !$('detailDialog').open || openedSelection?.id !== selection.id) return
+          const result = { ok: false, error: error.message }
+          nativeResults.set(ref.id, result); updateOfficialReference($('detailContent'), ref, result)
+        }
+      }
+      $('detailContent').addEventListener('click', event => {
+        const id = event.target.closest?.('button[data-read-ref]')?.dataset.readRef
+        const ref = data.references.find(x => x.id === id)
+        if (ref) void openReference(ref, returnFocus)
+      })
+      stopChartTheme = connectOfficialFrame(rendered.frame, chartURL, data, {
+        controller: window.SpecDevTheme, onSelection: renderSelectionBar, onEvidence: openReference, onFailure: renderLinkFailure,
+        onEscape: () => {
+          const open = document.querySelector('dialog[open]')
+          if (open) { open.close(); return }
+          if (window.parent !== window) window.parent.postMessage({ type: MATERIAL_CLOSE_REQUEST }, location.origin)
+        },
+      })
+    } else connectChartSelection(rendered.frame, {
       onSelection: renderSelectionBar,
       onUnavailable: renderLinkFailure,
       onOpenDetail: openDetail,
@@ -464,10 +648,20 @@ async function main() {
   }
   $('detailOpen').addEventListener('click', () => openDetail(currentSelection))
   $('detailDialog').addEventListener('close', () => {
+    cancelReference()
     openedSelection = null
     returnFocus?.focus({ preventScroll: true })
   })
   $('materialsOpen').disabled = false
+  $('versionsOpen').disabled = false
+  $('versionsOpen').addEventListener('click', () => $('versionsDialog').showModal())
+  $('versionsClose').addEventListener('click', () => $('versionsDialog').close())
+  $('versionsDialog').addEventListener('click', event => {
+    const dialog = event.currentTarget, rect = dialog.getBoundingClientRect()
+    if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close()
+  })
+  $('versionsDialog').addEventListener('close', () => { if (!$('saveDialog').open) $('versionsOpen').focus({ preventScroll:true }) })
+  $('saveDialog').addEventListener('close', () => $('versionsOpen').focus({ preventScroll:true }))
   $('materialsOpen').addEventListener('click', () => $('materialsDialog').showModal())
   $('materialsClose').addEventListener('click', () => $('materialsDialog').close())
   $('detailClose').addEventListener('click', () => $('detailDialog').close())
@@ -494,10 +688,15 @@ async function main() {
   // 本页被装进资料面板（iframe）时，焦点在本文档里，父页收不到按键：没有自己的弹层
   // 要关的 ESC 由阅读页转给宿主页去关面板；顶层标签页里打开本页时它什么也不做。
   // 注意安装位置见文件末尾：要装在 main() 的早退分支之前（见那里的说明）。
-  renderDetailsPanel(data.version, details)
+  renderDetailsPanel(data.version, details, openDetail)
   // 证据解析不阻塞版本条：先发出去（正文带的就是本页 data 里那份清单原文），版本条立起来、
   // 状态栏报完再等它——证据慢只慢证据面板
-  const evidenceTask = renderEvidencePanel(data.version, state => {
+  const evidenceTask = nativeMode ? Promise.resolve().then(() => {
+    evidence = { refs: [], message: '新版引用来自官方sources，请在图中选择具体引用。' }
+    $('evidencePanel').textContent = evidence.message
+  }) : data.authoredRenderer === '3.0.1' ? Promise.resolve().then(() => {
+    evidence = { refs: [], message: '此图的官方引用须在新版阅读中查看。' }; $('evidencePanel').textContent = evidence.message
+  }) : renderEvidencePanel(data.version, state => {
     evidence = state
     // 晚到的证据只更新仍打开的节点，不重新打开已关闭的详情。
     if ($('detailDialog').open && openedSelection) {
@@ -516,7 +715,7 @@ async function main() {
 /** 当前 vs 最新快照的比较结果徽标文案（服务端算好传下来，这里只翻成中文后缀）。 */
 function statusSuffix(data) {
   return data.currentStatus === 'identical' ? '· 一致' : data.currentStatus === 'changed' ? '· 已改动'
-    : data.currentStatus === 'compare-failed' ? '· 无法比较' : '· 无快照'
+    : data.currentStatus === 'compare-failed' ? '· 无法比较' : ''
 }
 
 /**
@@ -544,20 +743,25 @@ function renderVersions(data) {
     current.textContent = `当前（工作区）${statusSuffix(data)}`
     current.title = data.compareError || '回到当前工作区内容'
     current.addEventListener('click', () => {
-      location.assign(wsUrl(`/specdev-workbench/read/${business}/${chart}?v=current`))
+      location.assign(versionURL(business, chart, 'current'))
     })
     versions.appendChild(current)
   }
-  for (const snapshot of data.snapshots.snapshots) {
-    const button = el('button')
-    button.textContent = `${snapshot.meta.name}（${snapshot.meta.stage === 'implemented' ? '实现版' : '设计版'}）`
-    button.title = [snapshot.tag, snapshot.meta.note].filter(Boolean).join(' · ')
-    if (snapshot.tag === v) button.setAttribute('aria-current', 'true')
-    button.addEventListener('click', () => {
-      location.assign(wsUrl(`/specdev-workbench/read/${business}/${chart}?v=${encodeURIComponent(snapshot.tag)}`))
-    })
-    versions.appendChild(button)
+  if (data.snapshots.snapshots.length) {
+    const label = el('label'), select = el('select')
+    label.append('版本选择 '); select.setAttribute('aria-label', '版本选择')
+    const current = el('option'); current.value = 'current'; current.textContent = '当前（工作区）'; select.append(current)
+    for (const snapshot of data.snapshots.snapshots) {
+      const option = el('option'); option.value = snapshot.tag
+      option.textContent = `${snapshot.meta.name}（${snapshot.meta.stage === 'implemented' ? '实现版' : '设计版'}） · ${snapshot.tag}`
+      select.append(option)
+    }
+    select.value = v
+    select.addEventListener('change', () => location.assign(versionURL(business, chart, select.value)))
+    label.append(select); versions.append(label)
   }
+  $('compareWarning').textContent = data.currentStatus === 'compare-failed' ? `无法比较：${data.compareError || '比较结果不可用'}` : ''
+  $('compareWarning').hidden = data.currentStatus !== 'compare-failed'
   // 正在看历史快照：登记的保存时间与保存说明上屏（§3.2）；并说明图名与摘要的来处——
   // 图名/摘要（chart.json）不进快照，历史页上的名字仍取自当前说明文件
   const meta = $('snapshotMeta')
@@ -582,16 +786,14 @@ function renderVersions(data) {
   }
 }
 
-/** 状态行：在看哪一版 + 这次现场渲染的凭据（或这个版本看不了）。prefix 供保存成功后加一句结果。 */
+/** 正常阅读不重复版本/技术状态；这里只保留不可读及保存结果。 */
 function renderStatus(data, prefix = '') {
-  const { v, rendered, failure } = pageState
+  const { failure } = pageState
   setStatus(
-    prefix + (v === 'current'
-      ? '正在看：当前（工作区）'
-      : `正在看：${data.version.label}（提交 ${String(data.version.commit).slice(0, 8)}）`)
-      + (rendered ? ` · 已现场渲染 ${rendered.kb} KB / ${rendered.ms} ms` : failure ? ' · 这个版本看不了' : ''),
+    prefix + (failure ? '这个版本看不了' : ''),
     failure ? 'bad' : 'ok',
   )
+  $('status').hidden = !prefix && !failure
 }
 
 /**
@@ -614,6 +816,7 @@ async function openSaveDialog() {
   box.textContent = '正在检查这一版能不能存…'
   box.removeAttribute('data-kind')
   $('saveDialog').showModal()
+  $('versionsDialog').close()
 
   let check
   try {
@@ -736,11 +939,14 @@ async function refreshBar(prefix = '') {
 /** 保存成功（或已存过）之后原地刷新：说一句结果，再把版本条与状态行重画一遍。 */
 async function refreshAfterSave(label, alreadySaved) {
   const note = alreadySaved ? `这一版已经保存过：「${label}」` : `已保存「${label}」`
-  if (!(await refreshBar(`${note}。`))) setStatus(`${note}，但版本条没能刷新：已保存，请刷新查看。`, 'warn')
+  if (!(await refreshBar(`${note}。`))) {
+    setStatus(`${note}，但版本条没能刷新：已保存，请刷新查看。`, 'warn')
+    $('status').hidden = false
+  }
 }
 
 // 本页嵌在资料面板里时，把"关掉面板"的 ESC 转给宿主页（顶层标签页里什么也不做）。
 // 装在 main() 之前而不是 main 里面：路径不对、工作区标识为空、取图失败这些分支都会提前返回，
 // 但用户看到的仍是这个阅读页——读不到图的时候，ESC 照样该能关掉外面的资料面板。
 forwardEscapeToHost(window, document)
-main()
+main().catch(error => { if (pageAlive) showError(error.message) })

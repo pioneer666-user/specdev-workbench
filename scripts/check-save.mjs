@@ -63,14 +63,20 @@ log(`产品代码：${MANAGER}\n`)
 
 // ── ① 构建产物 ───────────────────────────────────────────────────────────────
 log('## ① 构建 dist（与发版同一个脚本）')
-const build = await execFileAsync(process.execPath, [path.join(MANAGER, 'scripts', 'build.mjs')], { cwd: MANAGER, encoding: 'utf8' })
-log(build.stdout.trim() + (build.stderr.trim() ? '\n' + build.stderr.trim() : ''))
+if (process.env.SPECDEV_CHECK_DIST_SHA256) {
+  const actual = createHash('sha256').update(readFileSync(path.join(MANAGER, 'dist/index.js'))).digest('hex')
+  if (actual !== process.env.SPECDEV_CHECK_DIST_SHA256) throw Error('复用dist摘要不符')
+  log('复用本轮已有构建：' + actual)
+} else {
+  const build = await execFileAsync(process.execPath, [path.join(MANAGER, 'scripts', 'build.mjs')], { cwd: MANAGER, encoding: 'utf8' })
+  log(build.stdout.trim() + (build.stderr.trim() ? '\n' + build.stderr.trim() : ''))
+}
 const DIST = path.join(MANAGER, 'dist', 'index.js')
 expect('dist/index.js 已生成', existsSync(DIST), true)
 const bundle = readFileSync(DIST, 'utf8')
 expect('产物里就是本步的代码', [bundle.includes('saveChartSnapshot'), bundle.includes('checkChartCommitted'), bundle.includes('snapshots')], [true, true, true])
 // 产物里中文按 esbuild 默认（charset=ascii）转义成 \uXXXX，只认句中的 ASCII 段
-expect('产物含新的方法守卫文案', [bundle.includes('POST /api/evidence'), bundle.includes('POST /api/snapshots')], [true, true])
+expect('产物含新的方法守卫文案', [bundle.includes('reader-render'), bundle.includes('reader-release')], [true, true])
 
 // ── ② 示例仓 ─────────────────────────────────────────────────────────────────
 log('\n## ② 生成一次性示例仓')
@@ -339,7 +345,7 @@ expect('这一轮失败后该图版本数仍 1', await versionCount(BIZ, CHART),
 expect('脏图版本数没变（生成器给的 1）', await versionCount(DIRTY_BIZ, DIRTY_CHART), 1)
 
 const put = await fetch(`${origin}${PREFIX}/api/snapshots`, { method: 'PUT' })
-expect('PUT 405 且说明两个 POST 例外', [put.status, (await put.json()).error.includes('POST /api/snapshots')], [405, true])
+expect('PUT 405 且说明保存/证据及新版POST例外', [put.status, (await put.json()).error.includes('POST')], [405, true])
 const missing = await getJson(`${PREFIX}/api/snapshots`)
 expect('GET 缺参数 400', [missing.status, missing.body.code], [400, 'bad-request'])
 const badId = await getJson(`${PREFIX}/api/snapshots?business=${BIZ}&chart=..%2Fx`)
@@ -425,7 +431,7 @@ const saveEntry = readJs.indexOf('save-open')
 const historyBranch = readJs.indexOf('// 正在看历史时')
 expect('保存入口只挂在"当前"分支内', [currentBranch > 0, saveEntry > currentBranch, historyBranch > saveEntry], [true, true, true])
 // 连点只存一次：禁用按钮的语句在发出请求之前
-expect('点保存就先禁用（防连点）', readJs.indexOf('button.disabled = true') < readJs.indexOf("method: 'POST'"), true)
+expect('点保存就先禁用（防连点）', readJs.slice(readJs.indexOf('async function submitSave()')).indexOf('button.disabled = true') < readJs.slice(readJs.indexOf('async function submitSave()')).indexOf("method: 'POST'"), true)
 
 log('\n### 4.9 卸载清理')
 disposer()

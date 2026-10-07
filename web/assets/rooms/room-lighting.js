@@ -1,5 +1,6 @@
 // 空房间风格的公共光照；场景模块不依赖旧建筑蓝图或业务资料。
 import * as THREE from 'three';
+import { sampleBrightness } from './brightness.js';
 
 export function createRoomLighting(renderer,scene){
   const group=new THREE.Group(); group.name='room-style-lighting'; scene.add(group);
@@ -30,21 +31,40 @@ export function createRoomLighting(renderer,scene){
   let seed=478;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
   const positions=[];for(let i=0;i<120;i++){const a=random()*Math.PI*2,r=25+random()*25;positions.push(Math.cos(a)*r,9+random()*24,Math.sin(a)*r);}
   const stars=new THREE.Points(new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(positions,3)),new THREE.PointsMaterial({color:0xffecc4,size:.095,transparent:true,opacity:.75,depthWrite:false,toneMapped:false}));group.add(stars);
-  let style='ceramic',period='day';
-  function set(nextStyle,nextPeriod='day'){
-    style=nextStyle;period=nextPeriod;const fairy=style==='fairy',night=fairy&&period==='night';
-    sky.visible=fairy;stage.visible=!fairy;celestial.visible=fairy;stars.visible=night;craters.visible=night;
-    scene.background=new THREE.Color(night?0x1c263b:fairy?0xd6e3dc:0xe5e6df);
-    scene.fog=fairy?new THREE.Fog(night?0x26364b:0xd7e3d5,26,76):new THREE.Fog(0xe5e6df,35,90);
-    scene.environmentIntensity=night?.20:fairy?.45:.75;
-    hemi.color.set(night?0x92aeed:fairy?0xdbefff:0xe8f1ff);hemi.groundColor.set(night?0x3f3b52:0xb4a27f);hemi.intensity=night?.85:fairy?1.7:2.2;
-    key.color.set(night?0xb4c9ff:fairy?0xffd99d:0xfff1df);key.intensity=night?1.5:fairy?3.1:3.3;
-    key.position.set(night?-5:-4,night?7:9,night?-6:5);key.target.position.set(0,0,0);
-    fill.color.set(night?0x969bde:0xdeeeff);fill.intensity=night?.7:1.1;bounce.color.set(night?0xeebd76:0xffdfa8);bounce.intensity=night?.35:.55;
-    renderer.toneMappingExposure=night?1.1:fairy?1.08:1.02;
-    skyMaterial.uniforms.top.value.set(night?'#111b37':'#a9cfe4');skyMaterial.uniforms.horizon.value.set(night?'#566078':'#f4e6c6');skyMaterial.uniforms.bottom.value.set(night?'#283f47':'#bbcfad');
-    moonMaterial.color.set(night?0xffe5af:0xfff4cb);celestial.scale.setScalar(night?1.05:.7);halo.material.opacity=night?.58:.7;
+  let style='ceramic',nightMix=0,disposed=false;
+  const palettes={
+    ceramic:{background:[0x687887,0xe0e2da],fog:[0x687887,0xe0e2da]},
+    fairy:{background:[0x1c263b,0xd6e3dc],fog:[0x26364b,0xd7e3d5]},
+  };
+  for(const palette of Object.values(palettes)) for(const key of Object.keys(palette)) palette[key]=palette[key].map(v=>new THREE.Color(v));
+  const colors={
+    hemi:[0x92aeed,0xe8f1ff],ground:[0x3f3b52,0xb4a27f],key:[0xb4c9ff,0xffe4b7],
+    fill:[0x969bde,0xdeeeff],bounce:[0xeebd76,0xffdfa8],
+    top:[0x111b37,0xa9cfe4],horizon:[0x566078,0xf4e6c6],bottom:[0x283f47,0xbbcfad],moon:[0xffe5af,0xfff4cb],
+  };
+  for(const key of Object.keys(colors)) colors[key]=colors[key].map(v=>new THREE.Color(v));
+  const blend=(color,pair,t)=>color.copy(pair[0]).lerp(pair[1],t);
+  scene.background=new THREE.Color();scene.fog=new THREE.Fog(0xffffff,35,90);
+  function applyBrightness(nextStyle,p){
+    if(disposed)return;
+    style=nextStyle;nightMix=p.nightMix;
+    const fairy=style==='fairy',day=1-nightMix,light=p.value/100;
+    sky.visible=fairy;stage.visible=!fairy;celestial.visible=fairy;
+    stars.visible=fairy&&nightMix>0;craters.visible=fairy&&nightMix>0;
+    blend(scene.background,palettes[style].background,light);
+    blend(scene.fog.color,palettes[style].fog,light);scene.fog.near=fairy?26:35;scene.fog.far=fairy?76:90;
+    scene.environmentIntensity=p.environment;
+    blend(hemi.color,colors.hemi,light);blend(hemi.groundColor,colors.ground,light);hemi.intensity=p.hemi;
+    blend(key.color,colors.key,light);key.intensity=p.key;key.position.set(-4-nightMix,9-2*nightMix,5-11*nightMix);key.target.position.set(0,0,0);
+    blend(fill.color,colors.fill,light);fill.intensity=p.fill;blend(bounce.color,colors.bounce,light);bounce.intensity=p.bounce;
+    renderer.toneMappingExposure=p.exposure;
+    blend(skyMaterial.uniforms.top.value,colors.top,day);blend(skyMaterial.uniforms.horizon.value,colors.horizon,day);blend(skyMaterial.uniforms.bottom.value,colors.bottom,day);
+    blend(moonMaterial.color,colors.moon,day);celestial.scale.setScalar(.7+.35*nightMix);halo.material.opacity=.7-.12*nightMix;
+    stars.material.opacity=.68*nightMix;
+    craters.traverse(o=>{if(o.material)o.material.opacity=.21*nightMix;});
   }
+  // 历史底座/实验调用仍可选两端；房间页面只经亮度滑杆。
+  function set(nextStyle,nextPeriod='day'){applyBrightness(nextStyle,sampleBrightness(nextStyle,nextPeriod==='night'?0:100,nextPeriod==='night'?1:0));}
   set('ceramic');
-  return {set,update(t){if(style==='fairy'&&period==='night')stars.material.opacity=.68+Math.sin(t*.4)*.07;},dispose(){scene.remove(group);if(scene.environment===env.texture)scene.environment=previousEnv;env.dispose();const g=new Set(),m=new Set();group.traverse(o=>{if(o.geometry)g.add(o.geometry);if(o.material)m.add(o.material);});g.forEach(v=>v.dispose());m.forEach(v=>v.dispose());glowTexture.dispose();key.shadow.map?.dispose();}};
+  return {set,applyBrightness,update(t){if(style==='fairy')stars.material.opacity=(.68+Math.sin(t*.4)*.07)*nightMix;},dispose(){if(disposed)return;disposed=true;scene.remove(group);if(scene.environment===env.texture)scene.environment=previousEnv;env.dispose();const g=new Set(),m=new Set();group.traverse(o=>{if(o.geometry)g.add(o.geometry);if(o.material)m.add(o.material);});g.forEach(v=>v.dispose());m.forEach(v=>v.dispose());glowTexture.dispose();key.shadow.map?.dispose();}};
 }

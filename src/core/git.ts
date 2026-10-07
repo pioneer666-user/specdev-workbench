@@ -17,14 +17,27 @@ export const MAX_FILE_BYTES = 2 * 1024 * 1024
 const EXEC_MAX_BUFFER = MAX_FILE_BYTES * 2
 
 /** 运行一次 git 命令（-C repoRoot），成功返回 stdout（utf8 文本）。 */
-export async function runGit(repoRoot: string, args: readonly string[]): Promise<string> {
+/** 新版固定证据调用局部禁replacement、lazy fetch及外部Git环境覆盖；旧调用语义不变。 */
+export interface GitReadOptions { readonly originalObjects?: boolean }
+
+export function originalGitEnvironment(): NodeJS.ProcessEnv {
+  const env = { ...process.env }
+  for (const key of Object.keys(env)) if (/^GIT_/i.test(key)) delete env[key]
+  env.GIT_NO_REPLACE_OBJECTS = '1'
+  env.GIT_NO_LAZY_FETCH = '1'
+  env.GIT_OPTIONAL_LOCKS = '0'
+  return env
+}
+
+export async function runGit(repoRoot: string, args: readonly string[], options: GitReadOptions = {}): Promise<string> {
   let caught: unknown
   try {
-    const { stdout } = await execFileAsync('git', ['-C', repoRoot, ...args], {
+    const { stdout } = await execFileAsync('git', [...(options.originalObjects ? ['--no-replace-objects', '--no-lazy-fetch', '--no-optional-locks'] : []), '-C', repoRoot, ...args], {
       timeout: GIT_TIMEOUT_MS,
       maxBuffer: EXEC_MAX_BUFFER,
       encoding: 'utf8',
       windowsHide: true,
+      ...(options.originalObjects ? { env: originalGitEnvironment() } : {}),
     })
     return stdout
   } catch (error) {
@@ -98,8 +111,8 @@ function sameRealPath(a: string, b: string): boolean {
  * 只用于工作区绑定（自动绑定必须防）；手动模式（用户自己填 repoRoot）不经过本检查。
  * 非 Git 目录在此同样报 not-a-git-repo（rev-parse 的 stderr 走 runGit 统一映射）。
  */
-export async function assertRepoTopLevel(repoRoot: string): Promise<void> {
-  const output = (await runGit(repoRoot, ['rev-parse', '--show-toplevel'])).trim()
+export async function assertRepoTopLevel(repoRoot: string, options: GitReadOptions = {}): Promise<void> {
+  const output = (await runGit(repoRoot, ['rev-parse', '--show-toplevel'], options)).trim()
   if (!output) {
     throw new CoreError('not-a-git-repo', `无法确定 ${repoRoot} 的 Git 仓库顶层`, 422)
   }
@@ -124,17 +137,18 @@ export async function gitShowFileOptional(
   repoRoot: string,
   commit: string,
   relPath: string,
+  options: GitReadOptions = {},
 ): Promise<string | null> {
   if (!isHex40(commit)) {
     // 内部约定：本模块只按已剥壳的 40 位提交号读对象，防止把任意 refspec 透传进 git。
     throw new CoreError('bad-request', `内部错误：gitShowFileOptional 只接受 40 位提交号，收到 ${commit}`, 400)
   }
   const spec = `${commit}:${relPath}`
-  const entry = (await runGit(repoRoot, ['ls-tree', commit, '--', relPath])).trim()
+  const entry = (await runGit(repoRoot, ['ls-tree', commit, '--', relPath], options)).trim()
   if (entry === '') return null
   const objectType = entry.split('\t')[0].split(' ')[1]
   if (objectType !== 'blob') return null
-  const sizeText = await runGit(repoRoot, ['cat-file', '-s', spec])
+  const sizeText = await runGit(repoRoot, ['cat-file', '-s', spec], options)
   const size = Number(sizeText.trim())
   if (!Number.isFinite(size) || size < 0) {
     throw new CoreError('git-failed', `无法确定 ${relPath} 在提交 ${commit.slice(0, 8)} 上的大小`)
@@ -146,17 +160,17 @@ export async function gitShowFileOptional(
       413,
     )
   }
-  return runGit(repoRoot, ['show', spec])
+  return runGit(repoRoot, ['show', spec], options)
 }
 
 /** 解析一个提交号：验证 40 位且能在本仓库解析为提交对象；失败抛明确错误。 */
-export async function resolveCommit(repoRoot: string, commit: string): Promise<string> {
+export async function resolveCommit(repoRoot: string, commit: string, options: GitReadOptions = {}): Promise<string> {
   if (!isHex40(commit)) {
     throw new CoreError('bad-request', `提交号必须是 40 位十六进制，收到：${commit}`, 400)
   }
   let out: string | null = null
   try {
-    out = await runGit(repoRoot, ['rev-parse', '--verify', `${commit}^{commit}`])
+    out = await runGit(repoRoot, ['rev-parse', '--verify', `${commit}^{commit}`], options)
   } catch (error) {
     // 只有 git 明确拒绝该对象才按"确认不存在"处理（实测 stderr 首行
     // 为 "fatal: Needed a single revision"〔对象不存在〕或 "error: … expected commit type …"

@@ -1,0 +1,152 @@
+{
+  "version": "3.0.1",
+  "commit": "2ab3cae7ac2c2a55d7386ca789d03c4fcd31816c",
+  "license": "MIT",
+  "source": "https://github.com/tt-a1i/archify",
+  "files": [
+    {
+      "path": "archify/assets/template.html",
+      "sha256": "b0b550d644b77cad401bbc4b21375919ef01db45d235122a0ee42b732cb34233"
+    },
+    {
+      "path": "archify/package.json",
+      "sha256": "b609dc658a8e1a2097c304a7873ef039b9d6079832028980f60965d8d3ea886d"
+    },
+    {
+      "path": "archify/renderers/architecture/labels.mjs",
+      "sha256": "7cf5bb20c3039f49683fe81a461110c42de0a006a58c867c47fdd3089a58bbbc"
+    },
+    {
+      "path": "archify/renderers/architecture/routing.mjs",
+      "sha256": "b952b3ec0364827fa7fbff10a28e2a83f0ba11921c67f5ee224e5ef58c833cbb"
+    },
+    {
+      "path": "archify/renderers/lifecycle/grid-routing.mjs",
+      "sha256": "81ae4d3a90aed30471f23dbc3083768d4979e96cf96544f9465713c2cd09e13f"
+    },
+    {
+      "path": "archify/renderers/lifecycle/render-lifecycle.mjs",
+      "sha256": "1ed2e359a5eab6a2bd9473c36c6184498d68748e9175cddf6894aa7b2ba3f670"
+    },
+    {
+      "path": "archify/renderers/sequence/render-sequence.mjs",
+      "sha256": "46ed05a34655fbe6c421586366aa81480bca893233d61b9391e21afc667f15a1"
+    },
+    {
+      "path": "archify/renderers/shared/atomic-output.mjs",
+      "sha256": "f804d66d1801ac2dadc9d0a4c334645cfbb7a8cd1a7de112ddfb952c056a580b"
+    },
+    {
+      "path": "archify/renderers/shared/brand-marks.mjs",
+      "sha256": "5cfc3c517ca6fe7e867c208101059dd7747ca3de3c9934b17583d6cf20336620"
+    },
+    {
+      "path": "archify/renderers/shared/cli.mjs",
+      "sha256": "097f968a614008b07972f56de995e5b933c61ee0ba0d16d967c0a97c6d92e9d7"
+    },
+    {
+      "path": "archify/renderers/shared/desktop-readability.mjs",
+      "sha256": "de68f2ed92573ae714659d556f97eca01296f4e0063b94c429370efcc38f909a"
+    },
+    {
+      "path": "archify/renderers/shared/diagnostics.mjs",
+      "sha256": "d052a0e72eec2a2bf29c70dacdd3350100e2c76fc2627d14f79234077c571e3f"
+    },
+    {
+      "path": "archify/renderers/shared/engineering-profiles.mjs",
+      "sha256": "7e99f9d5423f66cc9ab6224da56dc2d5aa6c6faec29178034794e9db6b5b2889"
+    },
+    {
+      "path": "archify/renderers/shared/generated-brand-marks.mjs",
+      "sha256": "0f157d229c12df6f53763a3b88684baa5803a52484c49c4d34ec40b8743beea2"
+    },
+    {
+      "path": "archify/renderers/shared/generated-validators.mjs",
+      "sha256": "33697207b90a0eb0d0566a1c46eaf3cb58f85cef0f43caeec991017ade34c2b9"
+    },
+    {
+      "path": "archify/renderers/shared/geometry.mjs",
+      "sha256": "b25d849e6e256b1eef37fa3bb88712d0617d6eb646a2355a934505fcaa9be75d"
+    },
+    {
+      "path": "archify/renderers/shared/i18n.mjs",
+      "sha256": "03f5356110a08b2cf684a484af5502bb392482de1ef61123707c6da2724c5201"
+    },
+    {
+      "path": "archify/renderers/shared/legend.mjs",
+      "sha256": "1cc5033a188690fc5f5fef1bd7915a275e6c790bb3061c63c00a97b234625cbe"
+    },
+    {
+      "path": "archify/renderers/shared/output-path.mjs",
+      "sha256": "7422139101abd93493918898a97bed06f2212bfd411d3514cd229b6d57a3797e"
+    },
+    {
+      "path": "archify/renderers/shared/path-semantics.mjs",
+      "sha256": "4ef002af9061c06634a07de6d199fd7d13e6c50561c792fd018118bf3e065f52"
+    },
+    {
+      "path": "archify/renderers/shared/portable-path.mjs",
+      "sha256": "26130cbcdae9b9f082486aeb5feec9c5fe57905d2ed8e30c8081b9710e2e8ac3"
+    },
+    {
+      "path": "archify/renderers/shared/repository-evidence.mjs",
+      "sha256": "19c652af2afec5604e9ce23d356f3cc2c5d6146592531036da20e79f4db3ed1d"
+    },
+    {
+      "path": "archify/renderers/shared/repository-location.mjs",
+      "sha256": "9ee8294c39d1be40f5aca3334fdfc7527ef9b224d6c1e69ca57aefc6a8c77856"
+    },
+    {
+      "path": "archify/renderers/shared/route-quality.mjs",
+      "sha256": "0ae7e16210f8e00bb615da34d5323dee65efe52ceb11a40ea49fdd10b5257daa"
+    },
+    {
+      "path": "archify/renderers/shared/spatial-grid.mjs",
+      "sha256": "e728bf6a729972f95ae09e368ea370490d10ff94d49debe2fab2e9bac923ee1a"
+    },
+    {
+      "path": "archify/renderers/shared/text-fit.mjs",
+      "sha256": "ebd499072ef4fe31c9aabf45a01c204a9c2c142d45f087c3240673f90f477038"
+    },
+    {
+      "path": "archify/renderers/shared/utils.mjs",
+      "sha256": "422b66c6945de473b1f96e4f3641339b6a24c8ccef60795a38ca2386e10bc26b"
+    },
+    {
+      "path": "archify/renderers/shared/validator.mjs",
+      "sha256": "7460d7fcbcdf710649256c5e96142ae26d807a655d3296ee8caf7f5e158622cc"
+    },
+    {
+      "path": "archify/renderers/workflow/render-workflow.mjs",
+      "sha256": "df6cb1330231616dcb83592c3cc1dbf4b3e45567779836ae031ff57d2d517b89"
+    },
+    {
+      "path": "archify/renderers/workflow/workflow-compiler.mjs",
+      "sha256": "25646b0a7ee13d62ed7b21c915d40665608ffd57c69af263a8ec4250ceb9214e"
+    },
+    {
+      "path": "archify/renderers/workflow/workflow-migration-geometry.mjs",
+      "sha256": "ebfc5085dd008ae63802f500402fb7bf8ca0ae28460997d867f45e5493b8fbe6"
+    },
+    {
+      "path": "archify/schemas/common.schema.json",
+      "sha256": "60912458e44224647a147a4dfccf0b40e0ea9c631767aabdeb5e82456f27c4e6"
+    },
+    {
+      "path": "archify/schemas/lifecycle.schema.json",
+      "sha256": "6b310026a3bc5d4eb7f36a1ed862b8c95d88ce57246ce078ba3094e0d6ff3c90"
+    },
+    {
+      "path": "archify/schemas/sequence.schema.json",
+      "sha256": "411dcda121d7e95170a6850fb1cec51bec2e78222ce74b8465e11bcbd8e6e41a"
+    },
+    {
+      "path": "archify/schemas/workflow.schema.json",
+      "sha256": "e13a1ce3b841376c8c6f6b9cb8152f8c0c7d70a77a2960fecdfe9025de83dc25"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "b799ab081703e7821ae5096d2c1abdf14bbdc75e8ea1c4045998c36ed6db9706"
+    }
+  ]
+}

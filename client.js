@@ -10,6 +10,45 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         let panelRegistered = false
         const panelStops = new Set()
+        const themeSinks = new Set()
+        let themeMode = null, themeRevision = 0, themeChannel, themeAlive = true
+        const validMode = value => value === 'light' || value === 'dark'
+        const themeSource = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`
+        const themeMessage = (type, request) => ({ v: 1, type, source: themeSource, request, revision: themeRevision, mode: themeMode })
+        const publishTheme = value => {
+          themeMode = validMode(value) ? value : null; themeRevision++
+          for (const send of themeSinks) send()
+          if (themeMode && themeChannel) try { themeChannel.postMessage(themeMessage('update')) } catch { /* 入口不因通道失效而中断。 */ }
+        }
+        const openThemeChannel = () => { if (desktop || themeChannel || !themeAlive) return; try {
+          themeChannel = new window.BroadcastChannel('specdev-theme-v1')
+          themeChannel.onmessage = ({ data: m }) => {
+            if (!themeAlive || !themeMode || !m || m.v !== 1 || m.type !== 'request'
+              || typeof m.request !== 'string' || !m.request.length || m.request.length > 100
+              || !(m.source === null || (typeof m.source === 'string' && m.source.length <= 100))
+              || (m.source !== null && m.source !== themeSource)) return
+            try { themeChannel.postMessage(themeMessage('response', m.request)) } catch { /* 备用色仍可用。 */ }
+          }
+        } catch { themeChannel = null } }
+        const closeThemeChannel = () => { themeChannel?.close(); themeChannel = null }
+        openThemeChannel()
+        window.addEventListener?.('pagehide', closeThemeChannel)
+        window.addEventListener?.('pageshow', openThemeChannel)
+        // 可选注入允许主题服务晚到或移除，不阻塞原入口依赖。
+        ctx.inject?.(['theme'], child => {
+          let live = true
+          const update = () => { if (live && themeAlive) publishTheme(child.theme.getTheme()?.active?.colorScheme) }
+          child.on('theme/change', update)
+          update()
+          return () => { live = false; if (themeAlive) publishTheme(null) }
+        })
+        ctx.effect?.(() => () => {
+          themeAlive = false
+          publishTheme(null)
+          themeChannel?.close(); themeChannel = null; themeSinks.clear()
+          window.removeEventListener?.('pagehide', closeThemeChannel)
+          window.removeEventListener?.('pageshow', openThemeChannel)
+        })
         const panelAvailable = () => panelRegistered && typeof ctx.layout?.selectPanel === 'function'
         const unavailable = (error) => `工作台入口无法使用：${error?.message || '宿主面板方法不可用'}。`
 
@@ -70,7 +109,23 @@ window.__ModuleLoader__.load({
                   } catch (cause) { if (active) setError(unavailable(cause)) }
                 }
                 doc.addEventListener('click', onClick)
-                detachDocument = () => { doc.removeEventListener('click', onClick) }
+                const sendTheme = () => {
+                  if (!active || !themeAlive) return
+                  try {
+                    if (frame.contentDocument !== doc) return
+                    const url = new URL(doc.defaultView.location.href)
+                    if (!sameAuthority(url) || !internalPath(url)) return
+                    doc.dispatchEvent(new doc.defaultView.CustomEvent('specdev-host-theme', { detail: { mode: themeMode } }))
+                  } catch { /* 失效或不可访问的文档不注入。 */ }
+                }
+                themeSinks.add(sendTheme)
+                doc.addEventListener('specdev-theme-ready', sendTheme)
+                sendTheme()
+                detachDocument = () => {
+                  doc.removeEventListener('click', onClick)
+                  doc.removeEventListener('specdev-theme-ready', sendTheme)
+                  themeSinks.delete(sendTheme)
+                }
                 setError('')
               } catch (cause) { if (active) setError(unavailable(cause)) }
             }
@@ -89,16 +144,9 @@ window.__ModuleLoader__.load({
             'aria-label': 'SpecDev 工作台',
             style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' },
           },
-          React.createElement('div', { style: { flexShrink: 0, padding: '8px', paddingInlineStart: 'max(8px, var(--dsh-frame-leading-clearance, 0px))' } },
-            React.createElement('button', {
-              type: 'button', onClick() {
-                try {
-                  if (!panelAvailable()) throw new Error('宿主面板方法不可用')
-                  ctx.layout.selectPanel(null)
-                } catch (cause) { setError(unavailable(cause)) }
-              },
-            }, '返回聊天'),
-            error && React.createElement('p', { role: 'alert' }, error)),
+          error && React.createElement('p', {
+            role: 'alert', style: { flexShrink: 0, margin: 0, padding: '8px', overflowWrap: 'anywhere' },
+          }, error),
           React.createElement('iframe', {
             ref: frameRef, src: '/specdev-workbench/workspaces', title: 'SpecDev 项目选择与资料阅读',
             style: { flex: 1, minHeight: 0, width: '100%', border: 0 },

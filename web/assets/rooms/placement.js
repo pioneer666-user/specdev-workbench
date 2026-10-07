@@ -410,6 +410,9 @@ function spatialChecks(template, resolved, out) {
     }
     for (const { name, bounds } of entry.clearances) {
       if (!boxInside(template.interiorBounds, bounds)) out.push(diag('CLEARANCE_BLOCKED', `实例「${entry.instance.instanceId}」的操作留空「${name}」越出了室内净空。`, { instanceIds: [entry.instance.instanceId], targetId: 'interior', fieldPath: 'catalog.assets' }));
+      for (const volume of volumes.filter((item) => item.purpose === 'fixture')) {
+        if (boxIntersects(bounds, volume.bounds)) out.push(diag('CLEARANCE_BLOCKED', `固定构件「${volume.id}」占用了实例「${entry.instance.instanceId}」的操作留空「${name}」。`, { instanceIds: [entry.instance.instanceId], targetId: volume.id, fieldPath: 'template.reservedVolumes' }));
+      }
       for (const other of resolved) {
         if (other === entry) continue;
         if (boxIntersects(bounds, other.solid)) out.push(diag('CLEARANCE_BLOCKED', `实例「${other.instance.instanceId}」的实体占用了实例「${entry.instance.instanceId}」的操作留空「${name}」。`, { instanceIds: [entry.instance.instanceId], targetId: other.instance.instanceId, fieldPath: 'layout.instances' }));
@@ -469,6 +472,9 @@ function routeCheck(template, resolved, walkSet, out) {
     const a = human(waypoints[i].x, waypoints[i].z);
     const b = human(waypoints[i + 1].x, waypoints[i + 1].z);
     const swept = { minX: Math.min(a.minX, b.minX), maxX: Math.max(a.maxX, b.maxX), minY: 0, maxY: template.walkProfile.eyeClearance, minZ: Math.min(a.minZ, b.minZ), maxZ: Math.max(a.maxZ, b.maxZ) };
+    for (const volume of template.reservedVolumes.filter((item) => item.purpose === 'fixture')) {
+      if (boxIntersects(swept, volume.bounds)) out.push(diag('STAND_UNREACHABLE', `出生点到站位的路径第 ${i + 1} 段扫过的人形范围碰到固定构件「${volume.id}」。`, { instanceIds: waypoints[i + 1].instanceId ? [waypoints[i + 1].instanceId] : [], targetId: volume.id, fieldPath: 'template.reservedVolumes' }));
+    }
     if (!inOneVolume(swept)) {
       out.push(diag('STAND_UNREACHABLE', `出生点到站位的路径第 ${i + 1} 段扫过的人形范围未完整落在单一通行盒内（保守包含判定），区间 X[${swept.minX.toFixed(2)}, ${swept.maxX.toFixed(2)}] Z[${swept.minZ.toFixed(2)}, ${swept.maxZ.toFixed(2)}]。`, { instanceIds: waypoints[i + 1].instanceId ? [waypoints[i + 1].instanceId] : [], targetId: 'corridor', fieldPath: 'template.reservedVolumes' }));
       return waypoints;

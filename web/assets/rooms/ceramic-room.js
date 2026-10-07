@@ -63,25 +63,6 @@ function makePorcelainTextures() {
   };
 }
 
-function makeWindowTexture() {
-  const width = 128;
-  const height = 128;
-  const data = new Uint8Array(width * height * 4);
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const v = y / height;
-      const u = x / width;
-      const haze = 6 * Math.sin(u * 9 + v * 3) * Math.sin(v * 7);
-      const offset = (y * width + x) * 4;
-      data[offset] = Math.min(255, 238 + v * 16 + haze);
-      data[offset + 1] = Math.min(255, 241 + v * 12 + haze);
-      data[offset + 2] = Math.min(255, 232 + (1 - v) * 19 + haze);
-      data[offset + 3] = 255;
-    }
-  }
-  return dataTexture(data, width, height, '窗外 / 柔和天光', true);
-}
-
 export function createCeramicRoom({ renderer, scene, reducedMotion = false, doorOpen } = {}) {
   if (doorOpen !== undefined && typeof doorOpen !== 'boolean') {
     throw new Error(`createCeramicRoom 的 doorOpen 只接受 true、false 或不传，收到「${String(doorOpen)}」（${typeof doorOpen}），不能猜测门的初始状态。`);
@@ -143,8 +124,8 @@ export function createCeramicRoom({ renderer, scene, reducedMotion = false, door
   const metalMaterial = ownMaterial(new THREE.MeshStandardMaterial({ name: '香槟拉丝金属', color: '#aaa28b', metalness: 0.8, roughness: 0.26 }));
   const doorMaterial = ownMaterial(new THREE.MeshStandardMaterial({ name: '浅米灰门扇', color: '#c9c5b7', roughness: 0.4 }));
   const glassMaterial = ownMaterial(new THREE.MeshPhysicalMaterial({
-    name: '淡色磨砂窗玻璃', color: '#e5ece5', metalness: 0, roughness: 0.23,
-    transparent: true, opacity: 0.19, depthWrite: false, side: THREE.DoubleSide,
+    name: '淡色通透窗玻璃', color: '#e5ece5', metalness: 0, roughness: 0.12,
+    transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide,
     clearcoat: 1, clearcoatRoughness: 0.1,
   }));
 
@@ -187,14 +168,15 @@ export function createCeramicRoom({ renderer, scene, reducedMotion = false, door
   const west = wall('西墙 / 天光高窗', -1, 0);
   const east = wall('东墙', 1, 0);
   const south = wall('南墙', 0, 1);
-  // 墙内侧严格落在 +/-4、+/-3；所有凹凸装饰置于边缘或室外。
+  // 墙内侧严格落在 +/-4、+/-3。北侧墙厚角归侧墙，裁掉门墙时仍保留侧墙收口；
+  // 不加独立角块、不挤占净空。窗台等固定突出构件另由模板 fixture 描述。
   box(north, '门左墙', 5.55, 3.4, 0.18, -1.225, 1.7, -3.09);
   box(north, '门右墙', 1.05, 3.4, 0.18, 3.475, 1.7, -3.09);
   box(north, '门上过梁', 1.4, 0.85, 0.18, 2.25, 2.975, -3.09);
   ribbon(north, '门左', 5.55, -1.225, -2.988);
   ribbon(north, '门右', 1.05, 3.475, -2.988);
   box(north, '北墙连续顶线', 1.4, 0.065, 0.065, 2.25, 3.365, -2.99, trimMaterial);
-  box(east, '东墙墙体', 0.18, 3.4, 6, 4.09, 1.7, 0);
+  box(east, '东墙墙体', 0.18, 3.4, 6.18, 4.09, 1.7, -0.09);
   ribbon(east, '东墙', 6, 3.987, 0, true);
   box(south, '南墙墙体', 8.36, 3.4, 0.18, 0, 1.7, 3.09);
   ribbon(south, '南墙', 8, 0, 2.987);
@@ -204,9 +186,9 @@ export function createCeramicRoom({ renderer, scene, reducedMotion = false, door
   const windowWidth = 3.6;
   const windowBottom = 1.12;
   const windowTop = 2.87;
-  box(west, '窗下实墙', 0.18, windowBottom, 6, -4.09, windowBottom / 2, 0);
-  box(west, '窗上实墙', 0.18, 3.4 - windowTop, 6, -4.09, (3.4 + windowTop) / 2, 0);
-  box(west, '窗北侧实墙', 0.18, windowTop - windowBottom, 0.75, -4.09, (windowTop + windowBottom) / 2, -2.625);
+  box(west, '窗下实墙', 0.18, windowBottom, 6.18, -4.09, windowBottom / 2, -0.09);
+  box(west, '窗上实墙', 0.18, 3.4 - windowTop, 6.18, -4.09, (3.4 + windowTop) / 2, -0.09);
+  box(west, '窗北侧实墙', 0.18, windowTop - windowBottom, 0.93, -4.09, (windowTop + windowBottom) / 2, -2.715);
   box(west, '窗南侧实墙', 0.18, windowTop - windowBottom, 1.65, -4.09, (windowTop + windowBottom) / 2, 2.175);
   ribbon(west, '西墙', 6, -3.987, 0, true);
   box(west, '窗台 / 白瓷倒角感', 0.31, 0.065, windowWidth + 0.18, -4.025, windowBottom, windowZ, trimMaterial);
@@ -218,20 +200,10 @@ export function createCeramicRoom({ renderer, scene, reducedMotion = false, door
     box(west, '纤细窗格', 0.095, windowTop - windowBottom, 0.04, -4.045, (windowTop + windowBottom) / 2, z, trimMaterial);
   }
   box(west, '窗格横梁', 0.08, 0.035, windowWidth, -4.055, 2.29, windowZ, trimMaterial);
-  const windowTexture = ownTexture(makeWindowTexture());
-  const windowLightMaterial = ownMaterial(new THREE.MeshBasicMaterial({
-    name: '窗外漫射天光', map: windowTexture, color: '#ffffff', side: THREE.DoubleSide, toneMapped: false,
-  }));
-  const windowGeometry = new THREE.PlaneGeometry(windowWidth, windowTop - windowBottom);
+  const windowGeometry = new THREE.BoxGeometry(0.024, windowTop - windowBottom, windowWidth);
   geometries.add(windowGeometry);
-  const luminousWindow = new THREE.Mesh(windowGeometry, windowLightMaterial);
-  luminousWindow.name = '可被地面真实反射的窗外天光';
-  luminousWindow.rotation.y = Math.PI / 2;
-  luminousWindow.position.set(-4.195, (windowTop + windowBottom) / 2, windowZ);
-  west.add(luminousWindow);
   const glass = new THREE.Mesh(windowGeometry, glassMaterial);
   glass.name = '高窗玻璃';
-  glass.rotation.y = Math.PI / 2;
   glass.position.set(-4.075, (windowTop + windowBottom) / 2, windowZ);
   west.add(glass);
 
@@ -275,6 +247,7 @@ export function createCeramicRoom({ renderer, scene, reducedMotion = false, door
     group,
     walls,
     door: createDoorHandle(hinge),
+    applyBrightness(p) { if (disposed) return; windowFill.intensity = p.windowFill; floorMaterial.envMapIntensity = p.porcelainEnv; },
     update() { /* 静态陶瓷空间没有循环动画；反射在实际渲染时跟随相机。 */ },
     dispose() {
       if (disposed) return;

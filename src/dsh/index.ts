@@ -1,3 +1,4 @@
+import { rendererOverride } from '../core/chart-renderer.ts'
 // DSH 接入层（D1 三块结构的第二块）：把 src/core 的管理逻辑挂到 DSH 的 webServer 上。
 // 只依赖注入的 ctx.webServer 服务，不 import 其他 DSH 内部模块。
 // 装载双路径：开发态 --patch 直指本 .ts（tsx，探针已验证）；正式包指构建产物 dist/index.js。
@@ -5,6 +6,10 @@ import { existsSync, readFileSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { pathToFileURL } from 'node:url'
+import { createHash } from 'node:crypto'
+import { createArchifyReader } from '../core/archify-reader.ts'
+import {createRoomExportRequests} from './room-export.ts'
 import {
   CoreError,
   MAX_FILE_BYTES,
@@ -84,6 +89,7 @@ const BODY_TIMEOUT_MS = 10_000
 async function readRequestText(
   req: import('node:http').IncomingMessage,
   res: import('node:http').ServerResponse,
+  maxBytes = MAX_FILE_BYTES,
 ): Promise<string | null> {
   return await new Promise((resolve) => {
     const chunks: Buffer[] = []
@@ -126,8 +132,8 @@ async function readRequestText(
     }
     const onData = (chunk: Buffer) => {
       received += chunk.length
-      if (received > MAX_FILE_BYTES) {
-        rejectBody(new CoreError('request-too-large', `请求正文超过读取上限 ${MAX_FILE_BYTES} 字节，已停止接收`, 413))
+      if (received > maxBytes) {
+        rejectBody(new CoreError('request-too-large', `请求正文超过读取上限 ${maxBytes} 字节，已停止接收`, 413))
         return
       }
       chunks.push(chunk)
@@ -495,11 +501,21 @@ export function apply(
   const packageRoot = findPackageRoot()
   const webRoot = path.join(packageRoot, 'web')
   const vendorRoot = path.join(packageRoot, 'vendor', 'archify-renderer')
+  const reader = createArchifyReader({ renderer: async (input, options) => {
+    const sourceMode = import.meta.url.endsWith('/src/dsh/index.ts')
+    const entry = path.join(packageRoot, sourceMode ? 'src/core/archify-render.ts' : 'dist/archify-node.js')
+    console.error(`[specdev-workbench] 新版Node渲染入口：${entry}`)
+    const module = await import(pathToFileURL(entry).href)
+    return module.renderArchify(input, options)
+  } })
   const routeContext: RouteContext = {
+    exports: createRoomExportRequests(),
+    connection: ctx.connection,
     manualRepoRoot,
     webRoot,
     vendorRoot,
     workspaceRegistry: () => ctx.get('workspaceRegistry') as WorkspaceRegistryLike | undefined,
+    reader,
   }
 
   // N2b：只注册统一的新 URL 前缀，宿主按精确前缀边界分派。
@@ -512,14 +528,15 @@ export function apply(
         if (!authorizeRequest(ctx.connection, req, res)) return
         await handle(req, res, routeContext)
       } catch (error) {
-        if (!res.headersSent) sendError(res, error)
+        if (!res.headersSent && /^\/specdev-workbench\/api\/room-export(?:-catalog)?(?:\?|$)/.test(req.url??'')) sendJson(res,error instanceof CoreError?error.httpStatus:500,{code:error instanceof CoreError?error.code:'export-request',error:'导出请求无法处理，请核对当前项目、业务和资料'})
+        else if (!res.headersSent) sendError(res, error)
         else res.end()
       }
     },
   })
   console.error('[specdev-workbench] /specdev-workbench 前缀路由已注册（入口统一认证，fail-closed）')
   // effect 的回调在加载时执行、其返回值才是卸载时的清理函数——返回 dispose 本身，不要当场调用。
-  ctx.effect(() => dispose, '流程图管理路由清理')
+  ctx.effect(() => () => { dispose(); void reader.dispose(); routeContext.exports.dispose() }, '流程图管理路由清理')
 
   // 随包技能注册（1d 方案 A）：安装目录不在 DSH 技能扫描根里，靠运行时注册把随包技能
   // （specdev-business 业务设计与维护、specdev-building 建筑布置、specdev-room 独立房间布置）挂进注册表全局层；注册后各自自查取证
@@ -531,6 +548,9 @@ export function apply(
 }
 
 interface RouteContext {
+  exports: ReturnType<typeof createRoomExportRequests>
+  connection: ConnectionLike
+  reader: ReturnType<typeof createArchifyReader>
   /** 手动模式兜底目录（配置的 repoRoot）；带 workspace 标识的请求不用它。 */
   manualRepoRoot: string
   webRoot: string
@@ -593,16 +613,17 @@ async function handle(
 ): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://127.0.0.1')
   const segments = url.pathname.split('/').filter((s) => s !== '') // ['specdev-workbench', ...]
-  // 接口以只读为主（GET/HEAD）；只有两个 POST：
+  // 接口以只读为主（GET/HEAD）；以下四项POST例外：
   //   /api/evidence —— 正文提交第一次响应（/api/chart）里的证据清单原文，消除"页面两次请求
   //     之间文件被保存，图与证据来自两个版本"的错配；只解析、不写任何文件。
   //   /api/snapshots —— 保存版本：本插件唯一的写操作，只给确认过的那次提交打一个附注标签，
   //     工作区文件、分支与提交一概不动。
+  //   /api/reader-render 与 /api/reader-release —— 冻结渲染与内存上下文释放，不写业务仓。
   const apiPost =
     req.method === 'POST' && segments.length === 3 && segments[1] === 'api'
-    && (segments[2] === 'evidence' || segments[2] === 'snapshots')
+    && ['evidence', 'snapshots', 'reader-render', 'reader-release', 'room-export'].includes(segments[2])
   if (req.method !== 'GET' && req.method !== 'HEAD' && !apiPost) {
-    sendError(res, new CoreError('bad-request', '接口只读（GET/HEAD）；仅 POST /api/evidence 与 POST /api/snapshots 例外', 405))
+    sendError(res, new CoreError('bad-request', '接口只读；仅允许既有保存/证据及新版渲染/释放POST', 405))
     return
   }
 
@@ -643,7 +664,7 @@ async function handle(
     if (await serveFile(res, ctx.vendorRoot, segments.slice(2).join('/'))) return
   }
 
-  // API（同源；GET/HEAD 只读，两个 POST 例外见上方 apiPost）
+  // API（同源；GET/HEAD 只读，四个 POST 例外见上方 apiPost）
   if (segments[1] === 'api') {
     await handleApi(req, url, res, ctx)
     return
@@ -686,6 +707,49 @@ async function handleApi(
   // 标签与历史文件，明确拒绝并说明；手动模式是用户自己填的路径，保持既有行为不拦。
   if (binding.info.mode === 'workspace') await assertRepoTopLevel(binding.root)
   const root = binding.root
+
+  if(['room-export-catalog','room-export'].includes(api)){
+    if(req.method!==(api==='room-export'?'POST':'GET'))return sendError(res,new CoreError('bad-request','导出接口方法不符',405))
+    for(const key of q.keys())if(!['workspace','business'].includes(key)||q.getAll(key).length!==1)return sendError(res,new CoreError('bad-request','导出接口含未知或重复参数',400))
+    const business=requireId(res,q.get('business'),'business');if(!business)return
+    if(api==='room-export-catalog'){try{sendJson(res,200,await ctx.exports.catalog(root,business))}catch{sendJson(res,422,{code:'export-catalog',error:'资料选择目录读取失败，请检查当前业务登记'})}return}
+    const text=await readRequestText(req,res,96*1024);if(text===null)return
+    let body:unknown;try{body=JSON.parse(text)}catch{return sendError(res,new CoreError('bad-request','导出请求须为JSON对象',400))}
+    await ctx.exports.generate(req,res,root,business,body,()=>{
+      try{if(ctx.connection.requestRejection(req)!==undefined)return false;const current=resolveRepoBinding({workspaceParam:q.get('workspace'),manualRepoRoot:ctx.manualRepoRoot,registry:ctx.workspaceRegistry()});return !('error'in current)&&current.root===root}catch{return false}
+    });return
+  }
+
+  if (['reader-render', 'reader-evidence', 'reader-release'].includes(api)) {
+    const requiredMethod = api === 'reader-evidence' ? 'GET' : 'POST'
+    if (req.method !== requiredMethod) return sendError(res, new CoreError('bad-request', '新版接口方法不符', 405))
+    const allowed = new Set(['workspace', 'business', 'chart', 'v', ...(api === 'reader-evidence' ? ['context', 'ref'] : [])])
+    for (const key of q.keys()) if (!allowed.has(key) || q.getAll(key).length !== 1) return sendError(res, new CoreError('bad-request', '新版请求含未知或重复参数', 400))
+    const business = requireId(res, q.get('business'), 'business'), chart = requireId(res, q.get('chart'), 'chart')
+    if (!business || !chart) return
+    // 宿主仅公开认证判定，无principal API；绑定已通过宿主验证的整份Cookie指纹，不记录原值。
+    if (!req.headers.cookie) return sendError(res, new CoreError('auth-identity-unavailable', '认证会话身份不可用', 503))
+    const owner = { auth: createHash('sha256').update(req.headers.cookie).digest('hex'), workspace: q.get('workspace') ?? 'manual', repoRoot: root, business, chart, v: q.get('v') || 'current' }
+    if (api === 'reader-evidence') {
+      sendJson(res, 200, await ctx.reader.read(owner, q.get('context') ?? '', q.get('ref') ?? ''))
+      return
+    }
+    const text = await readRequestText(req, res, 1024)
+    if (text === null) return
+    if (Buffer.byteLength(text) > 1024) return sendError(res, new CoreError('bad-request', '新版请求正文过大', 413))
+    let body: any
+    try { body = JSON.parse(text) } catch { return sendError(res, new CoreError('bad-request', '新版请求正文须为JSON对象', 400)) }
+    const keys = api === 'reader-render' ? ['requestId'] : ['requestId', 'contextId']
+    if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => !keys.includes(k)) || typeof body.requestId !== 'string' || (body.contextId !== undefined && typeof body.contextId !== 'string')) return sendError(res, new CoreError('bad-request', '新版请求仅允许会话身份字段', 400))
+    if (api === 'reader-release') { sendJson(res, 200, await ctx.reader.release(owner, body.requestId, body.contextId)); return }
+    const data = await ctx.reader.render(owner, body.requestId, () => !res.destroyed)
+    if (res.destroyed) { await ctx.reader.release(owner, body.requestId, data.contextId); return }
+    let delivered = false
+    res.once('finish', () => { delivered = true })
+    res.once('close', () => { if (!delivered) void ctx.reader.release(owner, body.requestId, data.contextId).catch(() => {}) })
+    sendJson(res, 200, { ...data, repo: binding.info })
+    return
+  }
 
   try {
     await dispatchApi(api, req, q, res, { root, repo: binding.info })
@@ -751,8 +815,12 @@ async function dispatchApi(
     const chart = requireId(res, q.get('chart'), 'chart')
     if (!chart) return
     const v = q.get('v') || 'current'
+    const override = rendererOverride(q.getAll('renderer'))
     const page = await readChartPage(root, business, chart, v)
-    sendJson(res, 200, { ...page, repo: ctx.repo })
+    const authoredRenderer = page.renderer
+    if (page.diagramType === 'lifecycle' && override === 'legacy') throw new CoreError('unsupported-type', '生命周期图只支持3.0.1阅读；请移除legacy兼容参数', 422)
+    if (override) page.renderer = override
+    sendJson(res, 200, { ...page, authoredRenderer, repo: ctx.repo })
     return
   }
 

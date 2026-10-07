@@ -1,0 +1,36 @@
+/* 三入口共用正文排版；主题仅取既有语义变量，不改变宿主偏好。 */
+.markdown-body { min-width:0; max-width:100%; line-height:1.75; overflow-wrap:anywhere; font-size:16px; color:var(--text); }
+.markdown-body > :first-child { margin-top:0; }
+.markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4,.markdown-body h5,.markdown-body h6 { line-height:1.35; margin:1.4em 0 .6em; overflow-wrap:anywhere; }
+.markdown-body h1 { font-size:1.8em; } .markdown-body h2 { font-size:1.5em; } .markdown-body h3 { font-size:1.25em; }
+.markdown-body .material-doc-heading[data-level="1"] { font-size:1.8em; margin:1.4em 0 .6em; }
+.markdown-body .material-doc-heading[data-level="2"] { font-size:1.5em; }
+.markdown-body h4,.markdown-body h5,.markdown-body h6 { font-size:1.05em; }
+.markdown-body p,.markdown-body ul,.markdown-body ol,.markdown-body blockquote { margin:.7em 0; }
+.markdown-body ul,.markdown-body ol { padding-left:1.8em; }
+.markdown-body li > ul,.markdown-body li > ol { margin:.2em 0; }
+.markdown-body blockquote { border-left:3px solid var(--border); padding-left:1em; color:var(--muted); }
+.markdown-body hr { border:0; border-top:1px solid var(--border); margin:1.5em 0; }
+.markdown-body code { font-family:Consolas,monospace; font-size:.9em; background:var(--surface-soft); padding:.15em .3em; }
+.markdown-body pre { max-width:100%; overflow-x:auto; white-space:pre; overflow-wrap:normal; background:var(--surface-soft); padding:1em; border:1px solid var(--border); border-radius:8px; }
+.markdown-body pre code { white-space:pre; padding:0; background:transparent; }
+.markdown-body .markdown-table { max-width:100%; overflow-x:auto; margin:1em 0; }
+.markdown-body table { border-collapse:collapse; min-width:100%; width:max-content; }
+.markdown-body th,.markdown-body td { border:1px solid var(--border); padding:.5em .75em; max-width:32em; }
+.markdown-body th { background:var(--surface-soft); text-align:left; }
+.markdown-body .markdown-link,.markdown-body a { color:var(--accent); }
+.markdown-body .markdown-link { font:inherit; border:0; padding:0; background:transparent; cursor:pointer; text-decoration:underline; }
+.markdown-body .markdown-placeholder { font-size:.9em; color:var(--muted); }
+.material-reader-title { overflow-wrap:anywhere; }
+.document-overlay { position:fixed; inset:0; z-index:100; background:var(--page); padding:clamp(12px,3vw,32px); }
+.document-panel { height:100%; max-width:1200px; margin:auto; background:var(--surface); border:1px solid var(--border); border-radius:12px; display:flex; flex-direction:column; min-height:0; }
+.document-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px; border-bottom:1px solid var(--border); }
+.document-header h2 { font-size:18px; margin:0; overflow-wrap:anywhere; min-width:0; }
+.document-header button { flex:none; }
+.document-panel button { color:var(--text); background:var(--surface-soft); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font:inherit; cursor:pointer; }
+.document-layout { display:grid; grid-template-columns:minmax(140px,220px) minmax(0,1fr); flex:1; min-height:0; }
+.document-list { overflow:auto; margin:0; padding:12px 24px; border-right:1px solid var(--border); }
+.document-list button { font:inherit; text-align:left; overflow-wrap:anywhere; max-width:100%; margin:4px 0; }
+.document-list [aria-current] { color:var(--accent); font-weight:bold; }
+.document-content { min-width:0; overflow:auto; padding:clamp(16px,3vw,32px); }
+@media(max-width:600px) { .document-layout { grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); } .document-list { max-height:110px; border-right:0; border-bottom:1px solid var(--border); } }

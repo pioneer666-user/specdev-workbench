@@ -1,6 +1,21 @@
 /* 房间页（body.room-page）独立样式：只作用于本页，不改业务页与建筑页。
    主题色、按钮与提示行的底子在 style.css，这里只补房间视口的布局与定位。 */
 
+/* 初始 HTML 即成立；visibility 保留场景最终尺寸，不能用 display:none 等首帧。 */
+.room-page.room-loading { overflow: hidden; }
+.room-page.room-loading > .page-content { visibility: hidden; }
+.room-page .room-loading-screen { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: var(--page); color: var(--text); }
+.room-page .room-loading-screen[hidden] { display: none; }
+.room-page .room-loading-copy { text-align: center; padding: 24px; }
+.room-page .room-loading-copy h1 { margin: 0 0 18px; font-size: clamp(22px, 3vw, 30px); font-weight: 500; }
+.room-page .room-loading-copy p { margin: 0; color: var(--muted); font-size: 14px; }
+.room-page .room-loading-track { width: 180px; height: 2px; margin: 26px auto 0; overflow: hidden; background: color-mix(in srgb, var(--text) 10%, transparent); }
+.room-page .room-loading-track span { display: block; width: 60px; height: 100%; background: var(--accent); animation: room-loading-flow 1.5s ease-in-out infinite; }
+.room-page .room-loading-back { position: absolute; bottom: max(28px, env(safe-area-inset-bottom)); color: var(--muted); font-size: 13px; }
+.room-page .room-loading-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
+@keyframes room-loading-flow { from { transform: translateX(-60px); } to { transform: translateX(180px); } }
+@media (prefers-reduced-motion: reduce) { .room-page .room-loading-track span { animation: none; margin: 0 auto; } }
+
 .room-stage { margin: 0 0 20px; }
 
 /* 三维视图占页面主要面积：高度取视口的大部分并有下限，窄屏也能完整看到房间。 */
@@ -18,104 +33,120 @@
    与建筑页同款规则；漏了这条画布会按属性像素（×像素比）放大裁切，房间中心偏出画面。 */
 .room-viewport canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
-/* 工具行浮在视口左上：返回业务页＋回到总览＋一句操作提示（按钮样式与共用工具条一致，只补定位）。 */
-.room-toolbar {
-  position: absolute;
-  top: 10px;
-  left: 12px;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+/* 房间风格专用材质变量：釉面高光/环境染色和同源木纹视觉，不是实时镜像反射。
+   字幕恢复T11原字号与留白；不覆盖阅读器/诊断/加载层的共用主题变量。 */
+.room-page {
+  --room-light: 100%; --room-ink: #394740; --room-subtle: #7c837d;
+  --room-control-ink: #30483f; --room-focus: #436c56; --room-disabled: #6c796f;
+  --room-edge: #c0cbbc; --room-edge-depth: #a4b09f;
+  --room-material-color: #f5f5e9; --room-glaze-tint: color-mix(in srgb, #d8e4db var(--room-light), #617689);
+  --room-material-image: radial-gradient(ellipse at 16% 8%, #ffffff 0%, #ffffffd9 9%, #ffffff00 36%), linear-gradient(174deg, #fffef7 0%, #f2f5ed 16%, #ffffff 20%, #ffffff 26%, var(--room-glaze-tint) 45%, #eef1e6 59%, #fffef5 83%, #cdd7ca 100%);
+  --room-text-shadow: 0 1px 2px #ffffff8c;
 }
-/* 提示行在共用样式里是视口右下绝对定位；房间里它属于工具行，改回静态排布。
-   P1c-2c-2 起带 role=status：行走／总览操作提示与门结果的人话说明都走这一行。 */
-.room-toolbar .scene-hint { position: static; margin: 0; color: #6c7d70; pointer-events: none; }
-
-/* 行走／总览／门按钮：与"回到总览"同款；当前模式对应的按钮呈禁用态（浅显不抢焦点）。 */
-.room-toolbar .reset-button:disabled { opacity: .55; cursor: default; }
-
-/* 返回业务页：外观与工具条按钮同款（浅底描边），链接语义。 */
-.room-back {
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  border: 1px solid #b9c6b2;
-  background: rgba(251, 250, 240, .92);
-  color: #29433a;
+body.room-page[data-style="fairy"] {
+  --room-ink: #43523b; --room-subtle: #6b7e62;
+  --room-control-ink: #382815; --room-focus: #4b6b31; --room-disabled: #766245;
+  --room-edge: #c99558; --room-edge-depth: #855a31;
+  --room-material-color: #dfb675; --room-glaze-tint: #b88045;
+  --room-material-image: linear-gradient(165deg, #fff0ca40, #b880452b), url('./rooms/ui/fairy-wood.svg');
+  --room-text-shadow: 0 1px 2px #fff4d28c;
 }
-.room-back:hover { border-color: #487465; text-decoration: none; }
-
-/* 点击家具后的身份一行：浮在视口左下，textContent 填充。 */
-.pick-info {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  z-index: 2;
-  margin: 0;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 13px;
+body.room-page[data-style="fairy"][data-period="night"] {
+  --room-ink: #f0ead8; --room-subtle: #b3b8c8;
+  --room-control-ink: #fff0d0; --room-focus: #e6d7a9; --room-disabled: #b9b29c;
+  --room-edge: #897353; --room-edge-depth: #342d27;
+  --room-material-image: linear-gradient(165deg, #73879f50, #172338b8), url('./rooms/ui/fairy-wood.svg');
+  --room-text-shadow: 0 1px 2px #10172999;
 }
-
-/* 占位声明常驻视口右下：小字、不抢注意力。 */
-.placeholder-note {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  z-index: 2;
-  margin: 0;
-  padding: 4px 10px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-  color: var(--muted);
-  font-size: 12px;
+/* 工具条只有实际按钮接收指针；无整条托盘，箭头独立且不被动作组隐藏。 */
+.room-page .room-controls { position: absolute; top: 12px; left: 12px; right: 66px; z-index: 2; pointer-events: none; }
+.room-page .room-toolbar { display: flex; align-items: flex-start; gap: 8px; width: max-content; max-width: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.room-page .room-actions { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; min-width: 0; max-width: 100%; padding: 2px 3px 5px; }
+.room-page .room-actions[hidden], .room-page .room-help[hidden], .room-page .scene-hint[hidden],
+.room-page .intro[hidden], .room-page .brightness-panel[hidden] { display: none; }
+.room-page .room-toolbar button, .room-page .room-toolbar .room-back,
+.room-page #brightnessToggle {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none;
+  font: inherit; font-size: 12px; line-height: 1.4; padding: 8px 12px;
+  border: 1px solid var(--room-edge); border-bottom: 4px solid var(--room-edge-depth); border-radius: 10px;
+  background-color: var(--room-material-color); background-image: var(--room-material-image);
+  color: var(--room-control-ink); box-shadow: inset 0 1px 1px #ffffffd9, inset 1px 0 2px #ffffff73, 0 2px 3px #16201730;
+  cursor: pointer; text-decoration: none; pointer-events: auto; white-space: nowrap;
 }
-
-/* 底座字幕与昼夜面板（2026-09-28 作者令：照着抄旧底座页面）：
-   类名与取值逐项抄自 experiments/2026-09-27-空房间风格底座/style.css；
-   仅去掉 eyebrow 的数字编号、top 下移让开本页工具条（返回业务页／回到总览）。
-   变量随底座风格与昼夜切换（body[data-style]／[data-period] 由 room.js 设置），
-   星夜换浅色字与深色面板，抄旧页原值。 */
-.room-page { --ink:#394740; --subtle:#7c837d; --panel:rgba(255,255,248,.65); --border:rgba(70,80,60,.13); }
-body[data-style="fairy"].room-page { --ink:#43523b; --subtle:#6b7e62; --panel:#fbffe5a8; --border:#6781572a; }
-body[data-style="fairy"][data-period="night"].room-page { --ink:#f0ead8; --subtle:#b3b8c8; --panel:#151d35ad; --border:#c2c9ef21; }
-
-.room-page .intro { position: absolute; pointer-events: none; top: 142px; left: 46px; color: var(--ink); }
-.room-page .eyebrow { font-size: 10px; letter-spacing: 3px; color: var(--subtle); margin: 0 0 18px; }
+body.room-page[data-style="fairy"] .room-toolbar button,
+body.room-page[data-style="fairy"] .room-toolbar .room-back,
+body.room-page[data-style="fairy"] #brightnessToggle {
+  background-size: 100% 100%, 156px 156px; background-blend-mode: soft-light, multiply;
+  box-shadow: inset 0 1px 1px #ffebc0a6, inset 1px 0 2px #ffd69c4d, 0 2px 3px #21180e40;
+}
+body.room-page[data-style="fairy"][data-period="night"] .room-toolbar button,
+body.room-page[data-style="fairy"][data-period="night"] .room-toolbar .room-back,
+body.room-page[data-style="fairy"][data-period="night"] #brightnessToggle { background-blend-mode: normal, multiply; }
+.room-page .room-toolbar button:hover:not(:disabled), .room-page .room-toolbar .room-back:hover,
+.room-page #brightnessToggle:hover:not(:disabled) { border-color: var(--room-focus); }
+.room-page .room-toolbar button:active:not(:disabled), .room-page .room-toolbar .room-back:active,
+.room-page #brightnessToggle:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 1px 2px #39432924, 0 1px 2px #16201726; }
+.room-page #brightnessToggle[aria-expanded="true"] { border-color: var(--room-focus); box-shadow: inset 0 0 0 1px var(--room-focus), 0 2px 3px #16201726; }
+.room-page .room-toolbar button:focus-visible, .room-page .room-toolbar .room-back:focus-visible,
+.room-page #brightnessToggle:focus-visible { outline: 2px solid var(--room-focus); outline-offset: 3px; }
+.room-page .room-toolbar button:disabled, .room-page #brightnessToggle:disabled { color: var(--room-disabled); border-style: dashed; filter: saturate(.5); cursor: default; }
+.room-page .room-toolbar .toolbar-toggle { min-width: 36px; width: 36px; height: 38px; padding: 5px; margin-top: 2px; font-size: 20px; }
+.room-page .toolbar-leaves { display: none; position: absolute; width: 23px; height: 20px; left: -7px; top: -9px; fill: #789546; stroke: #4d6837; stroke-width: 1; pointer-events: none; }
+body.room-page[data-style="fairy"] .toolbar-leaves { display: block; }
+body.room-page[data-style="fairy"][data-period="night"] .toolbar-leaves { fill: #657b45; }
+.room-page .toolbar-leaves .leaf-vein { fill: none; stroke: #c5d088; stroke-width: .8; }
+/* 帮助和状态是画面上的字，不挤动介绍、不拦截画布；完整交互诊断保持原面板。 */
+.room-page .room-help, .room-page .scene-hint, .room-page .pick-info {
+  position: absolute; z-index: 2; margin: 0; padding: 0; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none; backdrop-filter: none; color: var(--room-subtle);
+  font-size: 12px; line-height: 1.8; letter-spacing: 1px; text-shadow: var(--room-text-shadow);
+  pointer-events: none; overflow-wrap: anywhere;
+}
+.room-page .room-help { top: 68px; left: 46px; max-width: min(710px, calc(100% - 92px)); }
+.room-page .scene-hint { right: 24px; bottom: 24px; max-width: min(420px, calc(100% - 48px)); color: var(--room-ink); }
+.room-page .pick-info { left: 46px; bottom: 12px; max-width: min(560px, calc(100% - 92px)); }
+/* 原T11介绍：宽屏宋体43px/字距6px、正文12px/2.1/字距2px，无卡片。 */
+.room-page .intro { position: absolute; pointer-events: none; top: 142px; left: 46px; color: var(--room-ink); padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; text-shadow: var(--room-text-shadow); }
+.room-page .eyebrow { font-size: 10px; letter-spacing: 3px; color: var(--room-subtle); margin: 0 0 18px; }
 .room-page .intro h1 { font-family: "STSong", "SimSun", serif; font-weight: 400; font-size: 43px; letter-spacing: 6px; margin: 0 0 20px; }
-.room-page .intro > p:not(.eyebrow) { font-size: 12px; line-height: 2.1; letter-spacing: 2px; color: var(--subtle); margin: 0; }
-.room-page .material-note { display: flex; align-items: center; gap: 9px; margin-top: 27px; font-size: 10px; color: var(--subtle); letter-spacing: 1px; }
+.room-page .intro > p:not(.eyebrow) { font-size: 12px; line-height: 2.1; letter-spacing: 2px; color: var(--room-subtle); margin: 0; }
+.room-page .material-note { display: flex; align-items: center; gap: 9px; margin-top: 27px; font-size: 10px; color: var(--room-subtle); letter-spacing: 1px; }
 .room-page .material-chip { width: 25px; height: 25px; background: linear-gradient(140deg, #fff, #c6cac5 65%, #faf9ee); border-radius: 6px; border: 1px solid #ffffff6b; box-shadow: 0 3px 8px #101e1515; }
-body[data-style="fairy"].room-page .material-chip { background: linear-gradient(135deg, #d2bf94, #9b6e48 50%, #5f8248); }
-
-/* 昼夜面板：抄旧页 .period-panel/.small-label/.period-switch。 */
-.room-page .period-panel { position: absolute; right: 44px; bottom: 95px; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); backdrop-filter: blur(18px); }
-.room-page .small-label { display: block; font-size: 10px; letter-spacing: 2px; color: var(--subtle); margin-bottom: 12px; }
-.room-page .period-switch { display: flex; gap: 6px; }
-.room-page .period-switch button { font: inherit; color: var(--ink); font-size: 11px; letter-spacing: 1px; padding: 10px 18px; background: transparent; border: 0; border-radius: 9px; cursor: pointer; }
-.room-page .period-switch button:hover { filter: brightness(.97); }
-.room-page .period-switch button:focus-visible { outline: 2px solid #81966a; outline-offset: 5px; }
-.room-page .period-switch button[aria-pressed="true"] { background: #f8f9ef; color: #3d4b3c; box-shadow: 0 2px 6px #0000000a; }
-body[data-period="night"].room-page .period-switch button[aria-pressed="true"] { background: #4b536b; color: #fff1d2; }
-
-/* 窄屏：抄旧页 850px 断点的字幕与面板项；工具条按钮变多，提示行整行换行避开字幕。 */
+body.room-page[data-style="fairy"] .material-chip { background: linear-gradient(135deg, #d2bf94, #9b6e48 50%, #5f8248); }
+body.room-page[data-style="ceramic"][data-period="night"] {
+  --room-ink: #e8eef0; --room-subtle: #c0cbd2; --room-control-ink: #e8f0f1;
+  --room-focus: #d1e1e7; --room-disabled: #b1c1c7; --room-edge: #9aaeb8; --room-edge-depth: #4c626d;
+  --room-material-color: #798f99;
+  --room-material-image: radial-gradient(ellipse at 16% 8%, #edf8ffb8 0%, #edf8ff00 38%), linear-gradient(174deg, #a4b6bd 0%, #7893a0 16%, #d2e1e8 22%, var(--room-glaze-tint) 46%, #8cabb8 70%, #596e7b 100%);
+  --room-text-shadow: 0 1px 2px #17242c99;
+}
+.room-page .brightness-controls { position: absolute; right: 15px; top: 14px; z-index: 2; }
+.room-page #brightnessToggle { width: 36px; height: 38px; padding: 5px; }
+.room-page .brightness-panel { position: absolute; top: 50px; right: 0; width: 190px; padding: 5px 0; background: transparent; border: 0; box-shadow: none; color: var(--room-ink); text-shadow: var(--room-text-shadow); }
+.room-page .brightness-panel label { display: flex; justify-content: space-between; font-size: 12px; letter-spacing: 2px; }
+.room-page .brightness-panel output { letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.room-page .brightness-panel input { display: block; width: 100%; margin: 12px 0 0; accent-color: var(--room-focus); cursor: pointer; touch-action: none; }
+.room-page .brightness-panel input:focus-visible { outline: 2px solid var(--room-focus); outline-offset: 4px; }
+.room-page .brightness-panel input:disabled { cursor: default; }
 @media (max-width: 850px) {
-  .room-page .room-toolbar { left: 12px; right: 12px; }
-  .room-toolbar .scene-hint { flex: 1 1 100%; }
-  .room-page .intro { top: 150px; left: 24px; }
+  .room-page .room-actions { max-height: 112px; overflow-y: auto; }
+  .room-page .room-help { top: 140px; left: 24px; max-width: calc(100% - 48px); }
+  .room-page .intro { top: 214px; left: 24px; }
   .room-page .intro h1 { font-size: 31px; }
   .room-page .intro > p:not(.eyebrow) { font-size: 11px; }
   .room-page .material-note { display: none; }
-  .room-page .period-panel { right: 22px; bottom: 75px; }
+  .room-page .brightness-panel { top: 136px; width: min(190px, calc(100vw - 64px)); }
+  .room-page[data-brightness-open="true"] .room-help { top: auto; bottom: 80px; }
+  .room-page .pick-info { left: 24px; max-width: calc(100% - 48px); }
 }
-
+@media (max-width: 380px) {
+  .room-page .room-help { font-size: 11px; }
+  .room-page .intro { top: 236px; }
+  .room-page .room-toolbar button, .room-page .room-toolbar .room-back { font-size: 11px; padding-inline: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-page .room-toolbar button:active, .room-page .room-toolbar .room-back:active, .room-page #brightnessToggle:active { transform: none; }
+}
 /* 场景建不起来：占位说明居中，返回链接照常可用。 */
 .room-viewport .scene-fallback {
   position: absolute;
@@ -165,101 +196,149 @@ body[data-period="night"].room-page .period-switch button[aria-pressed="true"] {
 .room-page .furniture-entry-link:hover { background: var(--accent-hover); text-decoration: none; }
 
 /* 全窗口形态（作者令：进入房间后房间占满全屏，不留其他东西）：
-   场景创建成功后 room.js 给 body 加 room-live——顶栏与页头让位，视口铺满窗口；
+   场景创建成功后 room.js 给 body 加 room-live——内容页头让位，视口铺满窗口；
    错误、空态与场景失败不加这个类，仍是普通滚动文档。 */
 .room-page.room-live { overflow: hidden; }
-.room-page.room-live .app-bar,
 .room-page.room-live .page-content > .top { display: none; }
 .room-page.room-live .room-stage { position: fixed; inset: 0; z-index: 5; margin: 0; }
 .room-page.room-live .room-viewport { height: 100%; min-height: 0; border-radius: 0; border: none; }
 
-/* ── 阅读面板覆盖层（E3b-2）────────────────────────────────────────────
-   root 在 viewport 外、roomStage 内：阅读时背景视口加 inert，面板不受波及。
-   轻微遮罩＋四周留出场景（沿用建筑页"面板是浮卡、能看出还在房子里"的做法）；
-   面板结构复用 style.css 的 .material-*，这里只改房间侧的定位与不透明度。 */
-.room-reader-root {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(18px, 4vh, 44px) clamp(18px, 4vw, 64px);
-  background: rgba(12, 18, 15, .28);
+/* T15：唯一大尺寸阅读器。外观/清单变化只重排局部盒，不重建内容。 */
+.room-page .room-reader-root {
+  position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center;
+  padding: clamp(10px, 2vh, 20px) clamp(12px, 2vw, 28px);
+  background: rgba(12, 18, 15, .28); overflow: hidden; box-sizing: border-box;
 }
-.room-reader-root[hidden] { display: none; }
-/* 焦点边界需要可聚焦，不能 display:none；绝对定位避免占用阅读区。 */
-.room-reader-root .reader-focus-guard { position: absolute; width: 1px; height: 1px; overflow: hidden; }
-/* .material-panel 原是建筑视口内绝对定位的浮卡；这里由 root 居中托管，改回常规盒。 */
+.room-page .room-reader-root[hidden] { display: none; }
+.room-page .room-reader-root .reader-focus-guard { position: absolute; width: 1px; height: 1px; overflow: hidden; }
 .room-page .room-reader-panel {
-  position: relative;
-  inset: auto;
-  width: min(920px, 100%);
-  height: min(640px, 100%);
-  max-width: none;
-  margin-inline: 0;
-  /* 正文保持足够不透明便于阅读；描边随底座风格变量（陶瓷浅／童话暖／星夜深）走。 */
-  background: color-mix(in srgb, var(--surface) 98%, transparent);
-  border-color: var(--border);
+  position: relative; inset: auto; width: min(1560px, 100%); height: min(960px, 100%);
+  max-width: none; min-width: 0; min-height: 0; margin-inline: 0; box-sizing: border-box;
+  padding: 6px 6px 28px; background: color-mix(in srgb, var(--surface) 98%, transparent); border-color: var(--border); overflow: hidden;
 }
-/* 重试行：失败时出现在正文区下方；隐藏时不占位。 */
-.reader-retry-line { flex: none; margin: 10px 0 0; }
-.reader-retry-line[hidden] { display: none; }
-.room-page .reader-retry-line .reset-button { font-size: 13px; }
-
-/* 图阅读页容器（E9c）：reader.js 每次选图新建 iframe（复用 style.css 的
-   .material-reader-frame 外观），这里只管容器自身占满阅读区、隐藏时不占位；
-   iframe 保持可聚焦（不设 pointer-events/touch 屏障），键盘能进图也能离图。 */
-.room-reader-root .material-reader-frame-host {
-  flex: 1;
-  display: flex;
-  min-height: 220px; /* 浅/深主题与窄屏都保留可视高度，关闭按钮不因此被顶出面板 */
-  min-width: 0;
+/* 下沿给装饰留独立空间；两种外观使用同一尺寸，切换不挤动滚动容器。 */
+.room-page .room-reader-root .material-head {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 32px; gap: 10px; align-items: start;
+  padding: 10px 12px; border-radius: 9px 9px 0 0; background: var(--surface-soft);
 }
-.room-reader-root .material-reader-frame-host[hidden] { display: none; }
-.room-reader-root .material-reader-frame-host .material-reader-frame { flex: 1; }
-
-/* ── 清单收缩与面板放大（作者令 2026-10-01：看图时清单可收起、窗口可放大，
-      四周留边仍看得出在房间里，不是跳转页面）─────────────────────────── */
-/* 面板头里的两枚工具小按钮（清单收缩／放大还原），与关闭钮同一套轻量观感。
-   关闭钮 DOM 序在前（焦点循环首位＝打开焦点），视觉仍排最右（order）。 */
-.room-reader-root .material-head .material-close { order: 3; }
-.room-reader-root .material-tools { order: 2; flex: none; display: flex; gap: 8px; margin-left: auto; }
-.room-reader-root .material-tool {
-  height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--border);
-  background: var(--surface-soft); color: var(--secondary); font-size: 12.5px; line-height: 1;
-  cursor: pointer; white-space: nowrap;
+.room-page .room-reader-root .material-heading { grid-column: 1; min-width: 0; }
+.room-page .room-reader-root .material-heading h2 {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  overflow-wrap: anywhere; font-size: 18px; line-height: 1.4;
 }
-.room-reader-root .material-tool:hover { background: var(--hover); }
-.room-reader-root .material-tool[aria-pressed='true'] { color: var(--accent); border-color: var(--accent-border); }
-/* 收起清单：侧栏整体让位，阅读区独占整行（覆盖 style.css 的两列网格）。 */
-.room-reader-root[data-list='collapsed'] .material-body { grid-template-columns: minmax(0, 1fr); }
-.room-reader-root[data-list='collapsed'] .material-side { display: none; }
-/* 放大：面板放到接近全屏但四周留边（root 的半透明遮罩和边缘房间画面仍在视野里）。 */
-.room-reader-root[data-size='large'] { padding: clamp(10px, 2vh, 20px) clamp(12px, 2vw, 28px); }
-.room-reader-root[data-size='large'] .room-reader-panel { width: min(1560px, 100%); height: min(960px, 100%); }
-
-/* 长路径按原执行单要能读全（E3b-2 验收补齐 R2）：共用 .material-item 是单行省略号
-   （white-space:nowrap＋ellipsis），登记路径长且前缀相同时在清单里被截断。这里在
-   房间阅读面板局部覆盖——条目允许多行、长无空格片段也能折行，取消省略；清单仍限
-   在自己的侧栏内滚动（.material-side 已有 overflow-y:auto）。不改共用 style.css。 */
-.room-reader-root .material-item {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
+.room-page .room-reader-root .material-head .material-close { grid-column: 3; grid-row: 1; }
+.room-page .room-reader-root .material-tools { grid-column: 2; grid-row: 1; display: flex; flex-wrap: wrap; gap: 6px; }
+.room-page .room-reader-root .material-tool,
+.room-page .room-reader-root .material-close {
+  min-width: 32px; height: 32px; min-height: 32px; padding: 0 10px; box-sizing: border-box;
+  border-radius: 7px; border: 1px solid var(--border); background: var(--surface-soft);
+  color: var(--secondary); font: inherit; font-size: 12.5px; line-height: 1; white-space: nowrap; cursor: pointer;
 }
-/* 家具标题（面板头）与文档标题不许被长路径撑宽挤走关闭按钮：flex 子项给 min-width:0，
-   长词按 anywhere 折行；正文里的长路径与行内代码同理不撑出面板。 */
-.room-reader-root .material-heading { min-width: 0; }
-.room-reader-root .material-heading h2,
-.room-reader-root .material-reader-title { overflow-wrap: anywhere; }
-.room-reader-root .material-reader-body { min-width: 0; }
-.room-reader-root .material-reader-body code { overflow-wrap: anywhere; }
-.room-reader-root .material-doc-paragraph,
-.room-reader-root .material-doc-heading { overflow-wrap: anywhere; }
+.room-page .room-reader-root .material-close { padding: 0; width: 32px; font-size: 20px; }
+.room-page .room-reader-root .material-tool:hover,
+.room-page .room-reader-root .material-close:hover { border-color: var(--accent); background-color: var(--hover); }
+.room-page .room-reader-root button:focus-visible,
+.room-page .room-reader-root a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.room-page .room-reader-root .material-body {
+  display: grid; grid-template-columns: clamp(110px, 22vw, 280px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr); /* 覆盖共享阅读器窄窗旧双行轨道，始终横向分界。 */
+  min-height: 0; min-width: 0; overflow: hidden; background: var(--surface); color: var(--text);
+}
+.room-page .room-reader-root .reader-sidebar { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--surface-soft); border-right: 1px solid var(--border); }
+.room-page .room-reader-root .reader-side-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 10px 8px 0 12px; }
+.room-page .room-reader-root .reader-side-head .material-list-label { min-width: 0; overflow-wrap: anywhere; }
+.room-page .room-reader-root .material-side {
+  flex: 1; min-width: 0; min-height: 0; max-height: none; padding: 0 12px 12px; overflow-y: auto; overscroll-behavior: contain;
+  border-right: 0; border-bottom: 0; background: var(--surface-soft);
+}
+.room-page .room-reader-root .material-side[hidden] { display: none; }
+.room-page .room-reader-root .reader-list-toggle { flex: none; width: 32px; padding: 0; font-size: 20px; }
+.room-page .room-reader-root[data-list='collapsed'] .material-body { grid-template-columns: 40px minmax(0, 1fr); }
+.room-page .room-reader-root[data-list='collapsed'] .reader-side-head { padding: 10px 3px 0; justify-content: center; }
+.room-page .room-reader-root[data-list='collapsed'] .material-list-label { display: none; }
+.room-page .room-reader-root .material-reader {
+  grid-column: 2; grid-row: 1; min-width: 0; min-height: 0; overflow: hidden; background: var(--surface);
+}
+.room-page .room-reader-root .material-reader-body { min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.room-page .room-reader-root .material-reader-frame-host { flex: 1; display: flex; min-height: 0; min-width: 0; }
+.room-page .room-reader-root .material-reader-frame-host[hidden] { display: none; }
+.room-page .room-reader-root .material-reader-frame-host .material-reader-frame { flex: 1; min-height: 0; }
+.room-page .room-reader-root .reader-retry-line { flex: none; margin: 10px 0 0; }
+.room-page .room-reader-root .reader-retry-line[hidden] { display: none; }
+.room-page .room-reader-root .reader-retry-line .reset-button { font-size: 13px; }
+.room-page .room-reader-root .material-item { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.room-page .room-reader-root .material-reader-title {
+  overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.room-page .room-reader-root .material-reader-title[hidden] { display: none; }
+.room-page .room-reader-root .material-reader-body code { overflow-wrap: anywhere; }
+.room-page .room-reader-root .material-doc-paragraph,
+.room-page .room-reader-root .material-doc-heading { overflow-wrap: anywhere; }
+/* 复用实际房间变量：釉面高光或同源木纹，只铺外框、标题栏和操作键；正文/图仍用DSH底色。 */
+.room-page .room-reader-root[data-appearance='material'] .room-reader-panel,
+.room-page .room-reader-root[data-appearance='material'] .material-head,
+.room-page .room-reader-root[data-appearance='material'] .material-tool,
+.room-page .room-reader-root[data-appearance='material'] .material-close {
+  background-color: var(--room-material-color); background-image: var(--room-material-image);
+  border-color: var(--room-edge); color: var(--room-control-ink);
+}
+.room-page .room-reader-root[data-appearance='material'] .room-reader-panel {
+  box-shadow: inset 0 -3px 0 var(--room-edge-depth), inset 0 1px 2px #ffffffd9, inset 1px 0 2px #ffffff73, 0 16px 44px #0e1a1438;
+}
+.room-page .room-reader-root[data-appearance='material'] .material-head { border-bottom-color: var(--room-edge-depth); box-shadow: inset 0 -1px 0 var(--room-edge-depth), inset 0 1px 1px #ffffffd9; }
+.room-page .room-reader-root[data-appearance='material'] .material-kind { color: var(--room-control-ink); opacity: .8; }
+.room-page .room-reader-root[data-appearance='material'] .material-tool,
+.room-page .room-reader-root[data-appearance='material'] .material-close {
+  box-shadow: inset 0 -2px 0 var(--room-edge-depth), inset 0 1px 1px #ffffffd9, inset 1px 0 2px #ffffff73, 0 2px 3px #16201730;
+}
+.room-page .room-reader-root[data-appearance='material'] .material-tool:focus-visible,
+.room-page .room-reader-root[data-appearance='material'] .material-close:focus-visible { outline-color: var(--room-focus); }
+.room-page .room-reader-root[data-appearance='material'] .material-tool:hover,
+.room-page .room-reader-root[data-appearance='material'] .material-close:hover { border-color: var(--room-focus); }
+.room-page[data-style='fairy'] .room-reader-root[data-appearance='material'] .room-reader-panel,
+.room-page[data-style='fairy'] .room-reader-root[data-appearance='material'] .material-head,
+.room-page[data-style='fairy'] .room-reader-root[data-appearance='material'] .material-tool,
+.room-page[data-style='fairy'] .room-reader-root[data-appearance='material'] .material-close {
+  background-size: 100% 100%, 156px 156px; background-blend-mode: soft-light, multiply;
+}
+.room-page[data-style='fairy'][data-period='night'] .room-reader-root[data-appearance='material'] .room-reader-panel,
+.room-page[data-style='fairy'][data-period='night'] .room-reader-root[data-appearance='material'] .material-head,
+.room-page[data-style='fairy'][data-period='night'] .room-reader-root[data-appearance='material'] .material-tool,
+.room-page[data-style='fairy'][data-period='night'] .room-reader-root[data-appearance='material'] .material-close { background-blend-mode: normal, multiply; }
+.room-page .room-reader-root .reader-leaves {
+  display: none; position: absolute; bottom: 0; width: 30px; height: 24px;
+  fill: #789546; stroke: #4d6837; stroke-width: 1; pointer-events: none;
+}
+.room-page .room-reader-root .reader-leaves-left { left: 12px; }
+.room-page .room-reader-root .reader-leaves-right { right: 12px; transform: scaleX(-1); }
+.room-page[data-style='fairy'] .room-reader-root[data-appearance='material'] .reader-leaves { display: block; }
+.room-page[data-style='fairy'][data-period='night'] .room-reader-root[data-appearance='material'] .reader-leaves { fill: #657b45; }
+.room-page .room-reader-root .reader-leaves .leaf-vein { fill: none; stroke: #c5d088; stroke-width: .8; }
+@media (max-width: 600px) {
+  .room-page .room-reader-root { padding: 10px 12px; }
+  .room-page .room-reader-root .material-head { gap: 6px; padding: 8px; }
+  .room-page .room-reader-root .material-heading h2 { font-size: 15px; }
+  .room-page .room-reader-root .material-side { padding: 10px 6px; }
+  .room-page .room-reader-root .material-reader { padding: 10px 8px; }
+}
+@media (max-height: 450px) {
+  .room-page .room-reader-root .material-kind { display: none; }
+  .room-page .room-reader-root .material-heading h2 { margin-top: 0; font-size: 15px; }
+}
 
 /* ── 家具资料绑定提示（E3b-2）：绑定有误但房间照常浏览时的可展开诊断 ── */
+.room-page .room-export-root .room-export-panel { width: min(720px, 100%); height: auto; max-height: 100%; display: flex; flex-direction: column; }
+.room-page .room-export-content { padding: 12px; overflow: auto; min-height: 0; background: var(--surface); border-radius: 0 0 8px 8px; }
+.room-page .room-export-content p { overflow-wrap: anywhere; }
+.room-page #exportStatus { white-space: pre-line; }
+.room-page .room-export-select-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.room-page .room-export-select-tools span { font-size: 12px; }
+.room-page .room-export-list { margin: 0; border: 1px solid var(--border); border-radius: 6px; padding: 8px; max-height: 34vh; overflow: auto; }
+.room-page .room-export-list label { display: flex; align-items: start; gap: 8px; padding: 7px; overflow-wrap: anywhere; cursor: pointer; }
+.room-page .room-export-list input { flex: none; margin-top: 3px; }
+.room-page #exportDownload { text-decoration: none; }
+.room-page #roomExport[hidden], .room-page .room-export-root [hidden] { display: none; }
+
 .binding-note {
   position: absolute;
   left: 12px;
@@ -279,9 +358,7 @@ body[data-period="night"].room-page .period-switch button[aria-pressed="true"] {
 .binding-note ol p { margin: 2px 0 6px; }
 .binding-note .diag-code { font-family: Consolas, "Courier New", monospace; font-size: 11px; }
 
-/* 窄屏：阅读面板收窄留边、绑定提示避开工具条换行区。 */
+/* 窄屏：绑定提示避开工具条换行区。 */
 @media (max-width: 850px) {
-  .room-reader-root { padding: 12px; }
-  .room-page .room-reader-panel { width: 100%; height: 100%; }
   .binding-note { bottom: 64px; }
 }

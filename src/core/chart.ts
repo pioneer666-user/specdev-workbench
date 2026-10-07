@@ -2,11 +2,14 @@
 // 当前 vs 快照的比较在服务端算（§3.2）；快照文件路径用标签元数据里登记的 dir（改名不断历史，D2）。
 import { readdir } from 'node:fs/promises'
 import { gitShowFileOptional, readWorktreeFileOptional, worktreeDirExists } from './git.ts'
+import type { GitReadOptions } from './git.ts'
+import { chartRenderer } from './chart-renderer.ts'
 import { CoreError } from './errors.ts'
 import { listSpecdevTags, snapshotsForChart, findSnapshot, parseTagName } from './snapshots.ts'
 import { readDescriptor, isPlainObject, requireStringFields } from './descriptor.ts'
 import { CHART_FILE_NAMES } from './chart-files.ts'
-import { fingerprintOf, normalizeEol } from './fingerprint.ts'
+import { fingerprintFor, normalizeEol } from './fingerprint.ts'
+import { readChartSet, snapshotContract, LIFECYCLE_READING_UNAVAILABLE } from './chart-contract.ts'
 import {
   CONVENTION_ROOT,
   SCHEMA,
@@ -71,10 +74,18 @@ export async function compareCurrentWithLatest(
   repoRoot: string,
   chartDir: string,
   latest: SnapshotEntry,
+  options: GitReadOptions = {},
 ): Promise<'identical' | 'changed'> {
-  for (const name of CHART_FILE_NAMES) {
+  const contract = snapshotContract(latest.meta)
+  if (contract.diagramType === 'lifecycle') {
+    const current = await readChartSet(name => readWorktreeFileOptional(repoRoot, `${chartDir}/${name}`), latest.chart)
+    const stored = await readChartSet(name => gitShowFileOptional(repoRoot, latest.commit, `${latest.meta.dir}/${name}`, { originalObjects: true }), latest.chart, latest.meta)
+    if (current.sourceError || Object.keys(current.errors).length) throw new CoreError('chart-unreadable', current.sourceError ?? '当前图文件读不开', 422)
+    return current.contract.diagramType === contract.diagramType && fingerprintFor(contract, current.files) === fingerprintFor(contract, stored.files) ? 'identical' : 'changed'
+  }
+  for (const name of contract.names) {
     const worktree = await readWorktreeFileOptional(repoRoot, `${chartDir}/${name}`)
-    const snapshot = await gitShowFileOptional(repoRoot, latest.commit, `${latest.meta.dir}/${name}`)
+    const snapshot = await gitShowFileOptional(repoRoot, latest.commit, `${latest.meta.dir}/${name}`, options)
     if (normalizeOrNull(worktree) !== normalizeOrNull(snapshot)) return 'changed'
   }
   return 'identical'
@@ -90,36 +101,16 @@ const FILE_KEYS = { 'workflow.json': 'workflow', 'details.md': 'details', 'evide
 async function readWorktreeFiles(
   repoRoot: string,
   chartDir: string,
-): Promise<{ files: ChartFiles; errors: Partial<Record<keyof ChartFiles, string>> }> {
-  const files: ChartFiles = { workflow: null, details: null, evidence: null }
-  const errors: Partial<Record<keyof ChartFiles, string>> = {}
-  for (const name of CHART_FILE_NAMES) {
-    const key = FILE_KEYS[name]
-    try {
-      files[key] = await readWorktreeFileOptional(repoRoot, `${chartDir}/${name}`)
-    } catch (error) {
-      errors[key] = error instanceof Error ? error.message : String(error)
-    }
-  }
-  return { files, errors }
+ ) {
+  return readChartSet(name => readWorktreeFileOptional(repoRoot, `${chartDir}/${name}`), chartDir.split('/').at(-1)!, undefined, true)
 }
 
 async function readSnapshotFiles(
   repoRoot: string,
   snapshot: SnapshotEntry,
-): Promise<{ files: ChartFiles; errors: Partial<Record<keyof ChartFiles, string>> }> {
-  const dir = snapshot.meta.dir
-  const files: ChartFiles = { workflow: null, details: null, evidence: null }
-  const errors: Partial<Record<keyof ChartFiles, string>> = {}
-  for (const name of CHART_FILE_NAMES) {
-    const key = FILE_KEYS[name]
-    try {
-      files[key] = await gitShowFileOptional(repoRoot, snapshot.commit, `${dir}/${name}`)
-    } catch (error) {
-      errors[key] = error instanceof Error ? error.message : String(error)
-    }
-  }
-  return { files, errors }
+  options: GitReadOptions = {},
+ ) {
+  return readChartSet(name => gitShowFileOptional(repoRoot, snapshot.commit, `${snapshot.meta.dir}/${name}`, snapshot.meta.schema === 'specdev/snapshot/2' ? { originalObjects: true } : options), snapshot.chart, snapshot.meta)
 }
 
 /**
@@ -132,6 +123,7 @@ export async function readChartPage(
   businessId: string,
   chartId: string,
   v: string,
+  options: GitReadOptions = {},
 ): Promise<ChartPageData> {
   const businessDir = `${CONVENTION_ROOT}/${businessId}`
   const chartDir = await locateChartDir(repoRoot, businessId, chartId)
@@ -143,7 +135,7 @@ export async function readChartPage(
   const chartSummaryOk = !!(chart.data && isPlainObject(chart.data) && chart.data.schema === SCHEMA.chart
     && !requireStringFields(chart.data, ['id', 'name']) && chart.data.id === chartId)
 
-  const tagRecords = await listSpecdevTags(repoRoot)
+  const tagRecords = await listSpecdevTags(repoRoot, options)
   const snapshots = snapshotsForChart(tagRecords, chartId)
   const latest = snapshots.snapshots[0]
   // 比较失败（如工作区文件超过读取上限）不让阅读页整个失败——历史快照照常可读。
@@ -153,7 +145,7 @@ export async function readChartPage(
     currentStatus = 'no-snapshot'
   } else {
     try {
-      currentStatus = await compareCurrentWithLatest(repoRoot, chartDir, latest)
+      currentStatus = await compareCurrentWithLatest(repoRoot, chartDir, latest, options)
     } catch (error) {
       currentStatus = 'compare-failed'
       compareError = error instanceof Error ? error.message : String(error)
@@ -166,16 +158,19 @@ export async function readChartPage(
   // 页面落后了（照旧提示刷新）。任一个文件读不开就没有可比对的摘要（null）。
   let currentFingerprint: string | null = null
   if (v === 'current') {
-    const { files, errors } = await readWorktreeFiles(repoRoot, chartDir)
-    currentFingerprint = errors.workflow || errors.details || errors.evidence ? null : fingerprintOf(files)
+    const { files, errors, contract, sourceError } = await readWorktreeFiles(repoRoot, chartDir)
+    currentFingerprint = sourceError || Object.keys(errors).length ? null : fingerprintFor(contract, files)
     version = {
       kind: 'current',
       files,
+      diagramType: contract.diagramType,
+      sourceFile: contract.sourceFile,
+      sourceError: sourceError ?? errors[contract.sourceKey] ?? (files[contract.sourceKey] == null ? `缺少 ${contract.sourceFile}` : undefined),
       workflowError:
-        errors.workflow
+        contract.diagramType === 'lifecycle' ? undefined : (sourceError ?? errors.workflow
         ?? (files.workflow === null
           ? `当前工作区缺少 workflow.json（${chartDir}/workflow.json），该图不可读`
-          : undefined),
+          : undefined)),
       workflowErrorKind: errors.workflow ? 'unreadable' : files.workflow === null ? 'missing' : undefined,
       detailsError: errors.details,
       evidenceError: errors.evidence,
@@ -186,7 +181,7 @@ export async function readChartPage(
       throw new CoreError('bad-request', `版本参数必须是 current 或本图（${chartId}）的标签名，收到：${v}`, 400)
     }
     const snapshot = findSnapshot(tagRecords, v)
-    const { files, errors } = await readSnapshotFiles(repoRoot, snapshot)
+    const { files, errors, contract, sourceError } = await readSnapshotFiles(repoRoot, snapshot, options)
     version = {
       kind: 'snapshot',
       tag: snapshot.tag,
@@ -196,11 +191,14 @@ export async function readChartPage(
       note: snapshot.meta.note,
       savedAt: snapshot.meta.savedAt,
       files,
+      diagramType: contract.diagramType,
+      sourceFile: contract.sourceFile,
+      sourceError: sourceError ?? errors[contract.sourceKey] ?? (files[contract.sourceKey] == null ? `缺少 ${contract.sourceFile}` : undefined),
       workflowError:
-        errors.workflow
+        contract.diagramType === 'lifecycle' ? undefined : (sourceError ?? errors.workflow
         ?? (files.workflow === null
           ? `快照 ${snapshot.tag} 里缺少 workflow.json（登记目录 ${snapshot.meta.dir}），该版本不可读`
-          : undefined),
+          : undefined)),
       workflowErrorKind: errors.workflow ? 'unreadable' : files.workflow === null ? 'missing' : undefined,
       detailsError: errors.details,
       evidenceError: errors.evidence,
@@ -208,6 +206,7 @@ export async function readChartPage(
   }
 
   return {
+    diagramType: version.diagramType,
     business: {
       id: businessId,
       name:
@@ -215,11 +214,16 @@ export async function readChartPage(
           ? business.data.name
           : businessId,
     },
-    chart: { id: chartId, name: chartName, summary: chartSummaryOk && typeof chart.data?.summary === 'string' ? chart.data.summary : undefined },
+    chart: version.diagramType === 'lifecycle' && version.files.descriptor
+      ? (() => { const descriptor = JSON.parse(version.files.descriptor!); return { id: chartId, name: descriptor.name, summary: descriptor.summary } })()
+      : { id: chartId, name: chartName, summary: chartSummaryOk && typeof chart.data?.summary === 'string' ? chart.data.summary : undefined },
     snapshots,
     currentStatus,
     compareError,
     version,
     currentFingerprint,
+    // 标记文件读不开时不能猜版本，也不能丢掉说明/版本恢复入口。
+    renderer: version.evidenceError ? null : chartRenderer(version.files.evidence),
+    rendererError: version.evidenceError ? '阅读版本标记文件读不开；未自动选择渲染器，可显式选择原版或切换历史。' : undefined,
   }
 }

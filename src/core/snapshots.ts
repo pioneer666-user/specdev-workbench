@@ -4,8 +4,10 @@
 //   必填字段齐全（schema/chart/name/stage/dir 且取值合法）、chart 与标签名前缀一致、
 //   dir 以约定根开头。不符合的跳过并计数，绝不当作快照，也绝不因此崩溃。
 import { runGit } from './git.ts'
+import type { GitReadOptions } from './git.ts'
 import { CoreError } from './errors.ts'
-import { CONVENTION_ROOT, SCHEMA, type ChartSnapshots, type SnapshotEntry, type SnapshotMeta, type SnapshotStage } from './types.ts'
+import { CONVENTION_ROOT, SCHEMA, TYPED_SCHEMA, type ChartSnapshots, type SnapshotEntry, type SnapshotMeta, type SnapshotStage } from './types.ts'
+import { LIFECYCLE_FINGERPRINT_SCHEME } from './chart-files.ts'
 
 /** for-each-ref 的一条原始记录（未校验）。 */
 export interface RawTagRecord {
@@ -33,9 +35,9 @@ export function parseTagName(tag: string): { chart: string; version: string } | 
  * 记录以格式串末尾的 %00（NUL）分隔，标签 message 里的换行不会切断记录。
  * %(*objecttype) 取剥壳后的对象类型（评审 #2）：要求 commit，防止"40 位但指向树/blob"混进快照。
  */
-export async function listSpecdevTags(repoRoot: string): Promise<RawTagRecord[]> {
+export async function listSpecdevTags(repoRoot: string, options: GitReadOptions = {}): Promise<RawTagRecord[]> {
   const format = '%(refname:short)%09%(objecttype)%09%(*objectname)%09%(*objecttype)%09%(creatordate:iso8601-strict)%09%(contents)%00'
-  const out = await runGit(repoRoot, ['for-each-ref', `refs/tags/${'specdev'}/`, `--format=${format}`])
+  const out = await runGit(repoRoot, ['for-each-ref', `refs/tags/${'specdev'}/`, `--format=${format}`], options)
   const records: RawTagRecord[] = []
   for (const raw of out.split('\0')) {
     // 每条记录实际形如 "<字段们>\n\0\n"（%00 后 git 还补了换行）——先剥掉两端换行再按制表符切字段。
@@ -75,7 +77,11 @@ function validateRecord(record: RawTagRecord): { meta: SnapshotMeta; commit: str
   }
   if (typeof meta !== 'object' || meta === null || Array.isArray(meta)) return { invalid: '标签 message 不是 JSON 对象' }
   const m = meta as Record<string, unknown>
-  if (m.schema !== SCHEMA.snapshot) return { invalid: `message.schema 不是 ${SCHEMA.snapshot}` }
+  if (![SCHEMA.snapshot, TYPED_SCHEMA.snapshot].includes(m.schema as any)) return { invalid: 'message.schema 不支持' }
+  if (m.schema === TYPED_SCHEMA.snapshot) {
+    if (m.diagramType !== 'lifecycle' || m.sourceFile !== 'lifecycle.json' || m.fingerprintScheme !== LIFECYCLE_FINGERPRINT_SCHEME) return { invalid: 'typed快照类型/源文件/fingerprintScheme不支持' }
+    if (typeof m.dir !== 'string' || !/^docs\/specdev\/[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(m.dir) || m.dir.split('/').at(-1) !== m.chart) return { invalid: 'typed快照目录越界或与图编号不一致' }
+  }
   if (typeof m.chart !== 'string' || !m.chart) return { invalid: 'message.chart 缺失或不是字符串' }
   if (typeof m.name !== 'string' || !m.name.trim()) return { invalid: 'message.name 缺失或为空' }
   if (!STAGES.includes(m.stage as SnapshotStage)) return { invalid: `message.stage 必须是 ${STAGES.join(' / ')}` }
@@ -87,14 +93,15 @@ function validateRecord(record: RawTagRecord): { meta: SnapshotMeta; commit: str
   if (m.note !== undefined && typeof m.note !== 'string') return { invalid: 'message.note 不是字符串' }
   return {
     meta: {
-      schema: SCHEMA.snapshot,
+      schema: m.schema as SnapshotMeta['schema'],
+      ...(m.schema === TYPED_SCHEMA.snapshot ? { diagramType: 'lifecycle' as const, sourceFile: 'lifecycle.json' as const, fingerprintScheme: LIFECYCLE_FINGERPRINT_SCHEME } : {}),
       chart: m.chart,
       name: m.name,
       stage: m.stage as SnapshotStage,
       note: m.note as string | undefined,
       dir: m.dir,
       savedAt: m.savedAt as string | undefined,
-    },
+    } as SnapshotMeta,
     commit: record.derefObject,
   }
 }

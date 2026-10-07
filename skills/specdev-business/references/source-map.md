@@ -2,6 +2,10 @@
 
 记录本 Skill 各文件借了哪些外部内容、落在哪、改了什么，保证出处可追溯。外部原文件一律不修改。上游发布新版时，先按「版本指纹」与「逐项对照」核对所借条目是否受影响，再决定是否升级——本文件就是对照上游更新的台账。
 
+## T19 现行新增来源（2026-10-06）
+
+新建workflow使用同包vendor/archify-3.0.1，manifest SHA256 `94280f467a56f9b399f34c92d8415d3f49ca17884774b84a853237fa893b17a8`。workflow/common schema为字段权威（meta.output、repository、sourceReferences），T17/T18映射与页内证据保留原件；落workflow-301.md。旧workflow.md的详细手艺原样保留到workflow-legacy.md，下表历史workflow引用对应旧参考。T19增加evidence.renderer兼容字段、默认阅读及包内只读CLI，新引用唯一来源为官方sources，非官方schema修改。旧依赖与许可仍保留。
+
 ## 版本指纹
 
 | 来源 | 版本 / 位置 | 许可 |

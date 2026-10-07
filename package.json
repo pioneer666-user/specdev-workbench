@@ -1,6 +1,6 @@
 {
   "name": "@pioneer_zmc/dsh-workbench",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "license": "MIT",
   "type": "module",
   "description": "SpecDev 工作台：浏览业务说明、流程图、建筑与独立房间，按 Git 附注标签阅读和登记历史版本；插件页面唯一写操作是给提交挂附注标签，不改业务项目的文件、分支与提交。",
@@ -17,7 +17,8 @@
     "skills",
     "client.js",
     "cordis.patch.yml",
-    "README.zh.md"
+    "README.zh.md",
+    "CHANGELOG.md"
   ],
   "dsh": {
     "bundle": {
@@ -38,6 +39,7 @@
   "devDependencies": {
     "@types/node": "26.5.1",
     "esbuild": "0.28.2",
+    "marked": "18.0.14",
     "typescript": "7.0.2"
   },
   "pnpm": {

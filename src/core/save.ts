@@ -12,10 +12,12 @@ import { runGit, gitShowFileOptional, readWorktreeFileOptional } from './git.ts'
 import { CoreError } from './errors.ts'
 import { listSpecdevTags, snapshotsForChart, findSnapshot, type RawTagRecord } from './snapshots.ts'
 import { locateChartDir } from './chart.ts'
-import { CHART_FILE_NAMES, FILE_KEY } from './chart-files.ts'
-import { normalizeEol, fingerprintOf } from './fingerprint.ts'
+import { CHART_FILE_NAMES, FILE_KEY, TYPED_FILE_KEY, LIFECYCLE_FINGERPRINT_SCHEME } from './chart-files.ts'
+import { normalizeEol, fingerprintFor } from './fingerprint.ts'
+import { readChartSet, snapshotContract, type ChartContract } from './chart-contract.ts'
 import {
   SCHEMA,
+  TYPED_SCHEMA,
   type ChartFiles,
   type SaveCheck,
   type SaveChartResult,
@@ -62,15 +64,23 @@ async function collectSaveCheck(
   repoRoot: string,
   chartDir: string,
   head: string,
-): Promise<{ problems: string[]; fingerprint: string | null; headFiles: ChartFiles }> {
-  const worktree = await readTriFiles((name) => readWorktreeFileOptional(repoRoot, `${chartDir}/${name}`))
-  const committed = await readTriFiles((name) => gitShowFileOptional(repoRoot, head, `${chartDir}/${name}`))
+): Promise<{ problems: string[]; fingerprint: string | null; headFiles: ChartFiles; contract: ChartContract }> {
+  const chartId = chartDir.split('/').at(-1)!
+  const worktree = await readChartSet(name => readWorktreeFileOptional(repoRoot, `${chartDir}/${name}`), chartId, undefined, true)
+  const committed = await readChartSet(name => gitShowFileOptional(repoRoot, head, `${chartDir}/${name}`, { originalObjects: worktree.contract.diagramType === 'lifecycle' }), chartId, undefined, true)
+  const contract = worktree.contract
   const problems: string[] = []
-  if (worktree.files.workflow === null && !worktree.errors.workflow) {
-    problems.push('图还不存在：workflow.json 缺失，没有可保存的内容')
+  if (worktree.sourceError) problems.push(worktree.sourceError)
+  if (committed.sourceError) problems.push(`提交中的图：${committed.sourceError}`)
+  if (worktree.contract.diagramType !== committed.contract.diagramType) problems.push('chart.json 类型变更尚未提交')
+  if (worktree.files[contract.sourceKey] == null && !worktree.errors[contract.sourceKey]) {
+    problems.push(`图还不存在：${contract.sourceFile} 缺失，没有可保存的内容`)
   }
-  for (const name of CHART_FILE_NAMES) {
-    const key = FILE_KEY[name]
+  for (const snapshot of snapshotsForChart(await listSpecdevTags(repoRoot), chartId).snapshots) {
+    if (snapshotContract(snapshot.meta).diagramType !== contract.diagramType) problems.push('不支持在既有chartId上原地转换图种，请使用独立图编号')
+  }
+  for (const name of contract.names) {
+    const key = TYPED_FILE_KEY[name]
     if (worktree.errors[key]) {
       problems.push(`${name} 读不开（${worktree.errors[key]}）`)
       continue
@@ -79,31 +89,32 @@ async function collectSaveCheck(
       problems.push(`${name} 在最近一次提交上读不开（${committed.errors[key]}）`)
       continue
     }
-    if (key === 'workflow' && worktree.files.workflow === null) continue // 已报"图还不存在"
-    const w = worktree.files[key]
-    const h = committed.files[key]
+    if (key === contract.sourceKey && worktree.files[key] == null) continue
+    const w = worktree.files[key] ?? null
+    const h = committed.files[key] ?? null
+    if (contract.diagramType === 'lifecycle' && w === null) problems.push(`${name} 缺失，生命周期快照须保存完整四文件`)
     if (h === null && w !== null) problems.push(`${name} 还没有提交过（新文件）`)
     else if (h !== null && w === null) problems.push(`${name} 在工作区被删除，删除尚未提交`)
     else if (h !== null && w !== null && normalizeEol(w) !== normalizeEol(h)) problems.push(`${name} 有未提交的修改`)
   }
   const fingerprint =
-    committed.errors.workflow || committed.errors.details || committed.errors.evidence
+    committed.sourceError || Object.keys(committed.errors).length
       ? null
-      : fingerprintOf(committed.files)
-  return { problems, fingerprint, headFiles: committed.files }
+      : fingerprintFor(committed.contract, committed.files)
+  return { problems, fingerprint, headFiles: committed.files, contract }
 }
 
 /** 某提交上三个文件的 blob 号（ls-tree；缺文件为 null）。结构上与 ChartFiles 同形，语义是内容编号。 */
-async function chartBlobIds(repoRoot: string, commit: string, chartDir: string): Promise<ChartFiles> {
-  const out = await runGit(repoRoot, ['ls-tree', commit, '--', ...CHART_FILE_NAMES.map((n) => `${chartDir}/${n}`)])
+async function chartBlobIds(repoRoot: string, commit: string, chartDir: string, contract: ChartContract): Promise<ChartFiles> {
+  const out = await runGit(repoRoot, ['ls-tree', commit, '--', ...contract.names.map((n) => `${chartDir}/${n}`)], { originalObjects: contract.diagramType === 'lifecycle' })
   const blobs: ChartFiles = { workflow: null, details: null, evidence: null }
   for (const line of out.split('\n')) {
     const tab = line.indexOf('\t')
     if (tab < 0) continue
     const fields = line.slice(0, tab).split(' ')
     const fileName = line.slice(tab + 1).trim().split('/').pop()!
-    if (!(fileName in FILE_KEY) || fields[1] !== 'blob') continue
-    blobs[FILE_KEY[fileName as keyof typeof FILE_KEY]] = fields[2]
+    if (!(fileName in TYPED_FILE_KEY) || fields[1] !== 'blob') continue
+    blobs[TYPED_FILE_KEY[fileName as keyof typeof TYPED_FILE_KEY]] = fields[2]
   }
   return blobs
 }
@@ -119,11 +130,13 @@ async function findDuplicateSnapshot(
   chartId: string,
   stage: SnapshotStage,
   headIds: ChartFiles,
+  contract: ChartContract,
 ): Promise<SnapshotEntry | null> {
   for (const snapshot of snapshotsForChart(records, chartId).snapshots) {
     if (snapshot.meta.stage !== stage) continue
-    const snapIds = await chartBlobIds(repoRoot, snapshot.commit, snapshot.meta.dir)
-    if (CHART_FILE_NAMES.every((n) => headIds[FILE_KEY[n]] === snapIds[FILE_KEY[n]])) return snapshot
+    if (snapshotContract(snapshot.meta).diagramType !== contract.diagramType) continue
+    const snapIds = await chartBlobIds(repoRoot, snapshot.commit, snapshot.meta.dir, contract)
+    if (contract.names.every(n => (headIds[TYPED_FILE_KEY[n]] ?? null) === (snapIds[TYPED_FILE_KEY[n]] ?? null))) return snapshot
   }
   return null
 }
@@ -304,13 +317,15 @@ async function createSnapshot(
   // 或写消息文件的冲突）不算内部错误——重来一轮，上面的去重就会认出对方存下的同一份
   // 内容；只有确认不是竞争（名字仍空着、也没有同内容快照）才把 git 的报错如实抛出。
   // 重试有上限，不无限重试（红线 10）。
-  const headIds = await chartBlobIds(repoRoot, head, chartDir)
+  const contract = check.contract
+  const headIds = await chartBlobIds(repoRoot, head, chartDir, contract)
   const now = options.now ?? new Date()
   const base = `specdev/${chartId}/${localStamp(now)}`
   // message 严格按读取侧校验的约定生成（snapshots.ts validateRecord 五项）。
   const savedAt = localIso(now)
   const message = JSON.stringify({
-    schema: SCHEMA.snapshot,
+    schema: contract.diagramType === 'lifecycle' ? TYPED_SCHEMA.snapshot : SCHEMA.snapshot,
+    ...(contract.diagramType === 'lifecycle' ? { diagramType: 'lifecycle', sourceFile: 'lifecycle.json', fingerprintScheme: LIFECYCLE_FINGERPRINT_SCHEME } : {}),
     chart: chartId,
     name,
     stage,
@@ -322,7 +337,7 @@ async function createSnapshot(
   let created: string | null = null
   for (let attempt = 0; attempt < MAX_TAG_ATTEMPTS && created === null; attempt += 1) {
     const records = await listSpecdevTags(repoRoot)
-    const duplicate = await findDuplicateSnapshot(repoRoot, records, chartId, stage, headIds)
+    const duplicate = await findDuplicateSnapshot(repoRoot, records, chartId, stage, headIds, contract)
     if (duplicate) return { snapshot: duplicate, alreadySaved: true }
     const tag = pickTagName(records, base)
     try {
@@ -332,7 +347,7 @@ async function createSnapshot(
       const latest = await listSpecdevTags(repoRoot)
       const contention =
         latest.some((r) => r.tag === tag)
-        || (await findDuplicateSnapshot(repoRoot, latest, chartId, stage, headIds)) !== null
+        || (await findDuplicateSnapshot(repoRoot, latest, chartId, stage, headIds, contract)) !== null
       if (!contention) throw error
     }
   }
@@ -350,8 +365,8 @@ async function createSnapshot(
   // （审查 P2）。换码是幂等的：下面自己抛的已经是这个码。
   try {
     const entry = findSnapshot(await listSpecdevTags(repoRoot), created)
-    const expected = { schema: SCHEMA.snapshot, chart: chartId, name, stage, note, dir: chartDir, savedAt } as const
-    const mismatch = (Object.keys(expected) as (keyof typeof expected)[]).filter((k) => entry.meta[k] !== expected[k])
+    const expected = { ...JSON.parse(message), note }
+    const mismatch = Object.keys(expected).filter(k => (entry.meta as any)[k] !== expected[k])
     if (entry.commit !== head || mismatch.length > 0) {
       throw new CoreError(
         'save-created-unverified',
@@ -359,9 +374,9 @@ async function createSnapshot(
         500,
       )
     }
-    for (const n of CHART_FILE_NAMES) {
-      const back = await gitShowFileOptional(repoRoot, entry.commit, `${chartDir}/${n}`)
-      if (back !== check.headFiles[FILE_KEY[n]]) {
+    for (const n of contract.names) {
+      const back = await gitShowFileOptional(repoRoot, entry.commit, `${chartDir}/${n}`, { originalObjects: contract.diagramType === 'lifecycle' })
+      if (back !== check.headFiles[TYPED_FILE_KEY[n]]) {
         throw new CoreError(
           'save-created-unverified',
           `版本 ${created} 已经写上去了，但 ${n} 的读回内容与将要保存的不一致。请刷新页面看版本列表确认。`,

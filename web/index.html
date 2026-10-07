@@ -6,51 +6,36 @@
 <title>项目首页 · SpecDev 工作台</title>
 <script src="/specdev-workbench/assets/theme.js"></script>
 <link rel="stylesheet" href="/specdev-workbench/assets/style.css">
+<link rel="stylesheet" href="/specdev-workbench/assets/home.css">
 </head>
-<body class="home-page">
+<body class="home-page" data-home-state="loading">
 <a class="skip-link" href="#main">跳到主要内容</a>
-<header class="app-bar">
-  <a class="brand" data-home-link href="/specdev-workbench/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">工作台</span></span></a>
-  <div class="theme-switch" role="group" aria-label="页面主题">
-    <button type="button" data-theme-choice="light" aria-pressed="false"><span aria-hidden="true">☼</span> 浅色</button>
-    <button type="button" data-theme-choice="dark" aria-pressed="true"><span aria-hidden="true">☾</span> 深色</button>
-  </div>
-</header>
 <main id="main" class="home-main">
-  <section class="project-hero" aria-labelledby="projectName">
-    <div class="hero-copy">
-      <p class="eyebrow"><span class="eyebrow-line"></span> 项目总览</p>
-      <h1 id="projectName">你的业务，<br>在这里清晰展开。</h1>
-      <p id="projectDesc" class="hero-description">从业务出发，阅读流程、理解实现，回看每一个版本。</p>
-      <div class="hero-actions" id="heroActions" hidden><a id="buildingLink" class="primary-link primary-link-lead" data-ws-link="/specdev-workbench/building" hidden>走进建筑 <span aria-hidden="true">↗</span></a><a href="#businesses" class="secondary-link">浏览业务</a><span class="hero-hint">从一张图，进入项目</span></div>
-      <details class="workspace-details" id="workspaceDetails" hidden><summary id="workspaceLabel">当前工作区</summary><p id="repoLine"></p></details>
-    </div>
-    <div class="hero-art" aria-hidden="true">
-      <div class="art-grid"></div>
-      <svg viewBox="0 0 480 340" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs><linearGradient id="flowLine" x1="40" y1="0" x2="440" y2="340" gradientUnits="userSpaceOnUse"><stop stop-color="currentColor" stop-opacity=".15"/><stop offset=".5" stop-color="currentColor"/><stop offset="1" stop-color="currentColor" stop-opacity=".2"/></linearGradient></defs>
-        <g class="art-path" stroke="url(#flowLine)" stroke-width="1.5"><path d="M56 168H126Q144 168 144 150V98Q144 80 162 80H234"/><path d="M56 168H218"/><path d="M56 168H126Q144 168 144 186V252Q144 270 162 270H296"/><path d="M280 168H332Q350 168 350 150V98Q350 80 368 80H426"/><path d="M280 168H332Q350 168 350 186V252Q350 270 368 270H426"/><path d="M276 80H426"/></g>
-        <g class="art-ghost"><rect x="8" y="140" width="80" height="56" rx="14"/><rect x="234" y="57" width="58" height="46" rx="12"/><rect x="272" y="247" width="58" height="46" rx="12"/><rect x="408" y="65" width="30" height="30" rx="9"/><rect x="408" y="255" width="30" height="30" rx="9"/></g>
-        <rect class="art-node-halo" x="204" y="120" width="96" height="96" rx="27" transform="rotate(-8 252 168)"/>
-        <rect class="art-node" x="211" y="127" width="82" height="82" rx="22"/>
-        <g class="art-symbol" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="234" y="150" width="11" height="11" rx="3"/><rect x="259" y="175" width="11" height="11" rx="3"/><path d="M245 155H260Q264 155 264 159V175M239 161V177Q239 181 243 181H259"/></g>
-        <g class="art-dot" fill="currentColor"><circle cx="144" cy="168" r="4"/><circle cx="350" cy="168" r="4"/><circle cx="263" cy="80" r="3"/><circle cx="48" cy="168" r="3"/><circle cx="301" cy="270" r="3"/></g>
-      </svg>
-      <span class="art-caption">连接业务与实现</span>
+  <section id="projectHero" class="project-hero" aria-labelledby="projectName" hidden>
+    <div class="hero-copy home-width">
+      <h1 id="projectName"></h1>
+      <p id="projectDesc" class="hero-description"></p>
+      <div id="heroActions" hidden><a class="browse-entry" href="#businesses">浏览业务 <span aria-hidden="true">↓</span></a></div>
     </div>
   </section>
-  <section id="projectMetrics" class="project-metrics" aria-label="项目概况" hidden>
-    <div><span class="metric-label">业务领域</span><strong id="businessCount">—</strong><span class="metric-unit">个业务入口</span></div>
-    <div><span class="metric-label">流程图</span><strong id="chartCount">—</strong><span class="metric-unit" id="chartCountNote">张登记的图</span></div>
-    <div class="metric-note"><span class="metric-label">阅读路径</span><p>业务 <span>→</span> 流程 <span>→</span> 实现</p><span class="metric-unit">让项目上下文有迹可循</span></div>
-  </section>
-  <section id="businesses" class="business-section" aria-labelledby="businessHeading">
-    <div class="section-heading"><div><p class="eyebrow">探索项目</p><h2 id="businessHeading">业务入口</h2></div><div class="heading-side"><a id="showcaseLink" class="showcase-link" href="/specdev-workbench/showcase" data-ws-link="/specdev-workbench/showcase" hidden>业务展示 ↗</a><p id="status" class="status" data-kind="info" role="status">正在读取项目清单…</p></div></div>
+  <section id="businesses" class="business-section home-width" aria-labelledby="businessHeading" tabindex="-1">
+    <h1 id="stateHeading">项目首页</h1>
+    <div class="section-heading">
+      <h2 id="businessHeading">业务列表</h2>
+      <p id="projectMetrics" class="project-metrics" hidden>业务 <span id="businessCount">—</span> · 流程图 <span id="chartCount">—</span><span id="chartCountNote"></span></p>
+    </div>
+    <p id="status" class="status" data-kind="info" role="status">正在读取项目清单…</p>
     <p id="errorBox" class="error" role="alert" hidden></p>
     <section id="guideBox" class="guide" hidden></section>
     <div id="root" class="cards home-cards" aria-busy="true"><p class="loading-copy">正在整理业务入口…</p></div>
+    <div class="project-context">
+      <details class="workspace-details" id="workspaceDetails" hidden><summary id="workspaceLabel">工作区详情</summary><p id="repoLine"></p></details>
+      <div class="project-links">
+        <a id="buildingLink" class="showcase-link" data-ws-link="/specdev-workbench/building" hidden>走进建筑 <span aria-hidden="true">↗</span></a>
+        <a id="showcaseLink" class="showcase-link" href="/specdev-workbench/showcase" data-ws-link="/specdev-workbench/showcase" hidden>业务展示 <span aria-hidden="true">↗</span></a>
+      </div>
+    </div>
   </section>
-  <footer class="home-footer"><span>SpecDev · 让业务逻辑清晰可读</span><span>业务 / 流程 / 版本</span></footer>
 </main>
 <script type="module" src="/specdev-workbench/assets/home.js"></script>
 </body>

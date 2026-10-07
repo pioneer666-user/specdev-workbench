@@ -4,8 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>图阅读 · SpecDev 工作台</title>
+<!-- 仅房间资料面板中的阅读页：首次绘制前隐藏离开阅读器的返回入口。独立页/建筑页不变。 -->
+<script id="roomReadContext">try { if (window.frameElement?.closest('.room-reader-root')) document.documentElement.dataset.roomReader = 'true' } catch { /* 跨源不猜归属。 */ }</script>
 <script src="/specdev-workbench/assets/theme.js"></script>
 <link rel="stylesheet" href="/specdev-workbench/assets/style.css">
+<link rel="stylesheet" href="/specdev-workbench/assets/read.css">
 <!-- 把渲染器用到的 node: 内置模块映射到随包替身（vendor/archify-renderer/stubs/）。
      编译路径不该真调用它们；一旦被调用，替身抛错暴露。 -->
 <script type="importmap">
@@ -25,42 +28,39 @@
 </script>
 </head>
 <body class="read-page">
-<header class="app-bar">
-  <a class="brand" data-home-link href="/specdev-workbench/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">工作台</span></span></a>
-  <div class="theme-switch" role="group" aria-label="页面主题"><button type="button" data-theme-choice="light" aria-pressed="false"><span aria-hidden="true">☼</span> 浅色</button><button type="button" data-theme-choice="dark" aria-pressed="true"><span aria-hidden="true">☾</span> 深色</button></div>
-</header>
 <div class="page-content">
 <header class="top">
   <div>
-    <p class="crumbs"><a href="/specdev-workbench/">项目首页</a> / <a id="bizLink" href="/specdev-workbench/">业务</a> / <span id="chartName">…</span></p>
-    <h1 id="title">图阅读</h1>
+    <p class="read-back"><a id="bizLink" href="/specdev-workbench/">← 返回业务</a></p>
+    <div class="read-title-row"><h1 id="title">图阅读</h1><div class="read-actions"><button id="versionsOpen" type="button" disabled>版本管理</button><button id="materialsOpen" type="button" disabled>全部阅读资料</button></div></div>
     <p class="sub" id="summary"></p>
-    <!-- 第二期第 2 步：工作区模式显示"工作区：名称（路径）"，手动配置模式注明（由 read.js 填充）。
-         长路径不再直接铺开行内断词，与首页一样折进可展开块（common.js renderRepoLine 填充）。 -->
-    <details class="workspace-details" id="workspaceDetails" hidden><summary id="workspaceLabel">工作区</summary><p id="repoLine"></p></details>
   </div>
   <p id="status" class="status" data-kind="info">正在读取图…</p>
 </header>
 <p id="errorBox" class="error" hidden></p>
 <section id="guideBox" class="guide" hidden></section>
-<nav id="versions" class="versions"></nav>
-<!-- 正看"当前（工作区）"时的登记信息行：看历史快照时这里说明图名与摘要的来处；由 read.js 填充。 -->
-<p id="snapshotMeta" class="muted" hidden></p>
+<p id="readingNotice" class="muted" hidden></p>
+<p id="compareWarning" class="muted" hidden></p>
+<p id="layoutWarning" class="muted" role="status" hidden></p>
 <!-- 「已选」状态条（E·选中同步＋F·节点详情阅读）：显示图里当前被原生选中的步骤，
      并给一个「查看详情」入口；没有选中时整条隐藏，接不上增强阅读时在这里说明一句。 -->
 <p id="selectionBar" class="selection-bar" hidden>
   <span id="selectionText"></span>
   <button id="detailOpen" class="detail-open" type="button" hidden>查看详情</button>
 </p>
-<div class="reader-tools"><span class="muted">双击节点查看详情，也可选中后点击“查看详情”</span><button id="materialsOpen" type="button" disabled>全部阅读资料</button></div>
 <!-- 现场渲染挂载点：原生装配出的整页装在 iframe（独立小房间）里，样式自带。 -->
 <main id="stage" class="chart-stage"></main>
 </div>
+<!-- 版本信息只在管理窗口中展示；保存仍交由原独立弹层和校验。 -->
+<dialog id="versionsDialog" class="detail-dialog" aria-label="版本管理">
+  <div class="detail-dialog-head"><span>版本管理</span><button autofocus id="versionsClose" class="detail-close" type="button" aria-label="关闭版本管理">×</button></div>
+  <div class="detail-dialog-body"><nav id="versions" class="versions" aria-label="流程图版本"></nav><p id="snapshotMeta" class="muted" hidden></p></div>
+</dialog>
 <!-- 节点详情弹层（F）：读某个步骤在当前所选版本里的说明正文。
      关闭三方式：右上按钮 / ESC / 点框外空白；弹层不碰图，关闭后图的缩放与位置原样。 -->
 <dialog id="detailDialog" class="detail-dialog" aria-label="节点详情与源码对照">
   <div class="detail-dialog-head">
-    <span>节点详情</span>
+    <span id="detailTitle">节点详情</span>
     <button autofocus id="detailClose" class="detail-close" type="button" aria-label="关闭详情">×</button>
   </div>
   <div id="detailContent" class="detail-dialog-body"></div>

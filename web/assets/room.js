@@ -22,17 +22,20 @@ import {
 import { validatePlacement } from './rooms/placement.js'
 import { resolveRoomBindings } from './rooms/bindings.js'
 import { createRoomReader } from './rooms/reader.js'
+import { normalizeBrightness } from './rooms/brightness.js'
 import { loadFurnitureCatalog } from './furniture/catalog.js'
+import { offlineRuntime } from './runtime-mode.js'
+import {createRoomExporter} from './rooms/export.js'
 
 // 模板与占位目录是插件固定资源：不从 query、room.json 或外部 URL 替换。
 const ASSET_BASE = '/specdev-workbench/assets/rooms'
 
 // 底座风格字幕（2026-09-28 作者令保留并照抄旧页样式）：文案逐字来自旧底座实验页面
 //（experiments/2026-09-27-空房间风格底座，作者圈定保留；按作者令去掉数字编号 01／02），
-// 按 template.styleId 分派；只有童话底座有昼夜之分（写实底座夜里无变化，不显示昼夜开关）。
+// 按 template.styleId 分派；童话文案随昼夜变化；陶瓷在低亮档显示微光标签。
 const BASE_COPY = {
   ceramic: {
-    eyebrow: '陶瓷 · 日光',
+    eyebrow: { day: '陶瓷 · 日光', night: '陶瓷 · 微光' },
     title: '釉白之间',
     desc: { day: ['让光落在地面上，', '也让空间慢下来。'] },
     material: '珍珠釉面 / 暖白灰泥',
@@ -43,6 +46,79 @@ const BASE_COPY = {
     desc: { day: ['风经过藤蔓，', '留下一个安静的下午。'], night: ['月亮升起时，', '小小的光开始游走。'] },
     material: '奶油灰泥 / 蜂蜜木 / 苔藓',
   },
+}
+
+// 仅当前页面会话；文案/模式/昼夜刷新不覆盖作者选择，不写持久配置。
+let captionExpanded = true
+let helpExpanded = false
+let toolbarExpanded = true
+let controlsReady = false
+let brightnessExpanded = false
+const brightnessListeners = []
+function syncBrightnessPanel() {
+  document.body.dataset.brightnessOpen = String(brightnessExpanded)
+  $('brightnessPanel').hidden = !brightnessExpanded
+  $('brightnessPanel').toggleAttribute('inert', !brightnessExpanded)
+  $('brightnessToggle').setAttribute('aria-expanded', String(brightnessExpanded))
+}
+function closeBrightness() {
+  if ($('brightnessPanel').contains(document.activeElement)) $('brightnessToggle').focus()
+  brightnessExpanded = false
+  syncBrightnessPanel()
+}
+function renderBrightness(styleId, state) {
+  if (!pageAlive || !state) return
+  $('brightnessSlider').value = String(state.value)
+  $('brightnessValue').textContent = String(Math.round(state.value))
+  document.body.style.setProperty('--room-light', `${state.value}%`)
+  renderCaption(styleId, state.period)
+}
+function syncToolbarVisibility() {
+  const actions = $('toolbarActions')
+  actions.hidden = !toolbarExpanded
+  actions.toggleAttribute('inert', !toolbarExpanded)
+  $('toolbarToggle').setAttribute('aria-expanded', String(toolbarExpanded))
+  $('toolbarToggle').setAttribute('aria-label', toolbarExpanded ? '收起房间工具栏' : '展开房间工具栏')
+  $('toolbarArrow').textContent = toolbarExpanded ? '←' : '→'
+}
+function syncCaptionVisibility() {
+  $('styleCaption').hidden = !controlsReady || !captionExpanded
+  $('captionToggle').setAttribute('aria-expanded', String(captionExpanded))
+  $('captionToggle').textContent = captionExpanded ? '收起介绍' : '房间介绍'
+}
+function setExtraControlsDisabled(disabled) {
+  for (const id of ['toolbarToggle', 'captionToggle', 'helpToggle', 'brightnessToggle', 'brightnessSlider', 'roomExport']) $(id).disabled = disabled
+}
+function wireSceneInformation() {
+  $('toolbarToggle').addEventListener('click', () => {
+    if (!pageAlive || !controlsReady || scene?.isReading()) return
+    toolbarExpanded = !toolbarExpanded
+    if (!toolbarExpanded) {
+      if ($('toolbarActions').contains(document.activeElement)) $('toolbarToggle').focus()
+      helpExpanded = false
+      $('sceneHelp').hidden = true
+      $('helpToggle').setAttribute('aria-expanded', 'false')
+    }
+    syncToolbarVisibility()
+  })
+  $('captionToggle').addEventListener('click', () => {
+    if (!pageAlive || !controlsReady || !toolbarExpanded || scene?.isReading()) return
+    captionExpanded = !captionExpanded
+    if (!captionExpanded && $('styleCaption').contains(document.activeElement)) $('captionToggle').focus()
+    syncCaptionVisibility()
+  })
+  $('helpToggle').addEventListener('click', () => {
+    if (!pageAlive || !controlsReady || !toolbarExpanded || scene?.isReading()) return
+    helpExpanded = !helpExpanded
+    $('sceneHelp').hidden = !helpExpanded
+    $('helpToggle').setAttribute('aria-expanded', String(helpExpanded))
+  })
+  syncToolbarVisibility()
+  setExtraControlsDisabled(false)
+}
+function showSceneNotice(text = '') {
+  $('sceneHint').textContent = text
+  $('sceneHint').hidden = !text
 }
 
 /** 字幕一行或多行（行间用 DOM 换行，不拼 HTML）。 */
@@ -65,26 +141,41 @@ function renderCaption(styleId, period) {
   $('captionTitle').textContent = copy.title
   renderLines($('captionDesc'), copy.desc[period] ?? copy.desc.day)
   $('captionMaterial').textContent = copy.material
-  $('styleCaption').hidden = false
+  syncCaptionVisibility()
 }
 
-/** 昼夜开关（作者令保留，只有童话底座显示）：切场景昼夜并同步字幕与按钮态。 */
-function wirePeriodSwitch(scene, styleId) {
-  if (styleId !== 'fairy') return
-  const day = $('periodDay')
-  const night = $('periodNight')
-  const choose = (next) => {
-    scene.setPeriod(next)
-    renderCaption(styleId, next)
-    day.setAttribute('aria-pressed', String(next === 'day'))
-    night.setAttribute('aria-pressed', String(next === 'night'))
+/** 亮度控件独立于左工具栏；控件事件不进入画布/行走键盘监听。 */
+function wireBrightness(scene, styleId) {
+  const listen = (target, type, fn) => { target.addEventListener(type, fn); brightnessListeners.push({ target, type, fn }) }
+  const canAdjust = () => pageAlive && controlsReady && !scene.isReading()
+  const choose = (value) => {
+    if (!canAdjust() || !brightnessExpanded) return
+    scene.setBrightness(normalizeBrightness(value))
+    renderBrightness(styleId, scene.getBrightness())
   }
-  day.addEventListener('click', () => choose('day'))
-  night.addEventListener('click', () => choose('night'))
-  $('periodSwitch').hidden = false
+  listen($('brightnessToggle'), 'click', () => {
+    if (!canAdjust()) return
+    if (brightnessExpanded) closeBrightness()
+    else { brightnessExpanded = true; syncBrightnessPanel() }
+  })
+  listen($('brightnessSlider'), 'input', (event) => choose(Number(event.target.value)))
+  listen($('brightnessControls'), 'pointerdown', (event) => { event.stopPropagation(); if (canAdjust()) scene.clearControlInput() })
+  listen($('brightnessControls'), 'focusin', () => { if (canAdjust()) scene.clearControlInput() })
+  listen($('brightnessControls'), 'keydown', (event) => {
+    event.stopPropagation()
+    if (!canAdjust()) return
+    if (event.key === 'Escape') { event.preventDefault(); closeBrightness(); $('brightnessToggle').focus(); return }
+    if (event.target !== $('brightnessSlider') || !brightnessExpanded) return
+    const value = Number(event.target.value)
+    const next = { ArrowLeft: value - 1, ArrowDown: value - 1, ArrowRight: value + 1, ArrowUp: value + 1, Home: 0, End: 100 }[event.key]
+    if (next === undefined) return
+    event.preventDefault(); choose(next)
+  })
+  syncBrightnessPanel()
+  renderBrightness(styleId, scene.getBrightness())
 }
 
-// 行走／总览的操作提示（P1c-2c-2）：随模式切换；门的结果说明也临时走这一行。
+// 普通指南只更新帮助正文；门失败单独留在可见的 live 状态行。
 const WALK_HINT = 'WASD／方向键走动 · Shift 加速 · 拖动环视 · 点家具看身份'
 const OVERVIEW_HINT = '拖动旋转 · 滚轮缩放 · 点家具看身份'
 
@@ -97,7 +188,8 @@ function syncWalkUI(scene) {
   $('resetView').disabled = !walking
   $('doorToggle').disabled = false
   $('doorToggle').textContent = state.doorOpen ? '关门' : '开门'
-  $('sceneHint').textContent = walking ? WALK_HINT : OVERVIEW_HINT
+  $('sceneHelp').textContent = walking ? WALK_HINT : OVERVIEW_HINT
+  showSceneNotice()
 }
 
 /** 行走／总览／门按钮（P1c-2c-2）：页面只调场景句柄，不直接碰门、导航或人物位置；
@@ -106,23 +198,23 @@ function syncWalkUI(scene) {
  *  不只靠 CSS 遮住）；门防夹语义不动。 */
 function wireWalkControls(scene) {
   $('resetView').addEventListener('click', () => {
-    if (scene?.isReading()) return
+    if (!pageAlive || !controlsReady || !toolbarExpanded || scene?.isReading()) return
     scene?.resetView()
     if (scene) syncWalkUI(scene)
   })
   $('enterWalk').addEventListener('click', () => {
-    if (scene?.isReading()) return
+    if (!pageAlive || !controlsReady || !toolbarExpanded || scene?.isReading()) return
     scene?.enterWalk()
     if (scene) syncWalkUI(scene)
   })
   $('doorToggle').addEventListener('click', () => {
-    if (!scene || scene.isReading()) return
+    if (!pageAlive || !controlsReady || !toolbarExpanded || !scene || scene.isReading()) return
     const open = !scene.getWalkState().doorOpen
     let result
     try {
       result = scene.setDoorOpen(open)
     } catch (error) {
-      $('sceneHint').textContent = `门切换没有完成：${error instanceof Error ? error.message : String(error)}`
+      showSceneNotice(`门切换没有完成：${error instanceof Error ? error.message : String(error)}`)
       return
     }
     if (result.ok) {
@@ -130,10 +222,10 @@ function wireWalkControls(scene) {
       return
     }
     if (result.code === 'door-blocked-by-player') {
-      $('sceneHint').textContent = `站位挡住了门板，请先离开门边，再${open ? '开' : '关'}门。`
+      showSceneNotice(`站位挡住了门板，请先离开门边，再${open ? '开' : '关'}门。`)
       return // 拒绝时门没动：按钮文案保持原样
     }
-    $('sceneHint').textContent = '门切换没有完成，请再试一次。'
+    showSceneNotice('门切换没有完成，请再试一次。')
   })
   syncWalkUI(scene)
 }
@@ -145,31 +237,60 @@ function wireWalkControls(scene) {
  */
 function loadSceneModule() {
   if (typeof globalThis.__loadRoomScene === 'function') return globalThis.__loadRoomScene()
+  if (offlineRuntime()) return offlineRuntime().loadScene()
   return import('/specdev-workbench/assets/room-scene.js')
 }
 
 function businessIdFromLocation() {
+  if (offlineRuntime()) return offlineRuntime().businessId
   const parts = location.pathname.split('/').filter(Boolean) // ['specdev-workbench','room','<id>']
-  return parts[2] || ''
+  return decodeURIComponent(parts[2] || '')
 }
 
 let scene = null
 let reader = null
+let exporter = null
 // 真正离开页面后，晚到的数据/模块不许再创建场景；进入往返缓存（bfcache，
 // pagehide.persisted=true）只是冻结：不终止异步链、不销毁场景——恢复的页面
 // 脚本不会重跑，若在这里置了终止标记，加载中的页面回来后就永久停在加载状态。
 // 阅读面板同口径：冻结时不销毁 reader（面板照常开着），真正离开先 reader.dispose
 // （使请求与监听失效，不触发 setReading(false)——离页不该重新启用场景）再走场景释放。
 let pageAlive = true
+let brightnessFrozen = false
+let initialBrightness = offlineRuntime()?.brightness ?? (window.SpecDevTheme.get().mode === 'light' ? 100 : 0)
+let stopTheme = window.SpecDevTheme.subscribe((state) => {
+  if (!pageAlive || brightnessFrozen) return
+  initialBrightness = state.mode === 'light' ? 100 : 0
+  scene?.setInitialBrightness(initialBrightness)
+})
+function stopInitialTheme() { brightnessFrozen = true; stopTheme?.(); stopTheme = null }
+
 window.addEventListener('pagehide', (event) => {
+  exporter?.close(event.persisted)
   if (event.persisted) return
   pageAlive = false
+  stopInitialTheme()
+  for (const { target, type, fn } of brightnessListeners) target.removeEventListener(type, fn)
+  brightnessListeners.length = 0
+  controlsReady = false
+  setExtraControlsDisabled(true)
   reader?.dispose()
+  exporter?.dispose()
   scene?.dispose()
+  scene = null
 })
 
 /** 场景建不起来（资源下载、动态导入、WebGL 创建失败）：结束加载状态并说明原因，返回链接不受影响。 */
 function showSceneFailure(reason) {
+  stopInitialTheme()
+  controlsReady = false
+  setExtraControlsDisabled(true)
+  syncCaptionVisibility()
+  reader?.dispose()
+  exporter?.dispose()
+  scene?.dispose()
+  scene = null
+  document.body.classList.remove('room-live')
   setStatus('房间暂时无法显示', 'bad')
   $('roomStage').hidden = false
   $('sceneFallback').hidden = false
@@ -209,13 +330,17 @@ function handleReadingChange(reading) {
   if (!scene) return
   scene.setReading(reading)
   if (reading) {
+    closeBrightness()
     $('viewport').setAttribute('inert', '')
     $('enterWalk').disabled = true
     $('resetView').disabled = true
     $('doorToggle').disabled = true
+    setExtraControlsDisabled(true)
     return
   }
   $('viewport').removeAttribute('inert')
+  renderBrightness(document.body.dataset.style, scene.getBrightness())
+  setExtraControlsDisabled(false)
   syncWalkUI(scene)
 }
 
@@ -225,7 +350,7 @@ function handleReadingChange(reading) {
 function wireBizDocs({ directory, emptyText }) {
   $('bizDocs').disabled = false
   $('bizDocs').addEventListener('click', () => {
-    if (reader?.isOpen()) return
+    if (!pageAlive || !controlsReady || !toolbarExpanded || scene?.isReading() || reader?.isOpen()) return
     reader.open({ title: '业务资料', entries: directory ?? [], emptyText, returnFocus: $('bizDocs') })
   })
 }
@@ -266,6 +391,7 @@ function showCatalogInputFailure(fieldPath) {
 }
 
 async function main() {
+  $('loadingBack').href = wsUrl('/specdev-workbench/')
   if (workspaceParamEmpty) return renderEmptyWorkspaceParam()
   const id = businessIdFromLocation()
   if (!id) return showError('缺少业务 id（路径应为 /specdev-workbench/room/<业务id>）')
@@ -275,6 +401,8 @@ async function main() {
   $('bizLink').href = backHref
   $('bizLink').textContent = '业务'
   $('backLink').href = backHref
+  $('loadingBack').href = backHref
+  $('loadingBack').textContent = '返回业务页'
 
   let data
   try {
@@ -303,6 +431,7 @@ async function main() {
   // 固定资源：模板与占位目录只从插件固定地址读取；家具库目录（E4b-2）经真实
   // loadFurnitureCatalog 读取——固定静态资源，不加工作区参数、不接受外部目录地址。
   let templates, placeholderCatalog, furnitureLibrary
+  $('roomLoadingPhase').textContent = '核对房间布置…'
   try {
     ;[templates, placeholderCatalog, furnitureLibrary] = await Promise.all([
       fetchJson(`${ASSET_BASE}/templates.json`),
@@ -361,6 +490,7 @@ async function main() {
     : '此业务尚未登记文档或流程图'
 
   let module
+  $('roomLoadingPhase').textContent = '装配家具…'
   try {
     module = await loadSceneModule()
   } catch (error) {
@@ -384,24 +514,31 @@ async function main() {
     return
   }
 
+  // 先建立最终全窗口尺寸，再在加载层下渲染；内容仍不可见、不可聚焦。
+  $('roomStage').hidden = false
+  document.body.classList.add('room-live')
+  $('roomLoadingPhase').textContent = '准备房间画面…'
   try {
     scene = module.createRoomScene({
       container: $('viewport'),
       template,
       assembly: result.assembly,
       furniture, // 调用瞬间所有权整体转交场景：此后任何失败由场景 releaseAll 释放批次
+      deferInput: true,
+      brightness: initialBrightness,
+      onBrightnessChange: (state) => { if (pageAlive && controlsReady) renderBrightness(template.styleId, state) },
       // 点击分派（E3b-2）：先保留身份显示，再按 instanceId 查已验证绑定；
       // 阅读已打开时迟到的点击不切换集合；未绑定家具只显身份，不猜文档。
       onPick: (picked) => {
         showPick(picked)
-        if (!reader || reader.isOpen()) return
+        if (!reader || reader.isOpen() || exporter?.isOpen()) return
         const binding = bindingByInstance.get(picked.instanceId)
         if (!binding) return
         const canvas = $('viewport').querySelector('canvas')
         reader.open({
           title: picked.name,
           entries: binding.entries,
-          emptyText: `这件${picked.name}还没有放入资料`,
+          emptyText: offlineRuntime()?.missingByInstance.includes(picked.instanceId) ? '此资料未随包导出' : `这件${picked.name}还没有放入资料`,
           returnFocus: canvas ?? $('viewport'),
         })
       },
@@ -415,23 +552,43 @@ async function main() {
     scene = null
     return
   }
-  $('roomStage').hidden = false
-  // 全窗口形态（作者令：房间占满全屏，不留其他东西）：场景创建成功才切；
-  // 错误、空态与场景失败不加这个类，仍是普通滚动文档页。
-  document.body.classList.add('room-live')
-  // 底座字幕与昼夜开关（作者令保留）：字幕默认白天；开关只有童话底座有。
-  renderCaption(template.styleId, 'day')
-  wirePeriodSwitch(scene, template.styleId)
+  // 主 render 成功返回才 ready；dispose 取消返回 false，不产生悬空拒绝。
+  // 只证明主渲染调用完成，不表示 GPU 或显示器已完成呈现。
+  const ready = await scene.ready
+  if (!pageAlive || !ready) return
+  stopInitialTheme()
+  controlsReady = true
+  // 底座字幕使用实际初始亮度/昼夜；亮度控件两风格共用。
+  renderBrightness(template.styleId, scene.getBrightness())
+  wireSceneInformation()
+  wireBrightness(scene, template.styleId)
   // 阅读面板（E3b-2）：资料入口只在场景成功装配后存在；面板打开＝暂停，关闭＝原位恢复。
   reader = createRoomReader({
     root: $('readerRoot'),
+    documents: docDirectory ?? [],
     focusFallback: $('viewport'),
     onReadingChange: handleReadingChange,
   })
   wireBizDocs({ directory: docDirectory, emptyText: docEmptyText })
-  // 行走／总览／门按钮（P1c-2c-2）：默认门外行走，此时才启用新控件并同步提示。
+  if(!offlineRuntime()){
+    exporter=createRoomExporter({root:$('exportRoot'),button:$('roomExport'),url:api=>wsUrl(`/specdev-workbench/api/${api}?business=${encodeURIComponent(id)}`),onOpenChange:handleReadingChange,getState:()=>({theme:window.SpecDevTheme.get().mode,brightness:Math.round(scene.getBrightness().value)}),getAppearance:()=>reader.getAppearance(),setAppearance:value=>reader.setAppearance(value)})
+    $('roomExport').hidden=false
+    $('roomExport').addEventListener('click',()=>{if(pageAlive&&controlsReady&&toolbarExpanded&&!scene?.isReading()&&!reader?.isOpen())exporter.open()})
+  }
+  // 行走／总览／门按钮（P1c-2c-2）：默认门前总览，此时才启用新控件并同步提示。
   wireWalkControls(scene)
   setStatus(`${data.business.name} · ${template.name}`, 'ok')
+  scene.finishLoading()
 }
 
-main()
+main().catch((error) => {
+  if (pageAlive) showSceneFailure(error)
+}).finally(() => {
+  // 包含全部早退/失败出口；真正离页不再写 DOM，bfcache 不取消异步链。
+  if (!pageAlive) return
+  if (!controlsReady) stopInitialTheme()
+  $('roomLoading').hidden = true
+  document.body.classList.remove('room-loading')
+  document.body.setAttribute('aria-busy', 'false')
+  document.querySelector('.page-content').removeAttribute('inert')
+})

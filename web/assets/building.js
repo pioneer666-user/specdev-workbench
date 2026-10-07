@@ -24,8 +24,9 @@ import {
   setStatus,
   showError,
 } from './common.js'
-import { parseDocument, splitInline } from './details.js'
+import { renderMarkdown } from './markdown.js'
 import { listenMaterialClose } from './panel-link.js'
+import { isChartMaterial, chartMaterialLabel } from './chart-entities.js'
 
 /** 建造阶段的展示文案（标签＋一句说明）。阶段语义在蓝图契约里，这里只有文案。 */
 const PHASE_LABELS = {
@@ -55,6 +56,7 @@ let walking = false
 // 文档取数代次（面板换目标或又点了一份资料时，晚到的正文不许写进已经换过的阅读区），
 // 以及打开面板时焦点在哪儿（关掉时还回去：读资料会隐藏目录，焦点不能留在看不见的按钮上）。
 let currentCatalog = new Map()
+let panelDocuments = []
 let panelMaterialKey = ''
 let pausedWalk = false
 let readSeq = 0
@@ -256,6 +258,7 @@ function setPanelIntro(text) {
 
 /** 资料清单：每份资料一个按钮，点了就在右边读（文档＝正文，流程图＝现有阅读页）。 */
 function renderMaterialList(entries, emptyText) {
+  panelDocuments = entries.filter(entry => entry.kind === 'document')
   const list = $('materialList')
   list.textContent = ''
   list.hidden = entries.length === 0
@@ -270,7 +273,7 @@ function renderMaterialList(entries, emptyText) {
     button.type = 'button'
     button.dataset.kind = entry.kind
     button.dataset.material = materialKey(entry)
-    button.textContent = `${entry.kind === 'document' ? '文档' : '流程图'} · ${entry.title}`
+    button.textContent = `${entry.kind === 'document' ? '文档' : chartMaterialLabel(entry)} · ${entry.title}`
     button.addEventListener('click', () => openMaterial(entry))
     item.appendChild(button)
     list.appendChild(item)
@@ -321,14 +324,15 @@ function resetReaderHint(text) {
 
 /** 打开一份资料：文档取正文在面板里显示；流程图把现有阅读页装进面板。 */
 function openMaterial(entry) {
+  if ($('materialReaderBody').contains(document.activeElement)) $('materialClose').focus()
   panelMaterialKey = materialKey(entry)
   markActiveMaterial()
   clearReader()
   const title = $('materialReaderTitle')
-  title.textContent = `${entry.kind === 'document' ? '文档' : '流程图'} · ${entry.title}`
+  title.textContent = `${entry.kind === 'document' ? '文档' : chartMaterialLabel(entry)} · ${entry.title}`
   title.hidden = false
   $('materialReaderHint').hidden = true
-  return entry.kind === 'workflow' ? openWorkflowReader(entry) : openDocumentReader(entry)
+  return isChartMaterial(entry) ? openWorkflowReader(entry) : openDocumentReader(entry)
 }
 
 /** 接口失败时优先说后端给的中文原因（JSON 错误体的 error 字段），拿不到再按 HTTP 状态说。 */
@@ -350,7 +354,7 @@ async function openDocumentReader(entry) {
     // 面板已经换了目标或又点了别的资料：晚到的正文不写进阅读区。
     if (seq !== readSeq) return
     setReaderNote('', '')
-    renderDocumentBody(text)
+    renderDocumentBody(text, entry)
   } catch (error) {
     if (seq !== readSeq) return
     setReaderNote('bad', `读不到这份资料：${error.message || String(error)}。这份资料来自业务清单登记，修好或重新登记后刷新本页即可。`)
@@ -389,59 +393,12 @@ async function openWorkflowReader(entry) {
   frame.setAttribute('src', url)
 }
 
-/** 文档正文按块呈现：标题成标题、列表成列表，行内 **加粗**／`代码` 复用 details.js 的口径。
- *  只认最常见的写法（见 parseDocument），不假装是完整 Markdown 渲染。 */
-function renderDocumentBody(text) {
-  const host = $('materialReaderBody')
-  host.textContent = ''
-  const blocks = parseDocument(text)
-  if (!blocks.length) {
-    const empty = el('p', 'material-doc-empty')
-    empty.textContent = '这份文档没有正文（文件是空的）。'
-    host.appendChild(empty)
-  }
-  let list = null
-  for (const block of blocks) {
-    if (block.kind === 'bullet') {
-      if (!list) {
-        list = el('ul', 'material-doc-list')
-        host.appendChild(list)
-      }
-      const item = el('li')
-      appendInline(item, block.text)
-      list.appendChild(item)
-      continue
-    }
-    list = null
-    if (block.kind === 'heading') {
-      const heading = el('h3', 'material-doc-heading')
-      heading.dataset.level = String(block.level)
-      appendInline(heading, block.text)
-      host.appendChild(heading)
-      continue
-    }
-    const paragraph = el('p', 'material-doc-paragraph')
-    appendInline(paragraph, block.text)
-    host.appendChild(paragraph)
-  }
-  host.hidden = false
-}
-
-/** 行内标记拼成 DOM，不经 innerHTML。 */
-function appendInline(host, text) {
-  for (const part of splitInline(text)) {
-    if (part.strong) {
-      const node = el('strong')
-      node.textContent = part.text
-      host.appendChild(node)
-    } else if (part.code) {
-      const node = el('code')
-      node.textContent = part.text
-      host.appendChild(node)
-    } else {
-      host.appendChild(document.createTextNode(part.text))
-    }
-  }
+/** 共用Markdown正文；不改变图入口、资料面板或漫游暂停规则。 */
+function renderDocumentBody(text, entry) {
+  renderMarkdown($('materialReaderBody'), text, { path: entry.path, documents: panelDocuments.map(item => item.path), openDocument: path => {
+    const target = panelDocuments.find(item => item.path === path)
+    if (target && isReading()) void openMaterial(target)
+  } })
 }
 
 function showMaterialPanel() {

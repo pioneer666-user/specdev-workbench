@@ -36,16 +36,16 @@ export function roomLayoutRel(businessId: string): string {
  * 清单、工作区与文件读取的其余失败沿用既有 code/status（bad-inventory 500、file-too-large 413 等），
  * 不统一吞成"未配置房间"。
  */
-export async function readRoomLayout(repoRoot: string, businessId: string): Promise<RoomLayoutRead> {
+export async function readRoomLayout(repoRoot: string, businessId: string, options: { business?: RoomLayoutRead['business'] & { descriptorError?: string }; read?: typeof readWorktreeFileOptional } = {}): Promise<RoomLayoutRead> {
   if (!ID_PATTERN.test(businessId)) {
     throw new CoreError('bad-request', `参数 business 不合法：${businessId}`, 400)
   }
   // 业务存在性与可用性以清单为准（名称/介绍也来自这里），先查清单再读固定路径。
-  const inventory = await readInventory(repoRoot)
-  const business = inventory.businesses.find((item) => item.id === businessId)
+  const business = options.business ?? (await readInventory(repoRoot)).businesses.find((item) => item.id === businessId)
   if (!business) {
     throw new CoreError('not-found', `业务 ${businessId} 不存在（项目清单里没有这个业务）`, 404)
   }
+  if (business.id !== businessId) throw new CoreError('room-business-mismatch', '房间读取上下文与请求业务不一致', 422)
   if (business.descriptorError) {
     throw new CoreError(
       'bad-business',
@@ -55,7 +55,7 @@ export async function readRoomLayout(repoRoot: string, businessId: string): Prom
   }
 
   const relPath = roomLayoutRel(businessId)
-  const text = await readWorktreeFileOptional(repoRoot, relPath)
+  const text = await (options.read ?? readWorktreeFileOptional)(repoRoot, relPath)
   if (text === null) {
     throw new CoreError(
       'no-room-layout',
@@ -156,6 +156,8 @@ export async function readRoomLayout(repoRoot: string, businessId: string): Prom
         name: chart.name,
         ...(chart.summary === undefined ? {} : { summary: chart.summary }),
         hasWorkflow: chart.hasWorkflow,
+        ...(chart.diagramType === undefined ? {} : { diagramType: chart.diagramType }),
+        ...(chart.readingUnavailable === undefined ? {} : { readingUnavailable: chart.readingUnavailable }),
         ...(chart.descriptorError === undefined ? {} : { descriptorError: chart.descriptorError }),
         ...(chart.idConflict === undefined ? {} : { idConflict: chart.idConflict }),
       })),

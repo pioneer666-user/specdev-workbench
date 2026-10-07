@@ -2,7 +2,7 @@
 import { $, businessCard, el, fetchJson, pageTitle, renderEmptyWorkspaceParam, renderGuide, renderRepoLine, renderRepoState, setStatus, showError, workspaceParamEmpty, wsUrl } from './common.js'
 
 /**
- * 首页最醒目的那一下：进建筑。只有这个项目**真有建筑**才出现——探测一次 /api/building：
+ * 列表之后的次要入口：进建筑。只有这个项目**真有建筑**才出现——探测一次 /api/building：
  * 读到了（模型或诊断列表都算）就亮出来；「还没有建筑蓝图」或这一下没读到，入口就不出现，
  * 不给人一个点进去只看得到空态的按钮。只读、不改任何东西；探测失败不影响首页其余部分。
  */
@@ -32,9 +32,13 @@ async function main() {
     const chartCount = businesses.reduce((count, business) => count + business.charts.length, 0)
     $('businessCount').textContent = businesses.length
     $('chartCount').textContent = chartCount
-    $('chartCountNote').textContent = businesses.some((business) => business.descriptorError) ? '张图（不含读取异常的业务）' : '张登记的图'
+    $('chartCountNote').textContent = businesses.some((business) => business.descriptorError) ? '（不含读取异常的业务）' : ''
     $('projectMetrics').hidden = false
     $('heroActions').hidden = businesses.length === 0
+    $('projectHero').hidden = businesses.length === 0
+    $('stateHeading').hidden = businesses.length > 0
+    $('stateHeading').textContent = inventory.project.name
+    document.body.dataset.homeState = businesses.length > 0 ? 'ready' : 'empty'
     $('showcaseLink').hidden = businesses.length === 0
     // 没有业务就没有建筑（蓝图必须逐间绑业务），这种项目连探测都不发。
     if (businesses.length > 0) void revealBuildingLink()
@@ -57,6 +61,8 @@ async function main() {
     if (error.repo) renderRepoLine(error.repo)
     if (!renderRepoState(error)) showError(error.message)
   } finally {
+    // 未取得可用项目时保留紧凑首屏，让共用错误与配置指引直接可见。
+    if (document.body.dataset.homeState === 'loading') document.body.dataset.homeState = 'unavailable'
     root.querySelector('.loading-copy')?.remove()
     root.setAttribute('aria-busy', 'false')
   }

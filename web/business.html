@@ -6,37 +6,40 @@
 <title>业务 · SpecDev 工作台</title>
 <script src="/specdev-workbench/assets/theme.js"></script>
 <link rel="stylesheet" href="/specdev-workbench/assets/style.css">
+<link rel="stylesheet" href="/specdev-workbench/assets/markdown.css">
+<link rel="stylesheet" href="/specdev-workbench/assets/business.css">
 </head>
 <body class="business-page">
-<header class="app-bar">
-  <a class="brand" data-home-link href="/specdev-workbench/" aria-label="SpecDev 项目首页"><span class="brand-mark" aria-hidden="true">S<span></span></span><span>SpecDev<span class="brand-caption">工作台</span></span></a>
-  <div class="theme-switch" role="group" aria-label="页面主题"><button type="button" data-theme-choice="light" aria-pressed="false"><span aria-hidden="true">☼</span> 浅色</button><button type="button" data-theme-choice="dark" aria-pressed="true"><span aria-hidden="true">☾</span> 深色</button></div>
-</header>
 <div class="page-content">
-<header class="top">
-  <div>
-    <p class="crumbs"><a href="/specdev-workbench/">项目首页</a> / <span id="bizName">…</span></p>
-    <h1 id="title">业务</h1>
-    <p class="sub" id="intro"></p>
-    <!-- P1b-2：独立业务房间入口。初始隐藏；business.js 读到当前业务且说明文件有效后才显示。
-         不为它预读房间接口：没有 room.json 时由房间页给出明确空态。
-         E9b：同一行增加「家具图鉴」入口（随业务有效显示，同样不预读房间接口）；
-         新标签打开并保留本页，workspace 由 common.js 经 data-ws-link 补全。 -->
-    <p class="room-entry-line" id="roomEntryLine" hidden><a id="roomEntry" class="room-entry-link" href="/specdev-workbench/room">进入房间 ↗</a> <a id="furnitureEntry" class="room-entry-link" data-ws-link="/specdev-workbench/furniture" href="/specdev-workbench/furniture" target="_blank" rel="noopener">家具图鉴 ↗</a></p>
-    <!-- 第二期第 2 步：工作区模式显示"工作区：名称（路径）"，手动配置模式注明（由 business.js 填充）。
-         长路径不再直接铺开行内断词，与首页一样折进可展开块（common.js renderRepoLine 填充）。 -->
-    <details class="workspace-details" id="workspaceDetails" hidden><summary id="workspaceLabel">工作区</summary><p id="repoLine"></p></details>
-  </div>
-  <p id="status" class="status" data-kind="info">正在读取业务…</p>
+<nav class="crumbs business-back" aria-label="项目导航"><a data-ws-link="/specdev-workbench/" href="/specdev-workbench/"><span aria-hidden="true">←</span> 项目首页</a></nav>
+<main>
+<header class="business-heading">
+  <div class="business-copy"><h1 id="title">业务</h1><p id="intro" class="business-description"></p></div>
+  <!-- 业务说明有效才出现，不预读房间API；图鉴沿用房间已有入口。 -->
+  <div id="roomEntryLine" hidden><a id="roomEntry" class="business-room-entry" href="/specdev-workbench/room">进入房间 <span aria-hidden="true">→</span></a></div>
 </header>
+<p id="status" class="status" data-kind="info" role="status">正在读取业务…</p>
 <p id="errorBox" class="error" hidden></p>
-<div id="chartSummary" class="chart-summary chip-row" hidden></div>
 <section id="guideBox" class="guide" hidden></section>
-<section id="docs" class="panel" hidden>
-  <h2>业务文档</h2>
-  <ul id="docList" class="doc-list"></ul>
+<section id="docs" class="business-resources" aria-labelledby="docsHeading" hidden>
+  <h2 id="docsHeading" class="business-section-heading">业务文档 <span class="business-section-count">· <span id="docsCount"></span></span></h2>
+  <ul id="docList" class="business-doc-list"></ul>
+  <p id="docsEmpty" class="business-empty" hidden>暂无登记文档</p>
 </section>
-<main id="root" class="cards"></main>
+<section id="charts" class="business-resources" aria-labelledby="chartsHeading" hidden>
+  <h2 id="chartsHeading" class="business-section-heading">流程图 <span class="business-section-count">· <span id="chartsCount"></span></span></h2>
+  <div id="root" class="business-chart-grid"></div>
+  <p id="chartsEmpty" class="business-empty" hidden>暂无登记流程图</p>
+</section>
+</main>
+</div>
+<div id="documentReader" class="document-overlay" hidden>
+  <section class="document-panel" role="dialog" aria-modal="true" aria-labelledby="documentTitle">
+    <header class="document-header"><h2 id="documentTitle" data-doc-title>业务文档</h2><button type="button" data-doc-close>关闭阅读</button></header>
+    <div class="document-layout"><ul class="document-list" data-doc-list aria-label="已登记文档"></ul><div class="document-content">
+      <p data-doc-status role="status"></p><button type="button" data-doc-retry hidden>重试</button><div data-doc-body hidden></div>
+    </div></div>
+  </section>
 </div>
 <script type="module" src="/specdev-workbench/assets/business.js"></script>
 </body>

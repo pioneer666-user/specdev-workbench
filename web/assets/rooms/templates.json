@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "note": "两套底座共享同一份空间布局，仅风格身份不同。空间数据来自 E2a 任务单固定值，并须与两套底座 meta 比对。",
+  "note": "两套底座共享净空、入口和通路。普通墙边为本产品选定的10厘米净留边，按完整家具盒校验；固定窗构件按各风格实测盒另行避让（仅室内部分，外加1厘米余量），不是整墙禁放。",
   "templates": [
     {
       "schemaVersion": 1,
@@ -9,7 +9,7 @@
       "name": "写实底座·项目介绍室",
       "interiorBounds": { "minX": -4, "maxX": 4, "minY": 0, "maxY": 3.4, "minZ": -3, "maxZ": 3 },
       "zones": [
-        { "zoneId": "floor-main", "name": "室内地面陈设区", "kind": "floor", "bounds": { "minX": -3.7, "maxX": 3.7, "minY": 0, "maxY": 3.0, "minZ": -2.7, "maxZ": 2.7 } }
+        { "zoneId": "floor-main", "name": "室内地面陈设区", "kind": "floor", "bounds": { "minX": -3.9, "maxX": 3.9, "minY": 0, "maxY": 3.0, "minZ": -2.9, "maxZ": 2.9 } }
       ],
       "entry": {
         "wall": "north",
@@ -20,7 +20,8 @@
       "reservedVolumes": [
         { "id": "entry-clear", "name": "入口禁放区", "purpose": "entry", "bounds": { "minX": 1.55, "maxX": 2.95, "minY": 0, "maxY": 2.1, "minZ": -3, "maxZ": -1.4 } },
         { "id": "aisle-main", "name": "主通路", "purpose": "corridor", "bounds": { "minX": 1.65, "maxX": 2.85, "minY": 0, "maxY": 2.1, "minZ": -2, "maxZ": 2.4 } },
-        { "id": "aisle-display", "name": "展示通路", "purpose": "corridor", "bounds": { "minX": -3.6, "maxX": 2.85, "minY": 0, "maxY": 2.1, "minZ": 1, "maxZ": 2.05 } }
+        { "id": "aisle-display", "name": "展示通路", "purpose": "corridor", "bounds": { "minX": -3.6, "maxX": 2.85, "minY": 0, "maxY": 2.1, "minZ": 1, "maxZ": 2.05 } },
+        { "id": "window-sill-west", "name": "西墙高窗白瓷窗台", "purpose": "fixture", "bounds": { "minX": -4, "maxX": -3.86, "minY": 1.0775, "maxY": 1.1625, "minZ": -2.35, "maxZ": 1.45 } }
       ],
       "walkProfile": { "radius": 0.26, "eyeClearance": 1.9 }
     },
@@ -31,7 +32,7 @@
       "name": "童话底座·项目介绍室",
       "interiorBounds": { "minX": -4, "maxX": 4, "minY": 0, "maxY": 3.4, "minZ": -3, "maxZ": 3 },
       "zones": [
-        { "zoneId": "floor-main", "name": "室内地面陈设区", "kind": "floor", "bounds": { "minX": -3.7, "maxX": 3.7, "minY": 0, "maxY": 3.0, "minZ": -2.7, "maxZ": 2.7 } }
+        { "zoneId": "floor-main", "name": "室内地面陈设区", "kind": "floor", "bounds": { "minX": -3.9, "maxX": 3.9, "minY": 0, "maxY": 3.0, "minZ": -2.9, "maxZ": 2.9 } }
       ],
       "entry": {
         "wall": "north",
@@ -42,7 +43,9 @@
       "reservedVolumes": [
         { "id": "entry-clear", "name": "入口禁放区", "purpose": "entry", "bounds": { "minX": 1.55, "maxX": 2.95, "minY": 0, "maxY": 2.1, "minZ": -3, "maxZ": -1.4 } },
         { "id": "aisle-main", "name": "主通路", "purpose": "corridor", "bounds": { "minX": 1.65, "maxX": 2.85, "minY": 0, "maxY": 2.1, "minZ": -2, "maxZ": 2.4 } },
-        { "id": "aisle-display", "name": "展示通路", "purpose": "corridor", "bounds": { "minX": -3.6, "maxX": 2.85, "minY": 0, "maxY": 2.1, "minZ": 1, "maxZ": 2.05 } }
+        { "id": "aisle-display", "name": "展示通路", "purpose": "corridor", "bounds": { "minX": -3.6, "maxX": 2.85, "minY": 0, "maxY": 2.1, "minZ": 1, "maxZ": 2.05 } },
+        { "id": "window-rim-west", "name": "西墙圆窗内侧木框", "purpose": "fixture", "bounds": { "minX": -4, "maxX": -3.884, "minY": 1.474, "maxY": 2.686, "minZ": 0.074, "maxZ": 1.286 } },
+        { "id": "window-rim-east", "name": "东墙圆窗内侧木框", "purpose": "fixture", "bounds": { "minX": 3.884, "maxX": 4, "minY": 1.474, "maxY": 2.686, "minZ": -1.286, "maxZ": -0.074 } }
       ],
       "walkProfile": { "radius": 0.26, "eyeClearance": 1.9 }
     }

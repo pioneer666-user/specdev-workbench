@@ -9,3 +9,7 @@ export const FILE_KEY = {
   'details.md': 'details',
   'evidence.json': 'evidence',
 } as const
+
+export const LIFECYCLE_FILE_NAMES = ['chart.json', 'lifecycle.json', 'details.md', 'evidence.json'] as const
+export const LIFECYCLE_FINGERPRINT_SCHEME = 'specdev/lifecycle-fingerprint/1' as const
+export const TYPED_FILE_KEY = { ...FILE_KEY, 'chart.json': 'descriptor', 'lifecycle.json': 'lifecycle' } as const

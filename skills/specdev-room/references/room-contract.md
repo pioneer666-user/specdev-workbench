@@ -57,3 +57,7 @@ node "<实际插件包根>/dist/check-room.js" "<实际项目仓库根>" "<业�
 ```
 
 占位符不是真实路径。记录退出码与完整 JSON：0＋checked＋ok=true 才通过，1 为数据问题，2 为读取/输入/包资源等失败。按 [诊断方向](diagnostics.md)最小修正，两轮上限；CLI 只读，不自动改文件，不验证模型渲染或宿主体验。
+
+## 图种资料补充
+
+已接通workflow流程图与lifecycle生命周期图，都按当前业务chartId绑定，不编码URL或复制制图步骤。旧kind=workflow保持，新lifecycle目录投影kind=chart、diagramType=lifecycle，正文均经同一read入口；文档仍Markdown。图源由共享contract固定选择workflow.json/lifecycle.json，校验报实际缺失/类型冲突，不把新图当文档。制作/修改/来源/简化归specdev-business对应参考。

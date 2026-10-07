@@ -6,6 +6,7 @@
 import { readWorktreeFileOptional } from './git.ts'
 import { CoreError } from './errors.ts'
 import { readInventory } from './inventory.ts'
+import { readChartSet } from './chart-contract.ts'
 import { generateBuilding } from './house.ts'
 import {
   BUILDING_BLUEPRINT_REL,
@@ -249,23 +250,25 @@ export async function buildReadingCatalog(
       }
       for (const chart of business.charts) {
         const workflowRel = `${CONVENTION_ROOT}/${business.id}/${chart.id}/workflow.json`
-        let reason: string | null = chart.descriptorError
+        let reason: string | null = chart.readingUnavailable ?? (chart.descriptorError
           ? `图说明文件有问题（${chart.descriptorError}）`
           : chart.idConflict
             ? `图编号冲突：${chart.idConflict}`
-            : null
+            : null)
         if (!reason) {
           try {
             // 与阅读页读 workflow.json 同一个函数：workflow 是图可读的必要文件，读不开图就打不开。
-            const text = await readWorktreeFileOptional(repoRoot, workflowRel)
-            if (text === null) reason = '图目录缺少 workflow.json，无法阅读'
+            const set = await readChartSet(name => readWorktreeFileOptional(repoRoot, `${CONVENTION_ROOT}/${business.id}/${chart.id}/${name}`), chart.id)
+            if (set.sourceError || set.errors[set.contract.sourceKey]) reason = set.sourceError ?? set.errors[set.contract.sourceKey]!
+            else if (set.files[set.contract.sourceKey] == null) reason = `图目录缺少 ${set.contract.sourceFile}，无法阅读`
           } catch (error) {
             reason = error instanceof CoreError ? error.message : `读取 ${workflowRel} 失败：${String(error)}`
           }
         }
         if (reason) reportUnreadable(business.id, { kind: 'workflow', businessId: business.id, chartId: chart.id }, reason)
         entries.push({
-          kind: 'workflow',
+          kind: chart.diagramType === 'lifecycle' ? 'chart' : 'workflow',
+          ...(chart.diagramType === 'lifecycle' ? { diagramType: 'lifecycle' as const } : {}),
           businessId: business.id,
           chartId: chart.id,
           title: chart.descriptorError ? chart.id : chart.name,

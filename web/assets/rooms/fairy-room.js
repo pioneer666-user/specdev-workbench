@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createDoorHandle } from './door.js';
+import { sampleBrightness } from './brightness.js';
 
 // 童话房间只负责外观：内部 8 × 6 × 3.4 米，所有装饰都跟随所属墙面。
 // 主场景负责灯光、镜头和墙面剖看；这里不持有 renderer 的环境或输出设置。
@@ -20,6 +21,7 @@ export function createFairyRoom({ renderer, scene, reducedMotion = false, doorOp
   const butterflyActors = [];
   const fireflyActors = [];
   let period = 'day';
+  let nightMix = 0;
   let disposed = false;
 
   const plasterMap = makeTexture(512, paintPlaster, keep, renderer);
@@ -111,20 +113,24 @@ export function createFairyRoom({ renderer, scene, reducedMotion = false, doorOp
     const w = def.width;
 
     if (def.door) {
-      const left = -w / 2, right = w / 2;
+      // 南北墙壳只到净空端点，外角由侧墙独占；避免延长侧墙端面与外墙共面闪烁。
+      // 原w仍负责全部装饰定位，门洞/铰链不动。
+      const left = -4, right = 4;
       box(1.55 - left, 3.4, 0.26, plaster, wall, (left + 1.55) / 2, 1.7, 0);
       box(right - 2.95, 3.4, 0.26, plaster, wall, (right + 2.95) / 2, 1.7, 0);
       box(1.4, 0.85, 0.26, plaster, wall, 2.25, 2.975, 0);
       doorHinge = addDoor(wall, doorAngle);
     } else if (def.window) {
+      // 只延长墙壳至南北墙外缘；装饰、窗洞及其定位仍用原 w，不重做造型。
+      const shellWidth = w + 0.24;
       const shape = new THREE.Shape();
-      shape.moveTo(-w / 2, 0); shape.lineTo(w / 2, 0); shape.lineTo(w / 2, 3.4); shape.lineTo(-w / 2, 3.4); shape.closePath();
+      shape.moveTo(-shellWidth / 2, 0); shape.lineTo(shellWidth / 2, 0); shape.lineTo(shellWidth / 2, 3.4); shape.lineTo(-shellWidth / 2, 3.4); shape.closePath();
       const opening = new THREE.Path();
       opening.absarc(-0.68, 2.08, 0.52, 0, Math.PI * 2, true);
       shape.holes.push(opening);
       mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.26, bevelEnabled: false, curveSegments: 32 }), plaster, wall, [0,0,-0.13]);
       addWindow(wall, -0.68, 2.08);
-    } else box(w, 3.4, 0.26, plaster, wall, 0, 1.7, 0);
+    } else box(8, 3.4, 0.26, plaster, wall, 0, 1.7, 0);
 
     // 内侧收口平整，木梁的小幅弯曲只作为墙顶装饰，不改变房间容积。
     beam(wall, [[-w/2,3.4,0],[-w/4,3.44,-0.01],[0,3.42,0],[w/4,3.46,-0.005],[w/2,3.41,0]], 0.125, paleTimber);
@@ -216,6 +222,7 @@ export function createFairyRoom({ renderer, scene, reducedMotion = false, doorOp
       box(0.012,0.245,0.012,brass,parent,x+Math.cos(angle)*0.072,y,z+Math.sin(angle)*0.072);
     }
     const glow = addGlow(parent,x,y,z,0.68,'#ffb66b',0.27);
+    glow.userData.baseOpacity = glow.material.opacity;
     glowSprites.push(glow);
     const light = new THREE.PointLight('#ffc579',0,2.4,2);
     light.position.set(x,y,z-0.11); parent.add(light);
@@ -266,7 +273,8 @@ export function createFairyRoom({ renderer, scene, reducedMotion = false, doorOp
     }
     if(!bracket&&size>0.3) {
       const glow=addGlow(item,0,stemHeight*0.92,-size*0.03,size*1.8,'#ffd98b',0.2);
-      glowSprites.push(glow);
+      glow.userData.baseOpacity = glow.material.opacity;
+    glowSprites.push(glow);
     }
   }
 
@@ -314,17 +322,24 @@ export function createFairyRoom({ renderer, scene, reducedMotion = false, doorOp
     fireflyActors.push({sprite,base:p,phase:rng()*6.28,rate:0.3+rng()*0.5});
   }
 
-  function setPeriod(next) {
-    period=next==='night'?'night':'day';
-    const night=period==='night';
-    pollenGroup.visible=!night;
-    butterflyGroup.visible=!night;
-    fireflyGroup.visible=night;
-    for(const glow of glowSprites) glow.visible=night;
+  function applyBrightness(p) {
+    if(disposed)return;
+    nightMix=p.nightMix;
+    pollenGroup.visible=nightMix<1;
+    butterflyGroup.visible=nightMix<1;
+    fireflyGroup.visible=nightMix>0;
+    pollenMaterial.opacity=.53*(1-nightMix);
+    for(const material of butterflyMaterials) {material.transparent=true;material.opacity=1-nightMix;}
+    for(const glow of glowSprites) {glow.visible=nightMix>0;glow.material.opacity=glow.userData.baseOpacity*nightMix;}
     for(const entry of nightMaterials) {
-      if(entry.light) entry.light.intensity=night?entry.light.userData.nightIntensity:0;
-      else entry.material.emissiveIntensity=night?entry.night:entry.day;
+      if(entry.light) entry.light.intensity=entry.light.userData.nightIntensity*p.fairyLamp;
+      else entry.material.emissiveIntensity=(entry.day+(entry.night-entry.day)*nightMix)*p.fairyEmissive;
     }
+  }
+  function setPeriod(next) {
+    if(disposed)return;
+    period=next==='night'?'night':'day';
+    applyBrightness(sampleBrightness('fairy',period==='night'?0:100,period==='night'?1:0));
   }
 
   function update(time = 0) {
@@ -342,7 +357,7 @@ export function createFairyRoom({ renderer, scene, reducedMotion = false, doorOp
     for(const a of fireflyActors) {
       const q=t*a.rate+a.phase;
       a.sprite.position.copy(a.base).add(new THREE.Vector3(Math.sin(q)*0.22,Math.sin(q*0.7)*0.16,Math.cos(q*0.9)*0.19));
-      a.sprite.material.opacity=reducedMotion?0.65:0.25+(Math.sin(q*2)+1)*0.3;
+      a.sprite.material.opacity=(reducedMotion?0.65:0.25+(Math.sin(q*2)+1)*0.3)*nightMix;
     }
   }
 
@@ -365,7 +380,7 @@ export function createFairyRoom({ renderer, scene, reducedMotion = false, doorOp
   setPeriod('day');
   update(0);
   return {
-    group,walls,door:createDoorHandle(doorHinge),update,setPeriod,dispose,
+    group,walls,door:createDoorHandle(doorHinge),update,setPeriod,applyBrightness,dispose,
     meta:{
       id:'room-fairy-woodland-v1',name:'林间微光',style:'fairy',
       dimensions:{width:8,depth:6,height:3.4},

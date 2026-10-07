@@ -124,3 +124,7 @@
 一致性：`tests`／`acceptance` 为 `passed` 时 `implementation` 必须是 `present`（`STATE_CONTRADICTION`）；`phase: "accepted"` 要求每间业务房四项齐备（`ACCEPTANCE_INCOMPLETE`）。
 
 **建房的默认写法**：整块照抄样板（`design` ＋ `detailed`／`pending`／`unknown`／`pending`／`pending`／空 `evidence`）。计划、实现、测试、验收是**四种不同的事实**——生成器诊断通过不是业务实现证据，本技能不替作者声明任何一项。
+
+## 图种资料补充
+
+已接通workflow流程图与lifecycle生命周期图，都按当前业务chartId绑定，不编码URL或复制制图步骤。旧kind=workflow保持，新lifecycle目录投影kind=chart、diagramType=lifecycle，正文均经同一read入口；文档仍Markdown。图源由共享contract固定选择workflow.json/lifecycle.json，校验报实际缺失/类型冲突，不把新图当文档。制作/修改/来源/简化归specdev-business对应参考。

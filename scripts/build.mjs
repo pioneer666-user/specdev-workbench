@@ -23,6 +23,11 @@ await build({ ...shared, entryPoints: ['src/cli/check-building.ts'], outfile: 'd
 console.log('已生成 dist/check-building.js')
 await build({ ...shared, entryPoints: ['src/cli/check-room.ts'], outfile: 'dist/check-room.js' })
 console.log('已生成 dist/check-room.js')
+await build({ ...shared, entryPoints: ['src/core/room-placement.ts'], outfile: 'dist/room-placement.js' })
+await build({ ...shared, entryPoints: ['src/cli/check-placement.ts'], outfile: 'dist/check-placement.js' })
+await build({ ...shared, entryPoints: ['src/cli/suggest-placement.ts'], outfile: 'dist/suggest-placement.js' })
+await build({ ...shared, entryPoints: ['src/cli/surface-placement.ts'], outfile: 'dist/surface-placement.js' })
+console.log('已生成公开试摆模块及薄命令入口')
 // 内部底座须独立随包调用；仅装配自有core，官方原样模块从同包vendor动态定位。
 await build({ ...shared, entryPoints: ['src/core/archify-render.ts'], outfile: 'dist/archify-node.js' })
 console.log('已生成 dist/archify-node.js（内部接口，尚未接页面）')

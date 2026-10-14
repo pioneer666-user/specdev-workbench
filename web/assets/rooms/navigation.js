@@ -35,7 +35,7 @@ function toFurnitureColliders(assembly) {
   }))
 }
 
-/** 仅实体 fixture 转为高度保真的碰撞盒，入口/通路仍只是摆放与可达性约束。 */
+/** 仅实体 fixture 转为高度保真的碰撞盒；entry保留禁放，corridor仅为旧元数据。 */
 function toFixtureColliders(template) {
   return template.reservedVolumes.filter((volume) => volume.purpose === 'fixture').map(({ id, bounds: b }) => ({
     id: `fixture:${id}`, x0: b.minX, x1: b.maxX, y0: b.minY, y1: b.maxY, z0: b.minZ, z1: b.maxZ,

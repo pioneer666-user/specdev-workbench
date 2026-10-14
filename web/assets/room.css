@@ -60,52 +60,214 @@ body.room-page[data-style="fairy"][data-period="night"] {
 }
 /* 工具条只有实际按钮接收指针；无整条托盘，箭头独立且不被动作组隐藏。 */
 .room-page .room-controls { position: absolute; top: 12px; left: 12px; right: 66px; z-index: 2; pointer-events: none; }
-.room-page .room-toolbar { display: flex; align-items: flex-start; gap: 8px; width: max-content; max-width: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; }
-.room-page .room-actions { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; min-width: 0; max-width: 100%; padding: 2px 3px 5px; }
-.room-page .room-actions[hidden], .room-page .room-help[hidden], .room-page .scene-hint[hidden],
-.room-page .intro[hidden], .room-page .brightness-panel[hidden] { display: none; }
-.room-page .room-toolbar button, .room-page .room-toolbar .room-back,
-.room-page #brightnessToggle {
+.room-page .room-toolbar { display: flex; align-items: center; gap: 8px; width: max-content; max-width: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.room-page .room-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; max-width: 100%; padding: 0; }
+.room-page .room-actions[hidden], .room-page .scene-hint[hidden],
+.room-page .intro[hidden] { display: none; }
+.room-page .room-toolbar button, .room-page .room-toolbar .room-back {
   position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none;
-  font: inherit; font-size: 12px; line-height: 1.4; padding: 8px 12px;
+  font: inherit; font-size: 12px; line-height: 1.4; padding: 8px 12px; height: 42px; min-height: 42px; min-width: 42px; box-sizing: border-box;
   border: 1px solid var(--room-edge); border-bottom: 4px solid var(--room-edge-depth); border-radius: 10px;
   background-color: var(--room-material-color); background-image: var(--room-material-image);
   color: var(--room-control-ink); box-shadow: inset 0 1px 1px #ffffffd9, inset 1px 0 2px #ffffff73, 0 2px 3px #16201730;
   cursor: pointer; text-decoration: none; pointer-events: auto; white-space: nowrap;
 }
 body.room-page[data-style="fairy"] .room-toolbar button,
-body.room-page[data-style="fairy"] .room-toolbar .room-back,
-body.room-page[data-style="fairy"] #brightnessToggle {
+body.room-page[data-style="fairy"] .room-toolbar .room-back {
   background-size: 100% 100%, 156px 156px; background-blend-mode: soft-light, multiply;
   box-shadow: inset 0 1px 1px #ffebc0a6, inset 1px 0 2px #ffd69c4d, 0 2px 3px #21180e40;
 }
 body.room-page[data-style="fairy"][data-period="night"] .room-toolbar button,
-body.room-page[data-style="fairy"][data-period="night"] .room-toolbar .room-back,
-body.room-page[data-style="fairy"][data-period="night"] #brightnessToggle { background-blend-mode: normal, multiply; }
-.room-page .room-toolbar button:hover:not(:disabled), .room-page .room-toolbar .room-back:hover,
-.room-page #brightnessToggle:hover:not(:disabled) { border-color: var(--room-focus); }
-.room-page .room-toolbar button:active:not(:disabled), .room-page .room-toolbar .room-back:active,
-.room-page #brightnessToggle:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 1px 2px #39432924, 0 1px 2px #16201726; }
-.room-page #brightnessToggle[aria-expanded="true"] { border-color: var(--room-focus); box-shadow: inset 0 0 0 1px var(--room-focus), 0 2px 3px #16201726; }
-.room-page .room-toolbar button:focus-visible, .room-page .room-toolbar .room-back:focus-visible,
-.room-page #brightnessToggle:focus-visible { outline: 2px solid var(--room-focus); outline-offset: 3px; }
-.room-page .room-toolbar button:disabled, .room-page #brightnessToggle:disabled { color: var(--room-disabled); border-style: dashed; filter: saturate(.5); cursor: default; }
-.room-page .room-toolbar .toolbar-toggle { min-width: 36px; width: 36px; height: 38px; padding: 5px; margin-top: 2px; font-size: 20px; }
+body.room-page[data-style="fairy"][data-period="night"] .room-toolbar .room-back { background-blend-mode: normal, multiply; }
+.room-page .room-toolbar button:hover:not(:disabled), .room-page .room-toolbar .room-back:hover:not(:disabled) { border-color: var(--room-focus); }
+.room-page .room-toolbar button:active:not(:disabled), .room-page .room-toolbar .room-back:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 1px 2px #39432924, 0 1px 2px #16201726; }
+.room-page .room-toolbar button:focus-visible, .room-page .room-toolbar .room-back:focus-visible { outline: 2px solid var(--room-focus); outline-offset: 3px; }
+.room-page .room-toolbar button:disabled { color: var(--room-disabled); border-style: dashed; filter: saturate(.5); cursor: default; }
+.room-page .room-toolbar .toolbar-toggle { min-width: 42px; width: 42px; height: 42px; padding: 5px; margin-top: 0; font-size: 20px; }
 .room-page .toolbar-leaves { display: none; position: absolute; width: 23px; height: 20px; left: -7px; top: -9px; fill: #789546; stroke: #4d6837; stroke-width: 1; pointer-events: none; }
 body.room-page[data-style="fairy"] .toolbar-leaves { display: block; }
 body.room-page[data-style="fairy"][data-period="night"] .toolbar-leaves { fill: #657b45; }
 .room-page .toolbar-leaves .leaf-vein { fill: none; stroke: #c5d088; stroke-width: .8; }
 /* 帮助和状态是画面上的字，不挤动介绍、不拦截画布；完整交互诊断保持原面板。 */
-.room-page .room-help, .room-page .scene-hint, .room-page .pick-info {
+.room-page .scene-hint, .room-page .pick-info {
   position: absolute; z-index: 2; margin: 0; padding: 0; border: 0; border-radius: 0;
   background: transparent; box-shadow: none; backdrop-filter: none; color: var(--room-subtle);
   font-size: 12px; line-height: 1.8; letter-spacing: 1px; text-shadow: var(--room-text-shadow);
   pointer-events: none; overflow-wrap: anywhere;
 }
-.room-page .room-help { top: 68px; left: 46px; max-width: min(710px, calc(100% - 92px)); }
 .room-page .scene-hint { right: 24px; bottom: 24px; max-width: min(420px, calc(100% - 48px)); color: var(--room-ink); }
 .room-page .pick-info { left: 46px; bottom: 12px; max-width: min(560px, calc(100% - 92px)); }
+.room-page .pick-info button { pointer-events: auto; margin-left: 10px; }
+.room-page .room-furniture-panel { position: absolute; z-index: 3; top: 112px; right: 16px; width: min(360px, calc(100% - 32px)); max-height: calc(100% - 178px); overflow: auto; display: flex; flex-direction: column; padding: 14px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); background: var(--surface); box-shadow: 0 8px 28px #0003; }
+.room-page .room-furniture-panel[hidden] { display: none; }
+.room-furniture-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.room-furniture-list { padding: 0; margin: 12px 0; list-style: none; overflow: auto; min-height: 64px; }
+.room-furniture-list button { width: 100%; text-align: left; padding: 9px; margin: 2px 0; overflow-wrap: anywhere; }
+.room-furniture-list button[aria-pressed="true"] { outline: 2px solid #ffa21a; outline-offset: -2px; }
+.room-furniture-detail { white-space: pre-line; overflow-wrap: anywhere; font-size: 13px; max-height: 100px; overflow: auto; }
+.room-furniture-panel button, .pick-info button { color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 6px 9px; cursor: pointer; }
+.room-furniture-panel button:focus-visible, .pick-info button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.room-furniture-panel button:disabled, .pick-info button:disabled { opacity: .55; cursor: default; }
 /* 原T11介绍：宽屏宋体43px/字距6px、正文12px/2.1/字距2px，无卡片。 */
+.room-page { --room-paper: #fafbf6; --room-card: #ffffff; --room-card-selected: #d9ead7; --room-paper-soft: #eaf0e8; --room-paper-ink: #344b43; --room-paper-muted: #65786f; }
+.room-page[data-style="fairy"] { --room-paper: #fff7e6; --room-card: #fffdfa; --room-card-selected: #dce9cf; --room-paper-soft: #f1e6ce; --room-paper-ink: #4f3c27; --room-paper-muted: #806b4e; }
+.room-page[data-period="night"] { --room-paper: #25303b; --room-card: #35434d; --room-card-selected: #3b5a4a; --room-paper-soft: #303e49; --room-paper-ink: #f0eee3; --room-paper-muted: #b9c6cc; }
+.room-page[data-style="fairy"][data-period="night"] { --room-paper: #302e2c; --room-card: #403e37; --room-card-selected: #405c3a; --room-paper-soft: #3d3a32; --room-paper-ink: #f7edda; --room-paper-muted: #c8bea8; }
+.room-page .room-toolbar .room-icon-button { width: 42px; height: 42px; padding: 8px; font-size: 22px; }
+.room-icon-button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.room-page .room-controls { right: 12px; }
+.room-page .room-toolbar button[hidden] { display: none; }
+.room-page .room-furniture-panel { top: 76px; width: min(310px, calc(100% - 32px)); height: calc(100% - 92px); max-height: calc(100% - 92px); padding: 16px; border-color: var(--room-edge); background: var(--room-paper); color: var(--room-paper-ink); border-radius: 16px; }
+.room-page .room-furniture-head { border-bottom: 1px solid var(--room-edge); padding-bottom: 12px; }
+.room-page .room-furniture-head { gap: 6px; }
+.room-page .room-furniture-head strong { flex: 1; min-width: 0; font-size: 14px; }
+.room-page .room-furniture-head [data-furniture-show-all] { padding: 6px 8px; font-size: 12px; }
+.room-page .room-furniture-head [data-furniture-close] { width: 32px; padding: 0; }
+.room-page .room-furniture-panel [hidden] { display: none; }
+.room-page .furniture-card { display: grid; grid-template-columns: minmax(0, 1fr) 58px; align-items: center; gap: 8px; margin-bottom: 8px; padding: 8px; border: 1px solid var(--room-edge); border-radius: 12px; background: var(--room-card); }
+.room-page .room-furniture-list .furniture-card > button { display: flex; align-items: center; gap: 9px; min-width: 0; margin: 0; padding: 4px; border: 0; background: transparent; }
+.room-page .furniture-card-copy { min-width: 0; }
+.room-page .furniture-card-copy > span { overflow-wrap: anywhere; }
+.room-page .furniture-card[data-selected="true"] { background: var(--room-card-selected); border-color: var(--room-focus); }
+.room-page .room-furniture-list .furniture-card-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.room-page .room-furniture-list .furniture-card-actions button { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 32px; margin: 0; padding: 4px 6px; font-size: 11px; border: 1px solid var(--room-edge); background: var(--room-paper); }
+.room-page .room-furniture-list .furniture-card-actions button[aria-pressed="true"] { background: color-mix(in srgb, var(--room-focus) 12%, transparent); box-shadow: inset 0 2px 4px #152d2428; opacity: .65; outline: 1px solid var(--room-focus); outline-offset: -2px; }
+.room-page .room-furniture-list .furniture-card-actions button[aria-pressed="true"]::before { content: '✓'; margin-right: 3px; }
+.room-page .room-furniture-panel [data-furniture-visibility-note] { flex: none; font-size: 11px; margin: 8px 0; }
+.room-page .room-furniture-panel > :not(.room-furniture-list) { flex-shrink: 0; }
+.room-page .furniture-thumbnail { flex: none; display: block; width: 56px; height: 56px; border-radius: 7px; overflow: hidden; background: #f1ede5; }
+.room-page .furniture-thumbnail img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.room-page .furniture-thumbnail-empty { display: flex; align-items: center; justify-content: center; color: #756a56; font-size: 11px; }
+.room-page .room-furniture-list { flex: 1; max-height: none; min-height: 96px; overscroll-behavior: contain; }
+.room-page .room-furniture-list button { padding: 12px; border: 1px solid transparent; background: var(--room-paper-soft); border-radius: 10px; }
+.room-page .room-furniture-list span { display: block; font-size: 14px; }
+.room-page .room-furniture-list small { display: block; font-size: 11px; color: var(--room-paper-muted); margin-top: 5px; }
+.room-page .room-furniture-list button[aria-pressed="true"] { outline-color: var(--room-focus); }
+.room-page .room-furniture-list .furniture-card > button[aria-pressed="true"] { outline: none; }
+.room-page .room-furniture-list .furniture-card > button:focus-visible { outline: 2px solid var(--room-focus); outline-offset: 2px; }
+.room-page .room-furniture-panel button, .room-page .room-window button, .room-page .room-window select, .room-page .pick-info button { min-height: 38px; color: var(--room-paper-ink); background: var(--room-paper); border: 1px solid var(--room-edge); border-radius: 9px; padding: 7px 11px; cursor: pointer; font: inherit; font-size: 13px; }
+.room-page .room-furniture-panel [data-furniture-expand] { background-color: var(--room-material-color); background-image: var(--room-material-image); color: var(--room-control-ink); margin-top: 8px; }
+.room-page .furniture-atlas-link { color: var(--room-paper-muted); text-align: center; padding: 12px 0 0; font-size: 12px; }
+.room-page .room-window-root { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; padding: 24px; background: #111b245c; backdrop-filter: blur(5px); }
+.room-page .room-window-root[hidden] { display: none; }
+.room-page .room-window { display: flex; flex-direction: column; width: min(1080px, 100%); height: min(740px, 100%); min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--room-edge); border-bottom: 4px solid var(--room-edge-depth); border-radius: 22px; background: var(--room-paper); color: var(--room-paper-ink); box-shadow: 0 20px 80px #0005; }
+.room-page .room-window-head { display: flex; justify-content: space-between; align-items: center; flex: none; gap: 12px; padding: 18px 24px; background-color: var(--room-material-color); background-image: var(--room-material-image); color: var(--room-control-ink); border-bottom: 1px solid var(--room-edge); }
+.room-page .room-window-head h2 { margin: 0; font: 400 26px "STSong", "SimSun", serif; letter-spacing: 3px; }
+.room-page .room-window-eyebrow { margin: 0 0 6px; color: inherit; opacity: .8; font-size: 11px; letter-spacing: 1px; }
+.room-page .room-window-head button { flex: none; width: 42px; min-height: 42px; font-size: 24px; background: var(--room-paper); }
+.room-page .room-browser-nav { display: flex; gap: 8px; align-items: center; padding: 12px 24px; border-bottom: 1px solid var(--room-edge); flex: none; }
+.room-page [data-browser-current] { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.room-page [data-browser-index] { margin-left: auto; color: var(--room-paper-muted); font-size: 12px; white-space: nowrap; }
+.room-page .room-browser-body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); flex: 1; min-height: 0; }
+.room-page .room-preview-pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: radial-gradient(ellipse at 50% 30%, var(--room-paper), var(--room-paper-soft)); border-right: 1px solid var(--room-edge); }
+.room-page .room-preview-host { flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.room-page .room-preview-host canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.room-page [data-preview-status] { flex: none; font-size: 12px; color: var(--room-paper-muted); margin: 8px 16px; text-align: center; overflow-wrap: anywhere; }
+.room-page .room-preview-tools { display: flex; justify-content: center; gap: 8px; padding: 0 12px 18px; flex: none; }
+.room-page .room-browser-choices { display: flex; flex: none; gap: 8px; padding: 10px 12px 12px; margin: 0; border-top: 1px solid var(--room-edge); list-style: none; overflow-x: auto; overscroll-behavior: contain; }
+.room-page .room-browser-choices li { flex: none; }
+.room-page .room-browser-choices button { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 96px; padding: 7px 5px; background: var(--room-paper); }
+.room-page .room-browser-choices .furniture-thumbnail { width: 60px; height: 60px; }
+.room-page .room-browser-choices button > span:last-child { font-size: 11px; line-height: 1.4; height: 31px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.room-page .room-browser-choices button[aria-pressed="true"] { outline: 2px solid var(--room-focus); outline-offset: -2px; }
+.room-page .room-browser-details { padding: 24px; min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; }
+.room-page .room-browser-details h3 { font-size: 24px; font-weight: 500; margin: 12px 0; overflow-wrap: anywhere; }
+.room-page .room-browser-details h4 { margin: 28px 0 12px; font-size: 14px; font-weight: 500; }
+.room-page [data-browser-summary] { line-height: 1.8; font-size: 14px; white-space: pre-line; overflow-wrap: anywhere; }
+.room-page .room-browser-relation, .room-page [data-browser-empty] { color: var(--room-paper-muted); font-size: 13px; line-height: 1.8; }
+.room-page .room-browser-materials { list-style: none; padding: 0; margin: 0; }
+.room-page .room-browser-materials button { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 100%; text-align: left; padding: 14px; margin-bottom: 10px; background: var(--room-paper-soft); overflow-wrap: anywhere; white-space: normal; }
+.room-page .room-browser-materials small { color: var(--room-paper-muted); font-size: 11px; }
+.room-page .room-settings-window { box-sizing: border-box; width: min(800px, 100%); height: min(620px, 100%); max-height: 100%; }
+.room-page .room-settings-body { display: grid; grid-template-columns: 150px minmax(0, 1fr); flex: 1; min-height: 0; overflow: hidden; }
+.room-page .room-settings-content { min-height: 0; min-width: 0; padding: 10px 28px 28px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.room-page .room-settings-tabs { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 24px 12px; background: var(--room-paper-soft); border-right: 1px solid var(--room-edge); overflow-y: auto; }
+.room-page .room-settings-tabs [role="tab"] { position: relative; display: flex; align-items: center; gap: 12px; flex: none; min-height: 48px; padding: 12px 16px; border-color: transparent; border-radius: 10px; background: transparent; color: var(--room-paper-muted); text-align: left; }
+.room-page .room-settings-tabs svg, .room-page .room-browser-library svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.room-page .room-settings-tabs [aria-selected="true"] { background: var(--room-card-selected); color: var(--room-paper-ink); font-weight: 600; }
+.room-page .room-settings-tabs [aria-selected="true"]::before { content: ''; position: absolute; width: 3px; inset: 12px auto 12px 0; border-radius: 2px; background: var(--room-paper-ink); }
+.room-page .room-settings-tabs [role="tab"]:hover:not(:disabled) { background: color-mix(in srgb, var(--room-card-selected) 60%, var(--room-paper)); }
+.room-page .room-settings-tabs [role="tab"]:focus-visible { outline: 2px solid var(--room-focus); outline-offset: 1px; }
+.room-page .room-browser-library { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 24px; background: var(--room-paper-soft); border-bottom: 1px solid var(--room-edge); }
+.room-page .room-browser-library span { color: var(--room-paper-muted); font-size: 12px; }
+.room-page .room-browser-library button { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.room-page .room-setting select { display: block; width: 100%; margin-top: 12px; padding: 9px 12px; border: 1px solid var(--room-paper-muted); border-radius: 8px; color: var(--room-paper-ink); background: var(--room-paper); }
+.room-page .room-setting input[role="switch"] { width: 22px; height: 22px; accent-color: #427951; }
+.room-page .room-sound-sources { margin-top: 18px; font-size: 12px; line-height: 1.8; color: var(--room-paper-muted); }
+.room-page .room-sound-sources summary { cursor: pointer; padding: 8px 0; }
+.room-page .room-sound-sources a { color: inherit; text-decoration: underline; }
+.room-page .room-sound-sources pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; max-height: 220px; overflow: auto; padding: 10px; border: 1px solid var(--room-paper-muted); border-radius: 6px; }
+.room-page .room-setting { padding: 18px 0; border-bottom: 1px solid var(--room-edge); }
+.room-page .room-setting > div, .room-page .room-setting > label { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 15px; }
+.room-page .room-setting p, .room-page .room-settings-note { margin: 10px 0 0; color: var(--room-paper-muted); font-size: 12px; line-height: 1.8; }
+.room-page .room-setting input[type="range"] { width: 100%; margin-top: 14px; accent-color: var(--room-focus); }
+.room-page .room-setting output { font-variant-numeric: tabular-nums; }
+.room-page .room-setting h3 { margin: 0; font-size: 15px; font-weight: 500; }
+.room-page .room-settings-help { color: var(--room-paper-muted); font-size: 12px; line-height: 1.8; margin: 16px 0; }
+.room-page .room-settings-help summary { padding: 6px 0; cursor: pointer; }
+.room-page .room-setting-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(140px, .9fr); align-items: center; gap: 14px 24px; }
+.room-page .room-setting-row + .room-setting-row { margin-top: 20px; }
+.room-page .room-setting-copy { min-width: 0; }
+.room-page .room-setting-copy label { display: block; font-size: 14px; font-weight: 500; }
+.room-page .room-setting-copy p { margin: 6px 0 0; }
+.room-page .room-setting-control { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.room-page .room-setting-control output { width: 100%; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--room-paper-muted); }
+.room-page .room-setting-control input[type="range"] { min-width: 0; width: 100%; margin: 0; }
+.room-page .room-setting-control select { width: 100%; margin: 0; }
+.room-page .room-setting-control button { white-space: normal; }
+.room-page .room-setting-control input[role="switch"] { margin: 0; }
+.room-page .room-setting > .room-setting-row { justify-content: initial; }
+.room-page .room-setting .room-weather-choices { flex-wrap: wrap; }
+/* 两快捷按钮共享工具栏材质；浮层使用不透明纸色，不新增模糊或动画。 */
+.room-page .room-quick-sound { display: inline-flex; flex: none; gap: 0; }
+.room-page .room-toolbar #quickSound { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: 0; }
+.room-page .room-toolbar #quickSoundExpand { min-width: 26px; width: 26px; padding: 5px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.room-page #quickSoundExpand svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.room-page .room-quick-popover { position: absolute; z-index: 4; box-sizing: border-box; width: 280px; overflow: auto; overscroll-behavior: contain; padding: 14px 16px 18px; border: 1px solid var(--room-edge); border-radius: 14px; background: var(--room-paper); color: var(--room-paper-ink); box-shadow: 0 8px 28px #0003; }
+.room-page .room-quick-popover[hidden], .room-page .room-quick-popover [hidden], .room-page #quickSound [hidden] { display: none; }
+.room-page .room-quick-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.room-page .room-quick-head strong { font-size: 14px; font-weight: 500; }
+.room-page .room-quick-popover button { min-height: 32px; padding: 4px 9px; font: inherit; font-size: 12px; border: 1px solid var(--room-edge); border-radius: 7px; color: var(--room-paper-ink); background: var(--room-paper-soft); cursor: pointer; }
+.room-page .room-quick-popover label { display: flex; justify-content: space-between; font-size: 12px; color: var(--room-paper-muted); }
+.room-page .room-quick-popover input { display: block; width: 100%; margin: 12px 0 0; accent-color: var(--room-focus); }
+.room-page .room-quick-popover p { margin: 12px 0; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.room-page .room-quick-popover :focus-visible { outline: 2px solid var(--room-focus); outline-offset: 3px; }
+.room-page .quick-sound-dot { position: absolute; right: 4px; bottom: 5px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.room-page #quickSound[data-sound-state="off"] .quick-sound-dot { display: none; }
+.room-page #quickSound[data-sound-state="paused"] .quick-sound-dot { background: #be8337; outline: 1px solid var(--room-paper); }
+.room-page #quickSound[data-sound-state="muted"] .quick-sound-dot { background: transparent; border: 1px solid currentColor; }
+.room-page .room-window button:hover:not(:disabled), .room-page .room-furniture-panel button:hover:not(:disabled) { border-color: var(--room-focus); }
+.room-page .room-window :is(button,select,input,canvas):focus-visible { outline: 2px solid var(--room-focus); outline-offset: 2px; }
+.room-page .room-window button:disabled { opacity: .5; cursor: default; }
+.room-page .room-window [hidden] { display: none; }
+@media (max-width: 640px) {
+  .room-page .room-window-root { padding: 10px; }
+  .room-page .room-window { border-radius: 16px; }
+  .room-page .room-window-head { padding: 12px 16px; }
+  .room-page .room-window-head h2 { font-size: 22px; }
+  .room-page .room-browser-nav { padding: 10px 12px; gap: 5px; }
+  .room-page .room-browser-body { grid-template-columns: 1fr; grid-template-rows: minmax(280px, 42%) minmax(0, 1fr); }
+  .room-page .room-preview-pane { border-right: 0; border-bottom: 1px solid var(--room-edge); }
+  .room-page .room-preview-tools { padding-bottom: 8px; }
+  .room-page .room-browser-details { padding: 16px; }
+  .room-page [data-browser-index] { display: none; }
+  .room-page .room-furniture-panel { top: 118px; height: calc(100% - 134px); max-height: calc(100% - 134px); }
+}
+@media (max-height: 540px) and (min-width: 641px) {
+  .room-page .room-window-root { padding: 10px; }
+  .room-page .room-window-head { padding: 10px 18px; }
+  .room-page .room-window-eyebrow { display: none; }
+  .room-page .room-browser-body { grid-template-rows: minmax(320px, 1fr); overflow: auto; overscroll-behavior: contain; }
+}
+/* 窄且矮时正文整体滚动，预览/资料不争抢不足的两行高度。 */
+@media (max-width: 640px) and (max-height: 540px) {
+  .room-page .room-window-head { padding: 10px 14px; }
+  .room-page .room-window-eyebrow { display: none; }
+  .room-page .room-browser-nav { padding: 8px 12px; }
+  .room-page .room-browser-body { display: block; overflow: auto; overscroll-behavior: contain; }
+  .room-page .room-preview-pane { height: 320px; min-height: 320px; }
+  .room-page .room-browser-details { min-height: 180px; overflow: visible; }
+}
 .room-page .intro { position: absolute; pointer-events: none; top: 142px; left: 46px; color: var(--room-ink); padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; text-shadow: var(--room-text-shadow); }
 .room-page .eyebrow { font-size: 10px; letter-spacing: 3px; color: var(--room-subtle); margin: 0 0 18px; }
 .room-page .intro h1 { font-family: "STSong", "SimSun", serif; font-weight: 400; font-size: 43px; letter-spacing: 6px; margin: 0 0 20px; }
@@ -120,32 +282,30 @@ body.room-page[data-style="ceramic"][data-period="night"] {
   --room-material-image: radial-gradient(ellipse at 16% 8%, #edf8ffb8 0%, #edf8ff00 38%), linear-gradient(174deg, #a4b6bd 0%, #7893a0 16%, #d2e1e8 22%, var(--room-glaze-tint) 46%, #8cabb8 70%, #596e7b 100%);
   --room-text-shadow: 0 1px 2px #17242c99;
 }
-.room-page .brightness-controls { position: absolute; right: 15px; top: 14px; z-index: 2; }
-.room-page #brightnessToggle { width: 36px; height: 38px; padding: 5px; }
-.room-page .brightness-panel { position: absolute; top: 50px; right: 0; width: 190px; padding: 5px 0; background: transparent; border: 0; box-shadow: none; color: var(--room-ink); text-shadow: var(--room-text-shadow); }
-.room-page .brightness-panel label { display: flex; justify-content: space-between; font-size: 12px; letter-spacing: 2px; }
-.room-page .brightness-panel output { letter-spacing: 0; font-variant-numeric: tabular-nums; }
-.room-page .brightness-panel input { display: block; width: 100%; margin: 12px 0 0; accent-color: var(--room-focus); cursor: pointer; touch-action: none; }
-.room-page .brightness-panel input:focus-visible { outline: 2px solid var(--room-focus); outline-offset: 4px; }
-.room-page .brightness-panel input:disabled { cursor: default; }
 @media (max-width: 850px) {
-  .room-page .room-actions { max-height: 112px; overflow-y: auto; }
-  .room-page .room-help { top: 140px; left: 24px; max-width: calc(100% - 48px); }
+  .room-page .room-actions { overflow: visible; }
   .room-page .intro { top: 214px; left: 24px; }
   .room-page .intro h1 { font-size: 31px; }
   .room-page .intro > p:not(.eyebrow) { font-size: 11px; }
   .room-page .material-note { display: none; }
-  .room-page .brightness-panel { top: 136px; width: min(190px, calc(100vw - 64px)); }
-  .room-page[data-brightness-open="true"] .room-help { top: auto; bottom: 80px; }
   .room-page .pick-info { left: 24px; max-width: calc(100% - 48px); }
 }
+@media (max-width: 540px) {
+  .room-page .room-settings-body { display: flex; flex-direction: column; }
+  .room-page .room-settings-tabs { flex-direction: row; flex: none; gap: 4px; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--room-edge); overflow: visible; }
+  .room-page .room-settings-tabs [role="tab"] { flex: 1; justify-content: center; min-height: 40px; padding: 8px 6px; gap: 6px; }
+  .room-page .room-settings-tabs [aria-selected="true"]::before { width: auto; height: 2px; inset: auto 10px 0; }
+  .room-page .room-settings-content { flex: 1; padding: 6px 16px 20px; }
+  .room-page .room-setting-row { grid-template-columns: minmax(0, 1fr) minmax(105px, .9fr); gap: 12px; }
+  .room-page .room-browser-library { padding: 8px 12px; }
+  .room-page .room-browser-library span { display: none; }
+}
 @media (max-width: 380px) {
-  .room-page .room-help { font-size: 11px; }
   .room-page .intro { top: 236px; }
   .room-page .room-toolbar button, .room-page .room-toolbar .room-back { font-size: 11px; padding-inline: 9px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .room-page .room-toolbar button:active, .room-page .room-toolbar .room-back:active, .room-page #brightnessToggle:active { transform: none; }
+  .room-page .room-toolbar button:active, .room-page .room-toolbar .room-back:active { transform: none; }
 }
 /* 场景建不起来：占位说明居中，返回链接照常可用。 */
 .room-viewport .scene-fallback {
@@ -362,3 +522,14 @@ body.room-page[data-style="ceramic"][data-period="night"] {
 @media (max-width: 850px) {
   .binding-note { bottom: 64px; }
 }
+
+/* 资料入口仅常驻小标记；同一时刻只展示一个纯文本名称。 */
+.room-material-hints { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.room-material-hint { position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; padding: 0; border-radius: 50%; border: 1px solid #a78b58; color: #493d2d; background: #fff8e6ed; box-shadow: 0 2px 5px #30261826; font-size: 19px; line-height: 30px; cursor: pointer; pointer-events: auto; touch-action: none; }
+.room-material-hint:hover, .room-material-hint:focus-visible { outline: 2px solid #836746; outline-offset: 2px; background: #fffdf5; }
+.room-material-name { position: absolute; width: max-content; max-width: min(200px, calc(100% - 16px)); padding: 5px 9px; border-radius: 7px; color: #493d2d; background: #fff8e6f5; border: 1px solid #c4af86; font-size: 12px; overflow-wrap: anywhere; }
+.room-page .room-reader-panel .reader-summary { margin: 7px 0 0; max-width: 70ch; color: var(--text-secondary); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; max-height: 7.5em; overflow: auto; }
+.room-page .room-weather-choices { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px }
+.room-page .room-t44-acceptance { position:fixed; bottom:12px; left:50%; transform:translateX(-50%); z-index:30; width:min(680px,90vw); padding:12px 16px; border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text); box-shadow:0 6px 20px #0003 }
+.room-page .room-t44-acceptance p { margin:0 0 10px; font-size:13px }
+.room-page .room-t44-acceptance button { margin-right:10px }

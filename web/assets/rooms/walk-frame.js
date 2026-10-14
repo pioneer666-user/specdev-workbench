@@ -3,15 +3,15 @@
 // 只做状态推进与相机同步，不建动画循环、不建第二套会话、不碰 DOM——
 // 渲染循环由 room-scene.js 的 renderer.setAnimationLoop 驱动，本模块只提供 frame()。
 // 相机由调用方传入并直接读写其 position／rotation（YXZ 欧拉），本模块不导入 Three.js，
-// Node 测试可直连。参数与旧建筑页手感一致：眼高 1.65、视场 66、步行 2.6 m/s、
-// Shift 4.6 m/s、俯仰限 ±0.44π；帧间隔超过 0.05 秒按 0.05 截断，时钟重置后首帧 dt=0
+// Node 测试可直连。A1执行会话微调速度，眼高1.65、视场66与原输入/碰撞保持：
+// 步行1.0/Shift2.0 m/s、俯仰限 ±0.44π；帧间隔超过 0.05 秒按 0.05 截断，时钟重置后首帧 dt=0
 // （页面隐藏／往返缓存／切模式回来，不把离开的时间算成位移）。
 
 export const EYE_HEIGHT = 1.65
 export const WALK_FOV = 66
 export const PITCH_LIMIT = Math.PI * 0.44
-export const WALK_SPEED = 2.6
-export const WALK_RUN_SPEED = 4.6
+export const WALK_SPEED = 1.0
+export const WALK_RUN_SPEED = 2.0
 export const MAX_FRAME_DT = 0.05
 
 /** 从 from 看向 to 的 yaw（Three 相机面向局部 -Z）：门外出生看向门中心应得 ±π。 */
@@ -25,11 +25,12 @@ export function lookYawToward(from, to) {
  * 每帧：先应用环顾增量，再用新 yaw 算本帧位移交 session.move，最后把相机
  * 同步到脚底＋眼高。位移公式与旧建筑页一致，斜向输入按长度归一。
  */
-export function createWalkFrame({ session, input, camera, yaw = 0, pitch = 0 } = {}) {
+export function createWalkFrame({ session, input, camera, yaw = 0, pitch = 0, onMove = () => {}, onReset = () => {} } = {}) {
   let lastTime = null
 
   function frame(timeMs) {
     const seconds = Number(timeMs) / 1000
+    const elapsed = lastTime === null ? 0 : seconds - lastTime
     const dt = lastTime === null || !Number.isFinite(seconds)
       ? 0
       : Math.min(Math.max(seconds - lastTime, 0), MAX_FRAME_DT)
@@ -39,6 +40,7 @@ export function createWalkFrame({ session, input, camera, yaw = 0, pitch = 0 } =
     yaw += lookDelta.yaw
     pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch + lookDelta.pitch))
 
+    const from = session.getState().position
     const { forward, right, fast } = input.axis()
     const length = Math.hypot(forward, right)
     if (length > 0) {
@@ -50,6 +52,8 @@ export function createWalkFrame({ session, input, camera, yaw = 0, pitch = 0 } =
     }
 
     const state = session.getState()
+    // 声音只收到导航完成后的真实位移，不反向影响移动，不等待音频异步。
+    try { if (state.mode === 'walk') onMove({ from, to: state.position, dt, elapsed }); else onReset() } catch {}
     camera.position.set(state.position.x, state.position.y + EYE_HEIGHT, state.position.z)
     camera.rotation.set(pitch, yaw, 0, 'YXZ')
   }
@@ -57,7 +61,7 @@ export function createWalkFrame({ session, input, camera, yaw = 0, pitch = 0 } =
   return {
     frame,
     /** 丢掉计时基线：下一帧 dt=0。页面隐藏／往返缓存恢复／切模式后调用。 */
-    resetClock() { lastTime = null },
+    resetClock() { lastTime = null; try { onReset() } catch {} },
     /** 当前保存的行走视线（总览期间不被覆盖，恢复行走继续用）。 */
     getLook() { return { yaw, pitch } },
   }

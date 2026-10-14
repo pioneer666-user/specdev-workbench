@@ -1,7 +1,5 @@
 import * as THREE from 'three';
-
-// 所有陶瓷房间共用递归锁；离屏渲染期间不再触发另一面反射。
-const reflectingRenderers = new WeakSet();
+import { reflecting, registerReflection, withReflection } from './reflection-guard.js';
 
 /** 只为水平地面服务的实时平面反射，保留物理材质原有的釉面照明。 */
 export function createCeramicReflection({ surface, material, glazeTexture, renderer, scene }) {
@@ -23,6 +21,7 @@ export function createCeramicReflection({ surface, material, glazeTexture, rende
   };
   let mirrorCamera = new THREE.PerspectiveCamera();
   let disposed = false;
+  let registeredRenderer = renderer || null, unregister = renderer ? registerReflection(renderer, surface) : () => {};
   let lastWidth = 1024;
   let lastHeight = 1024;
   const surfacePosition = new THREE.Vector3();
@@ -86,8 +85,9 @@ export function createCeramicReflection({ surface, material, glazeTexture, rende
   surface.onBeforeRender = (activeRenderer, activeScene, camera) => {
     const render = renderer || activeRenderer;
     const world = scene || activeScene;
-    if (disposed || !render || !world || !camera || reflectingRenderers.has(render)) return;
+    if (disposed || !render || !world || !camera || reflecting(render)) return;
     if (!camera.isPerspectiveCamera && !camera.isOrthographicCamera) return;
+    if (registeredRenderer !== render) { unregister(); registeredRenderer = render; unregister = registerReflection(render, surface); }
 
     surface.updateWorldMatrix(true, false);
     camera.updateWorldMatrix(true, false);
@@ -156,7 +156,7 @@ export function createCeramicReflection({ surface, material, glazeTexture, rende
     const previousAutoClear = render.autoClear;
     const previousVisibility = surface.visible;
     render.getCurrentViewport(viewport);
-    reflectingRenderers.add(render);
+    withReflection(render, () => {
     try {
       surface.visible = false;
       render.xr.enabled = false;
@@ -176,8 +176,8 @@ export function createCeramicReflection({ surface, material, glazeTexture, rende
       render.autoClear = previousAutoClear;
       render.setRenderTarget(previousTarget, previousFace, previousMip);
       render.state.viewport(viewport);
-      reflectingRenderers.delete(render);
     }
+    });
   };
 
   return {
@@ -185,6 +185,7 @@ export function createCeramicReflection({ surface, material, glazeTexture, rende
     dispose() {
       if (disposed) return;
       disposed = true;
+      unregister();
       surface.onBeforeRender = () => {};
       target.dispose();
       uniforms.roomReflectionReady.value = 0;

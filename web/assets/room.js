@@ -26,6 +26,13 @@ import { normalizeBrightness } from './rooms/brightness.js'
 import { loadFurnitureCatalog } from './furniture/catalog.js'
 import { offlineRuntime } from './runtime-mode.js'
 import {createRoomExporter} from './rooms/export.js'
+import { createFurnitureSelection } from './rooms/furniture-selection.js'
+import { createFurniturePanel } from './rooms/furniture-panel.js'
+import { createRoomWindows } from './rooms/room-windows.js'
+import { createRoomAmbience } from './rooms/ambience.js'
+import { createWeatherSettings } from './rooms/weather-settings.js'
+import { createSoundSettings } from './rooms/sound-settings.js'
+import { createQuickControls } from './rooms/quick-controls.js'
 
 // 模板与占位目录是插件固定资源：不从 query、room.json 或外部 URL 替换。
 const ASSET_BASE = '/specdev-workbench/assets/rooms'
@@ -50,28 +57,16 @@ const BASE_COPY = {
 
 // 仅当前页面会话；文案/模式/昼夜刷新不覆盖作者选择，不写持久配置。
 let captionExpanded = true
-let helpExpanded = false
 let toolbarExpanded = true
 let controlsReady = false
-let brightnessExpanded = false
-const brightnessListeners = []
-function syncBrightnessPanel() {
-  document.body.dataset.brightnessOpen = String(brightnessExpanded)
-  $('brightnessPanel').hidden = !brightnessExpanded
-  $('brightnessPanel').toggleAttribute('inert', !brightnessExpanded)
-  $('brightnessToggle').setAttribute('aria-expanded', String(brightnessExpanded))
-}
-function closeBrightness() {
-  if ($('brightnessPanel').contains(document.activeElement)) $('brightnessToggle').focus()
-  brightnessExpanded = false
-  syncBrightnessPanel()
-}
 function renderBrightness(styleId, state) {
   if (!pageAlive || !state) return
   $('brightnessSlider').value = String(state.value)
   $('brightnessValue').textContent = String(Math.round(state.value))
   document.body.style.setProperty('--room-light', `${state.value}%`)
   renderCaption(styleId, state.period)
+  ambience?.setPeriod(state.period)
+  quick?.sync()
 }
 function syncToolbarVisibility() {
   const actions = $('toolbarActions')
@@ -87,31 +82,37 @@ function syncCaptionVisibility() {
   $('captionToggle').textContent = captionExpanded ? '收起介绍' : '房间介绍'
 }
 function setExtraControlsDisabled(disabled) {
-  for (const id of ['toolbarToggle', 'captionToggle', 'helpToggle', 'brightnessToggle', 'brightnessSlider', 'roomExport']) $(id).disabled = disabled
+  for (const id of ['toolbarToggle', 'roomSettings', 'roomExport', 'materialHintsToggle', 'furnitureManage', 'captionToggle', 'brightnessSlider']) $(id).disabled = disabled
+  $('bizDocs').disabled = !windows?.isFurniture() || !canWindow()
+  if (windows?.isSettings() && canWindow()) for (const id of ['materialHintsToggle', 'captionToggle', 'brightnessSlider']) $(id).disabled = false
+  soundSettings?.sync()
+  weatherSettings?.sync()
+  quick?.sync()
+}
+function syncMaterialHintsToggle() {
+  const visible = scene.getMaterialHintsVisible()
+  $('materialHintsToggle').textContent = visible ? '隐藏资料图标' : '显示资料图标'
+  $('materialHintsToggle').setAttribute('aria-pressed', String(visible))
 }
 function wireSceneInformation() {
+  $('materialHintsToggle').addEventListener('click', () => {
+    if (!windows?.isSettings() || $('settingsRoomPanel').hidden || !canWindow()) return
+    if (scene.setSettingsHintsVisible(!scene.getMaterialHintsVisible())) syncMaterialHintsToggle()
+  })
+  syncMaterialHintsToggle()
   $('toolbarToggle').addEventListener('click', () => {
-    if (!pageAlive || !controlsReady || scene?.isReading()) return
+    if (!canManage()) return
     toolbarExpanded = !toolbarExpanded
     if (!toolbarExpanded) {
       if ($('toolbarActions').contains(document.activeElement)) $('toolbarToggle').focus()
-      helpExpanded = false
-      $('sceneHelp').hidden = true
-      $('helpToggle').setAttribute('aria-expanded', 'false')
     }
     syncToolbarVisibility()
   })
   $('captionToggle').addEventListener('click', () => {
-    if (!pageAlive || !controlsReady || !toolbarExpanded || scene?.isReading()) return
+    if (!windows?.isSettings() || $('settingsRoomPanel').hidden || !canWindow()) return
     captionExpanded = !captionExpanded
     if (!captionExpanded && $('styleCaption').contains(document.activeElement)) $('captionToggle').focus()
     syncCaptionVisibility()
-  })
-  $('helpToggle').addEventListener('click', () => {
-    if (!pageAlive || !controlsReady || !toolbarExpanded || scene?.isReading()) return
-    helpExpanded = !helpExpanded
-    $('sceneHelp').hidden = !helpExpanded
-    $('helpToggle').setAttribute('aria-expanded', String(helpExpanded))
   })
   syncToolbarVisibility()
   setExtraControlsDisabled(false)
@@ -144,40 +145,23 @@ function renderCaption(styleId, period) {
   syncCaptionVisibility()
 }
 
-/** 亮度控件独立于左工具栏；控件事件不进入画布/行走键盘监听。 */
+/** 设置与快捷亮度共用同一受控命令，不解除背景输入暂停。 */
 function wireBrightness(scene, styleId) {
-  const listen = (target, type, fn) => { target.addEventListener(type, fn); brightnessListeners.push({ target, type, fn }) }
-  const canAdjust = () => pageAlive && controlsReady && !scene.isReading()
-  const choose = (value) => {
-    if (!canAdjust() || !brightnessExpanded) return
-    scene.setBrightness(normalizeBrightness(value))
+  const choose = value => {
+    if (!windows?.isSettings() || $('settingsRoomPanel').hidden || !canWindow()) return
+    scene.setSettingsBrightness(normalizeBrightness(value))
     renderBrightness(styleId, scene.getBrightness())
   }
-  listen($('brightnessToggle'), 'click', () => {
-    if (!canAdjust()) return
-    if (brightnessExpanded) closeBrightness()
-    else { brightnessExpanded = true; syncBrightnessPanel() }
-  })
-  listen($('brightnessSlider'), 'input', (event) => choose(Number(event.target.value)))
-  listen($('brightnessControls'), 'pointerdown', (event) => { event.stopPropagation(); if (canAdjust()) scene.clearControlInput() })
-  listen($('brightnessControls'), 'focusin', () => { if (canAdjust()) scene.clearControlInput() })
-  listen($('brightnessControls'), 'keydown', (event) => {
-    event.stopPropagation()
-    if (!canAdjust()) return
-    if (event.key === 'Escape') { event.preventDefault(); closeBrightness(); $('brightnessToggle').focus(); return }
-    if (event.target !== $('brightnessSlider') || !brightnessExpanded) return
+  $('brightnessSlider').addEventListener('input', event => choose(Number(event.target.value)))
+  $('brightnessSlider').addEventListener('keydown', event => {
+    if (!windows?.isSettings() || $('settingsRoomPanel').hidden || !canWindow()) return
     const value = Number(event.target.value)
     const next = { ArrowLeft: value - 1, ArrowDown: value - 1, ArrowRight: value + 1, ArrowUp: value + 1, Home: 0, End: 100 }[event.key]
     if (next === undefined) return
     event.preventDefault(); choose(next)
   })
-  syncBrightnessPanel()
   renderBrightness(styleId, scene.getBrightness())
 }
-
-// 普通指南只更新帮助正文；门失败单独留在可见的 live 状态行。
-const WALK_HINT = 'WASD／方向键走动 · Shift 加速 · 拖动环视 · 点家具看身份'
-const OVERVIEW_HINT = '拖动旋转 · 滚轮缩放 · 点家具看身份'
 
 /** 从会话状态同步按钮态与提示：门按钮文案跟随返回后的实际 doorOpen；
  *  当前模式的按钮禁用（已在行走就没有"继续行走"可点）。 */
@@ -186,10 +170,13 @@ function syncWalkUI(scene) {
   const walking = state.mode === 'walk'
   $('enterWalk').disabled = walking
   $('resetView').disabled = !walking
+  $('enterWalk').hidden = walking
+  $('resetView').hidden = !walking
+  $('doorToggle').hidden = !walking
   $('doorToggle').disabled = false
   $('doorToggle').textContent = state.doorOpen ? '关门' : '开门'
-  $('sceneHelp').textContent = walking ? WALK_HINT : OVERVIEW_HINT
   showSceneNotice()
+  furniturePanel?.sync()
 }
 
 /** 行走／总览／门按钮（P1c-2c-2）：页面只调场景句柄，不直接碰门、导航或人物位置；
@@ -198,17 +185,17 @@ function syncWalkUI(scene) {
  *  不只靠 CSS 遮住）；门防夹语义不动。 */
 function wireWalkControls(scene) {
   $('resetView').addEventListener('click', () => {
-    if (!pageAlive || !controlsReady || !toolbarExpanded || scene?.isReading()) return
+    if (!canManage() || !toolbarExpanded || $('resetView').hidden) return
     scene?.resetView()
     if (scene) syncWalkUI(scene)
   })
   $('enterWalk').addEventListener('click', () => {
-    if (!pageAlive || !controlsReady || !toolbarExpanded || scene?.isReading()) return
+    if (!canManage() || !toolbarExpanded || $('enterWalk').hidden) return
     scene?.enterWalk()
     if (scene) syncWalkUI(scene)
   })
   $('doorToggle').addEventListener('click', () => {
-    if (!pageAlive || !controlsReady || !toolbarExpanded || !scene || scene.isReading()) return
+    if (!canManage() || !toolbarExpanded || !scene || scene.getWalkState().mode !== 'walk') return
     const open = !scene.getWalkState().doorOpen
     let result
     try {
@@ -250,6 +237,18 @@ function businessIdFromLocation() {
 let scene = null
 let reader = null
 let exporter = null
+let ambience = null, soundSettings = null, weatherSettings = null, acceptanceRunner = null, audioFocused = true
+const acceptanceMode = !offlineRuntime() && new URLSearchParams(location.search).get('t44-acceptance') === '1'
+let selection = null, furniturePanel = null, windows = null, quick = null, pageFrozen = false, pageFocused = true, acceptanceBusy = false
+const canWindow = () => !acceptanceBusy && pageAlive && controlsReady && !pageFrozen && pageFocused && !document.hidden && !reader?.isOpen() && !exporter?.isOpen()
+const canManage = () => canWindow() && !windows?.isOpen() && !quick?.isOpen()
+function readFurniture(item, returnFocus, initialEntry = null) {
+  if ((!canManage() && !(windows?.isFurniture() && canWindow())) || !item?.binding || !reader) return
+  selection.select(item.instanceId)
+  reader.open({ title: item.name, summary: item.summary, entries: item.binding.entries,
+    emptyText: offlineRuntime()?.missingByInstance.includes(item.instanceId) ? '此资料未随包导出' : `这件${item.name}还没有放入资料`,
+    initialEntry, returnFocus: returnFocus ?? $('viewport').querySelector('canvas') ?? $('viewport') })
+}
 // 真正离开页面后，晚到的数据/模块不许再创建场景；进入往返缓存（bfcache，
 // pagehide.persisted=true）只是冻结：不终止异步链、不销毁场景——恢复的页面
 // 脚本不会重跑，若在这里置了终止标记，加载中的页面回来后就永久停在加载状态。
@@ -266,28 +265,67 @@ let stopTheme = window.SpecDevTheme.subscribe((state) => {
 function stopInitialTheme() { brightnessFrozen = true; stopTheme?.(); stopTheme = null }
 
 window.addEventListener('pagehide', (event) => {
+  acceptanceRunner?.pause('页面离开或进入缓存')
+  pageFrozen = true
+  quick?.deactivate()
+  windows?.suspend(true)
+  furniturePanel?.suspend(true)
+  ambience?.setActive(false)
   exporter?.close(event.persisted)
   if (event.persisted) return
   pageAlive = false
   stopInitialTheme()
-  for (const { target, type, fn } of brightnessListeners) target.removeEventListener(type, fn)
-  brightnessListeners.length = 0
   controlsReady = false
   setExtraControlsDisabled(true)
   reader?.dispose()
   exporter?.dispose()
+  furniturePanel?.dispose()
+  windows?.dispose()
+  quick?.dispose()
+  soundSettings?.dispose()
+  weatherSettings?.dispose()
+  acceptanceRunner?.dispose()
+  ambience?.dispose()
+  selection?.dispose()
   scene?.dispose()
   scene = null
 })
+function syncLifecycle() {
+  if (!pageAlive) return
+  ambience?.setActive(!pageFrozen && !document.hidden && audioFocused)
+  windows?.suspend(pageFrozen || document.hidden || !pageFocused)
+  if (pageFrozen || document.hidden || !pageFocused) quick?.deactivate()
+  handleReadingChange()
+}
+window.addEventListener('pageshow', () => { pageFrozen = false; syncLifecycle() })
+document.addEventListener('visibilitychange', syncLifecycle)
+document.addEventListener('freeze', () => { pageFrozen = true; syncLifecycle() })
+document.addEventListener('resume', () => { pageFrozen = false; syncLifecycle() })
+window.addEventListener('blur', () => {
+  pageFocused = false
+  // 图阅读的子文档接走焦点仍在前台。真正失去窗口焦点时 hasFocus 为 false。
+  audioFocused = document.activeElement?.tagName === 'IFRAME' && document.hasFocus()
+  syncLifecycle()
+})
+window.addEventListener('focus', () => { pageFocused = true; audioFocused = true; syncLifecycle() })
 
 /** 场景建不起来（资源下载、动态导入、WebGL 创建失败）：结束加载状态并说明原因，返回链接不受影响。 */
 function showSceneFailure(reason) {
   stopInitialTheme()
   controlsReady = false
+  quick?.deactivate()
   setExtraControlsDisabled(true)
   syncCaptionVisibility()
   reader?.dispose()
   exporter?.dispose()
+  furniturePanel?.dispose()
+  windows?.dispose()
+  quick?.dispose()
+  soundSettings?.dispose()
+  weatherSettings?.dispose()
+  acceptanceRunner?.dispose()
+  ambience?.dispose()
+  selection?.dispose()
   scene?.dispose()
   scene = null
   document.body.classList.remove('room-live')
@@ -295,13 +333,6 @@ function showSceneFailure(reason) {
   $('roomStage').hidden = false
   $('sceneFallback').hidden = false
   $('sceneFallbackReason').textContent = reason instanceof Error ? reason.message : String(reason)
-}
-
-/** 点击家具的身份一行：textContent 填充，业务数据里的 HTML 字符按文字显示。 */
-function showPick({ instanceId, assetId, name }) {
-  const info = $('pickInfo')
-  info.hidden = false
-  info.textContent = `${name} · 实例 ${instanceId} · 资产 ${assetId}`
 }
 
 /** 家具资料绑定有误（E3b-2）：不装任何家具阅读动作，场景照常创建；
@@ -326,11 +357,18 @@ function showBindingNote(diagnostics) {
 /** 阅读暂停与恢复（E3b-2）：只经场景句柄 setReading，不用 resetView／enterWalk 恢复。
  *  进入阅读：停用三个场景按钮并给背景视口加 inert（面板在 viewport 外，不受波及）；
  *  退出阅读：先撤 inert，再按当前模式经既有 syncWalkUI 恢复按钮态（不整体设 enabled）。 */
-function handleReadingChange(reading) {
-  if (!scene) return
-  scene.setReading(reading)
-  if (reading) {
-    closeBrightness()
+function handleReadingChange() {
+  if (!scene || !controlsReady) return
+  const covered = !!reader?.isOpen() || !!exporter?.isOpen()
+  if (covered || windows?.isOpen() || acceptanceBusy) quick?.close(false)
+  const quickOpen = !!quick?.isOpen()
+  const blocked = acceptanceBusy || covered || !!windows?.isOpen()
+  windows?.cover(covered)
+  scene.setSettingsActive((!!windows?.isSettings() || !!quick?.isBrightness()) && !covered && !pageFrozen && !document.hidden && pageFocused)
+  const paused = blocked || quickOpen || pageFrozen || document.hidden || !pageFocused
+  if (scene.isReading() !== paused) scene.setReading(paused)
+  furniturePanel?.suspend(paused)
+  if (blocked || pageFrozen || document.hidden || !pageFocused) {
     $('viewport').setAttribute('inert', '')
     $('enterWalk').disabled = true
     $('resetView').disabled = true
@@ -342,22 +380,22 @@ function handleReadingChange(reading) {
   renderBrightness(document.body.dataset.style, scene.getBrightness())
   setExtraControlsDisabled(false)
   syncWalkUI(scene)
+  if (quickOpen) for (const id of ['enterWalk', 'resetView', 'doorToggle']) $(id).disabled = true
 }
 
 /** "业务资料"入口（E3b-2；E9c 起含流程图）：只使用 resolver 交付的 directory，不从原始
  *  business.docs/business.charts 另造未校验链接；directory 为 null（业务输入坏）时如实
  *  说明并指向绑定诊断。 */
 function wireBizDocs({ directory, emptyText }) {
-  $('bizDocs').disabled = false
   $('bizDocs').addEventListener('click', () => {
-    if (!pageAlive || !controlsReady || !toolbarExpanded || scene?.isReading() || reader?.isOpen()) return
-    reader.open({ title: '业务资料', entries: directory ?? [], emptyText, returnFocus: $('bizDocs') })
+    if (!windows?.isFurniture() || !canWindow()) return
+    reader.open({ title: '房间资料', entries: directory ?? [], emptyText, returnFocus: $('bizDocs') })
   })
 }
 
 /** 摆放校验／家具目录没过：完整列出 code、涉及实例/目标、字段路径与中文原因；不渲染半份家具、不建场景。 */
-function showDiagnostics(diagnostics) {
-  setStatus('房间布置未通过校验', 'bad')
+function showDiagnostics(diagnostics, unconfirmed = false) {
+  setStatus(unconfirmed ? '房间可达性暂未确认，校验未完成' : '房间布置未通过校验', 'bad')
   $('diagPanel').hidden = false
   const list = $('diagList')
   list.textContent = ''
@@ -401,6 +439,7 @@ async function main() {
   $('bizLink').href = backHref
   $('bizLink').textContent = '业务'
   $('backLink').href = backHref
+  for (const link of document.querySelectorAll('[data-room-atlas]')) link.href = wsUrl(`/specdev-workbench/furniture?room=${encodeURIComponent(id)}`)
   $('loadingBack').href = backHref
   $('loadingBack').textContent = '返回业务页'
 
@@ -470,7 +509,7 @@ async function main() {
   }
 
   const result = validatePlacement(template, catalog, data.layout)
-  if (!result.ok) return showDiagnostics(result.diagnostics)
+  if (!result.ok) return showDiagnostics(result.diagnostics, result.status === 'unconfirmed')
   if (!pageAlive) return
 
   // 家具资料绑定（E3a resolver，E3b-2 接线；E9c 起目录含流程图）：placement 成功后校验，
@@ -483,6 +522,10 @@ async function main() {
   } else {
     showBindingNote(resolved.diagnostics)
   }
+  selection = createFurnitureSelection({ assembly: result.assembly, catalog, bindings: [...bindingByInstance.values()], bindingsOK: resolved.ok,
+    missing: offlineRuntime()?.missingByInstance ?? [],
+    onChange: item => { scene?.setSelected(item?.instanceId ?? null); furniturePanel?.sync(); windows?.sync() },
+  })
   // 空目录两种情形分开说：没登记＝正常空态；解析有错且目录为空＝不可用，指向诊断。
   const docDirectory = resolved.ok || resolved.directory.length > 0 ? resolved.directory : null
   const docEmptyText = docDirectory === null
@@ -520,28 +563,27 @@ async function main() {
   $('roomLoadingPhase').textContent = '准备房间画面…'
   try {
     scene = module.createRoomScene({
+      onWalkMove: value => ambience?.move(value),
+      onWalkReset: () => ambience?.resetSteps(),
       container: $('viewport'),
       template,
       assembly: result.assembly,
       furniture, // 调用瞬间所有权整体转交场景：此后任何失败由场景 releaseAll 释放批次
       deferInput: true,
       brightness: initialBrightness,
+      acceptance: acceptanceMode,
+      materialHints: [...bindingByInstance.values()].filter((binding) => binding.entries.length > 0).map((binding) => ({ instanceId: binding.instanceId, title: binding.title })),
       onBrightnessChange: (state) => { if (pageAlive && controlsReady) renderBrightness(template.styleId, state) },
-      // 点击分派（E3b-2）：先保留身份显示，再按 instanceId 查已验证绑定；
-      // 阅读已打开时迟到的点击不切换集合；未绑定家具只显身份，不猜文档。
+      // 模型点击选择／再次点击阅读；图标是明确阅读捷径，两入口共享实例选择。
       onPick: (picked) => {
-        showPick(picked)
-        if (!reader || reader.isOpen() || exporter?.isOpen()) return
-        const binding = bindingByInstance.get(picked.instanceId)
-        if (!binding) return
-        const canvas = $('viewport').querySelector('canvas')
-        reader.open({
-          title: picked.name,
-          entries: binding.entries,
-          emptyText: offlineRuntime()?.missingByInstance.includes(picked.instanceId) ? '此资料未随包导出' : `这件${picked.name}还没有放入资料`,
-          returnFocus: canvas ?? $('viewport'),
-        })
+        if (!canManage()) return
+        if (!picked) { selection.select(null); return }
+        if (scene.getFurnitureDisplayState(picked.instanceId)?.hidden) return
+        const again = selection.pick(picked.instanceId)
+        if (again) readFurniture(again, picked.returnFocus)
       },
+      onRead: picked => { if (!canManage() || scene.getFurnitureDisplayState(picked.instanceId)?.hidden) return; selection.select(picked.instanceId); readFurniture(selection.getSelected(), picked.returnFocus) },
+      onFurnitureDisplayChange: () => { if (pageAlive && controlsReady) { furniturePanel?.sync(); windows?.sync() } },
     })
   } catch (error) {
     scene = null // 批次已由场景释放（转交即接管），本页不再重复释放
@@ -566,19 +608,61 @@ async function main() {
   reader = createRoomReader({
     root: $('readerRoot'),
     documents: docDirectory ?? [],
-    focusFallback: $('viewport'),
+    focusFallback: $('viewport').querySelector('canvas') ?? $('viewport'),
     onReadingChange: handleReadingChange,
+  })
+  windows = createRoomWindows({ browser: $('furnitureBrowser'), settings: $('settingsRoot'), settingsButton: $('roomSettings'), selection, assembly: result.assembly,
+    display: { getState: instanceId => scene.getFurnitureDisplayState(instanceId) }, createPreview: options => module.createFurniturePreview(options), canInteract: canWindow,
+    onChange: handleReadingChange, onRead: readFurniture,
+    focusScene: () => ($('viewport').querySelector('canvas') ?? $('viewport')).focus(),
+  })
+  ambience = createRoomAmbience({ style: template.styleId, template, period: scene.getBrightness().period,
+    ...(offlineRuntime() ? { load: (key, signal) => offlineRuntime().audioBytes(key, signal), footstepsOptions: { load: (key, signal) => offlineRuntime().footstepBytes(key, signal) }, rainOptions: { load: (key, signal) => offlineRuntime().rainBytes(key, signal) } } : {}),
+    onChange: () => { soundSettings?.sync(); quick?.sync() },
+  })
+  soundSettings = createSoundSettings({ root: $('settingsRoot'), sound: ambience, canInteract: () => !!windows?.isSettings() && canWindow(), fetchJson })
+  quick = createQuickControls({ root: $('quickControls'), viewport: $('viewport'), sound: ambience,
+    getBrightness: () => scene.getBrightness(), setBrightness: value => { scene.setSettingsBrightness(normalizeBrightness(value)); renderBrightness(template.styleId, scene.getBrightness()) },
+    canInteract: () => canWindow() && !windows?.isOpen() && toolbarExpanded, onChange: handleReadingChange,
+    clearInput: () => { scene.clearControlInput(); ambience.resetSteps() }, focusScene: () => ($('viewport').querySelector('canvas') ?? $('viewport')).focus(),
+  })
+  let acceptanceUrl = null
+  if (!offlineRuntime() && !acceptanceMode && ['fairy-study', 'ceramic-study'].includes(id)) {
+    const url = new URL(wsUrl('/specdev-workbench/room/fairy-study'), location.href)
+    url.searchParams.set('t44-acceptance', '1')
+    url.searchParams.set('t44-entry', '1') // 显式重新进入，不能冒充先前跨房续采。
+    acceptanceUrl = url.href
+  }
+  weatherSettings = createWeatherSettings({ root: $('settingsRoot'), scene, sound: ambience, acceptanceUrl, canInteract: () => !!windows?.isSettings() && canWindow() })
+  ambience.setActive(!pageFrozen && !document.hidden && audioFocused)
+  furniturePanel = createFurniturePanel({ root: $('furniturePanel'), toggle: $('furnitureManage'), info: $('pickInfo'), selection,
+    display: {
+      getState: instanceId => scene.getFurnitureDisplayState(instanceId),
+      hasHidden: () => scene.hasHiddenFurniture(), canChange: () => scene.canChangeFurnitureDisplay(),
+      setHidden: (instanceId, value) => scene.setFurnitureHidden(instanceId, value),
+      showAll: () => scene.showAllFurniture(),
+    },
+    canInteract: canManage, onRead: readFurniture, onExpand: origin => windows.openFurniture(origin),
+    clearInput: () => scene?.clearControlInput(), focusScene: () => ($('viewport').querySelector('canvas') ?? $('viewport')).focus(),
+    onControlFocus: value => scene?.setControlFocus(value),
   })
   wireBizDocs({ directory: docDirectory, emptyText: docEmptyText })
   if(!offlineRuntime()){
     exporter=createRoomExporter({root:$('exportRoot'),button:$('roomExport'),url:api=>wsUrl(`/specdev-workbench/api/${api}?business=${encodeURIComponent(id)}`),onOpenChange:handleReadingChange,getState:()=>({theme:window.SpecDevTheme.get().mode,brightness:Math.round(scene.getBrightness().value)}),getAppearance:()=>reader.getAppearance(),setAppearance:value=>reader.setAppearance(value)})
     $('roomExport').hidden=false
-    $('roomExport').addEventListener('click',()=>{if(pageAlive&&controlsReady&&toolbarExpanded&&!scene?.isReading()&&!reader?.isOpen())exporter.open()})
+    $('roomExport').addEventListener('click',()=>{if(canManage()&&toolbarExpanded)exporter.open()})
   }
   // 行走／总览／门按钮（P1c-2c-2）：默认门前总览，此时才启用新控件并同步提示。
   wireWalkControls(scene)
+  setExtraControlsDisabled(false)
   setStatus(`${data.business.name} · ${template.name}`, 'ok')
   scene.finishLoading()
+  if (acceptanceMode) {
+    try {
+      const { installWeatherAcceptance } = await import('./rooms/weather-acceptance.js')
+      if (pageAlive) acceptanceRunner = await installWeatherAcceptance({ scene, sound:ambience, room:id, urlForRoom: roomId=>wsUrl(`/specdev-workbench/room/${roomId}`), fetchJson, isAlive:()=>pageAlive, canStart:canManage, onLock:value=>{acceptanceBusy=value;handleReadingChange()} })
+    } catch (error) { if (pageAlive) setStatus(`验收采样未能准备：${error.message}`, 'bad') }
+  }
 }
 
 main().catch((error) => {

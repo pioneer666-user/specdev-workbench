@@ -1,5 +1,8 @@
 // 构建期收束浏览器闭包与模板；运行导出只读dist/offline，不需要构建依赖。
 import fs from 'node:fs';import path from 'node:path';import {createHash} from 'node:crypto';import {build} from 'esbuild';
+import { AMBIENCE_BASE, AMBIENCE_TRACKS } from '../web/assets/rooms/ambience-presets.js';
+import { FOOTSTEP_BASE, FOOTSTEP_SAMPLES, FOOTSTEP_RESOURCES, footstepResource } from '../web/assets/rooms/footstep-surfaces.js';
+import { RAIN_BASE, RAIN_TRACKS, rainResource } from '../web/assets/rooms/rain-presets.js';
 const hash=value=>createHash('sha256').update(value).digest('hex'),root=path.resolve('.'),out=path.join(root,'dist/offline');
 export async function buildOffline(){
   fs.mkdirSync(out,{recursive:true});const shared={bundle:true,format:'iife',platform:'browser',target:'chrome120',minify:true,legalComments:'eof',metafile:true};
@@ -17,13 +20,38 @@ export async function buildOffline(){
   const boot="const sharedData=JSON.parse(document.getElementById('room-export-chart-data').textContent);document.getElementById('title').textContent=sharedData.title;document.getElementById('summary').textContent='房间与资料可离线阅读，源码链接需联网';";
   chartHTML=chartHTML.replace('</head>',`<style>${css(['style.css','read.css','markdown.css'])}</style><style>.read-page .detail-dialog-body>p,.read-page .detail-dialog-body>ul,.read-page .detail-dialog-body>ol{max-width:none}.read-page #detailsPanel{margin:0}.read-page #status{display:none}.read-page #detailContent{display:block;overflow:auto}.read-page #detailContent h3{margin-top:20px}.read-page #summary{font-size:12px}</style><script>${early}</script></head>`).replace('</body>',`<!-- ROOM_EXPORT_CHART_DATA --><script>${boot}</script><!-- ROOM_EXPORT_CHART_RUNTIME --></body>`);fs.writeFileSync(path.join(out,'chart.html'),chartHTML);
   const resources={};for(const file of ['rooms/templates.json','rooms/placeholder-catalog.json','furniture/index.json'])resources['/specdev-workbench/assets/'+file]=JSON.parse(fs.readFileSync('web/assets/'+file,'utf8'));
-  for(const entry of resources['/specdev-workbench/assets/furniture/index.json'].assets)resources['/specdev-workbench/assets/furniture/'+entry.metadataRef]=JSON.parse(fs.readFileSync('web/assets/furniture/'+entry.metadataRef,'utf8'));
+  const previewInputs=[];
+  for(const entry of resources['/specdev-workbench/assets/furniture/index.json'].assets){
+    const metadata=JSON.parse(fs.readFileSync('web/assets/furniture/'+entry.metadataRef,'utf8'));
+    resources['/specdev-workbench/assets/furniture/'+entry.metadataRef]=metadata;
+    if(metadata.previewRef!==null){
+      if(metadata.previewRef!==`assets/${entry.assetId}/preview.webp`)throw Error('缩略图路径不符合正式目录：'+entry.assetId);
+      const file='web/assets/furniture/'+metadata.previewRef;previewInputs.push(file);
+      resources['/specdev-workbench/assets/furniture/'+metadata.previewRef]='data:image/webp;base64,'+fs.readFileSync(file).toString('base64');
+    }
+  }
+  const audioInputs = AMBIENCE_TRACKS.map(key=>'web/assets/audio/ambience/'+key+'.mp3');
+  for(const key of AMBIENCE_TRACKS)resources[AMBIENCE_BASE+key+'.mp3']='data:audio/mpeg;base64,'+fs.readFileSync('web/assets/audio/ambience/'+key+'.mp3').toString('base64');
+  const noticesFile='web/assets/audio/ambience/notices.json';audioInputs.push(noticesFile);
+  const notices=JSON.parse(fs.readFileSync(noticesFile,'utf8'));resources[AMBIENCE_BASE+'notices.json']=notices;
+  for(const key of FOOTSTEP_SAMPLES){const resource=footstepResource(key),file='web/assets/audio/footsteps/'+resource.file;audioInputs.push(file);resources[FOOTSTEP_BASE+resource.file]='data:'+resource.mime+';base64,'+fs.readFileSync(file).toString('base64');}
+  const stepsNoticesFile='web/assets/audio/footsteps/notices.json';audioInputs.push(stepsNoticesFile);
+  const stepsNotices=JSON.parse(fs.readFileSync(stepsNoticesFile,'utf8'));resources[FOOTSTEP_BASE+'notices.json']=stepsNotices;
+  const generationFile='web/assets/audio/footsteps/generation.json';audioInputs.push(generationFile);
+  const generation=JSON.parse(fs.readFileSync(generationFile,'utf8'));
+  if(JSON.stringify(generation.samples)!==JSON.stringify(FOOTSTEP_SAMPLES))throw Error('当前脚步素材与固定映射不一致');
+  if(JSON.stringify(generation.resources)!==JSON.stringify(FOOTSTEP_RESOURCES))throw Error('当前脚步文件/MIME与固定映射不一致');
+  resources[FOOTSTEP_BASE+'generation.json']=generation;
+  for(const key of RAIN_TRACKS){const file='web/assets/audio/rain/'+key+'.wav';audioInputs.push(file);resources[rainResource(key)]='data:audio/wav;base64,'+fs.readFileSync(file).toString('base64');}
+  const rainNoticesFile='web/assets/audio/rain/notices.json',rainGenerationFile='web/assets/audio/rain/generation.json';audioInputs.push(rainNoticesFile,rainGenerationFile);
+  const rainNotices=JSON.parse(fs.readFileSync(rainNoticesFile,'utf8'));resources[RAIN_BASE+'notices.json']=rainNotices;
+  resources[RAIN_BASE+'generation.json']=JSON.parse(fs.readFileSync(rainGenerationFile,'utf8'));
   fs.writeFileSync(path.join(out,'resources.json'),JSON.stringify(resources));
   fs.copyFileSync('web/assets/offline/bridge.js',path.join(out,'bridge.js'));
   const mit=fs.readFileSync('LICENSE','utf8'),header=fs.readFileSync('web/assets/three/three.core.js','utf8').match(/^\/\*\*[\s\S]*?\*\//)?.[0],copyright=header?.match(/Copyright[^\r\n]+/)?.[0],offset=mit.indexOf('Permission is hereby granted');if(!copyright||!header.includes('SPDX-License-Identifier: MIT')||offset<0)throw Error('Three许可锚点不符');
-  fs.writeFileSync(path.join(out,'licenses.json'),JSON.stringify([['SpecDev',mit],['Archify',fs.readFileSync('vendor/archify-3.0.1/LICENSE','utf8')],['Marked',fs.readFileSync('web/assets/vendor/marked/LICENSE','utf8')],['Three.js','MIT License\n\n'+copyright+'\n\n'+mit.slice(offset)]]));
+  fs.writeFileSync(path.join(out,'licenses.json'),JSON.stringify([['SpecDev',mit],['Archify',fs.readFileSync('vendor/archify-3.0.1/LICENSE','utf8')],['Marked',fs.readFileSync('web/assets/vendor/marked/LICENSE','utf8')],['Three.js','MIT License\n\n'+copyright+'\n\n'+mit.slice(offset)],['环境声',notices.text],['脚步声',stepsNotices.text],['雨声',rainNotices.text]]));
   const resourcesInputs=['web/assets/rooms/templates.json','web/assets/rooms/placeholder-catalog.json','web/assets/furniture/index.json','web/assets/rooms/ui/fairy-wood.svg','LICENSE','vendor/archify-3.0.1/LICENSE','web/assets/vendor/marked/LICENSE'];for(const entry of resources['/specdev-workbench/assets/furniture/index.json'].assets)resourcesInputs.push('web/assets/furniture/'+entry.metadataRef);
-  const inputs={};for(const file of new Set([...Object.keys(room.metafile.inputs),...Object.keys(chart.metafile.inputs),...resourcesInputs,'web/room.html','web/read.html','web/assets/style.css','web/assets/room.css','web/assets/read.css','web/assets/markdown.css','web/assets/offline/bridge.js']))inputs[file]=hash(fs.readFileSync(file));
+  const inputs={};for(const file of new Set([...Object.keys(room.metafile.inputs),...Object.keys(chart.metafile.inputs),...resourcesInputs,...previewInputs,...audioInputs,'web/room.html','web/read.html','web/assets/style.css','web/assets/room.css','web/assets/read.css','web/assets/markdown.css','web/assets/offline/bridge.js']))inputs[file]=hash(fs.readFileSync(file));
   const files={};for(const file of fs.readdirSync(out))files[file]=hash(fs.readFileSync(path.join(out,file)));fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify({format:'specdev-room-offline-assets/1',inputs,files},null,2));
   console.log('已生成 dist/offline（两个浏览器入口、模板、资源与许可）');
 }

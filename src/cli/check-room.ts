@@ -3,9 +3,9 @@
 // 做 workflow.json 的 JSON 解析与顶层对象检查——这是读取层校验，不是 Archify 编译
 // 或可视渲染验证；图语义、节点详情与源码证据的完整性仍由既有阅读页处理。
 import path from 'node:path'
-import { readFile, realpath } from 'node:fs/promises'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
 import { CoreError } from '../core/errors.ts'
+import { createRoomResourceReader, loadRoomTemplates, selectRoomTemplate, loadRoomPlacementResources, RoomResourceError } from '../core/room-resources.ts'
 import { assertRepoUsable, assertRepoTopLevel, readWorktreeFileOptional } from '../core/git.ts'
 import { readRoomLayout, roomLayoutRel } from '../core/room.ts'
 import { readChartPage } from '../core/chart.ts'
@@ -17,14 +17,13 @@ interface Diagnostic {
   message: string
   fieldPath?: string
   instanceIds?: string[]
-  targetId?: string
+  targetId?: string | null
   sourcePath?: string
   causeCode?: string
 }
 type ModuleDiagnostic = Omit<Diagnostic, 'stage'>
 interface Catalog { assets: unknown[] }
 interface Validation { ok: boolean; diagnostics: ModuleDiagnostic[] }
-interface PlacementModule { validatePlacement: (template: unknown, catalog: Catalog, layout: unknown) => Validation }
 /** 目录条目按 kind 区分（E9c）：文档＝登记路径，流程图＝业务与 chartId；不共用裸字符串键。 */
 interface DocumentDirectoryEntry { kind: 'document'; businessId: string; path: string }
 interface ChartDirectoryEntry { kind: 'workflow' | 'chart'; businessId: string; chartId: string; title: string; unavailableReason?: string }
@@ -33,9 +32,6 @@ interface BindingsModule {
   resolveRoomBindings: (input: { business: unknown; layout: unknown; catalog: Catalog }) => Validation & {
     directory: DirectoryEntry[]
   }
-}
-interface CatalogModule {
-  loadFurnitureCatalog: (options: { fetchJson: (url: string) => Promise<unknown> }) => Promise<Validation & { catalog: Catalog | null }>
 }
 export interface RoomCheckOutcome {
   schemaVersion: 1
@@ -50,8 +46,6 @@ export interface CliIo { out: (text: string) => void; err: (text: string) => voi
 
 const USAGE = '用法：node <插件包根>/dist/check-room.js <项目仓库根> <业务ID> [--json]'
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
-// 只支持 dist 产物；从实际运行入口定位包根，不受 cwd 影响，也不接受外部包根参数。
-const PACKAGE_ROOT = fileURLToPath(new URL('../', import.meta.url))
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const reasonOf = (error: unknown): string => error instanceof Error ? error.message : String(error)
 
@@ -82,73 +76,17 @@ export async function runRoomCheck(input: string, businessId: string): Promise<R
     const { business, layout } = await readRoomLayout(repoRoot, businessId)
 
     stage = 'resources'
-    // 固定资源与注入的家具 URL 都只能落到当前包 web 中；不回退源码，不发 HTTP。
-    const packageReal = await realpath(PACKAGE_ROOT)
-    const webRoot = path.join(packageReal, 'web')
-    const resourcePath = async (relative: string): Promise<string> => {
-      try {
-        const absolute = await realpath(path.join(webRoot, relative))
-        const fromWeb = path.relative(webRoot, absolute)
-        if (fromWeb === '..' || fromWeb.startsWith('..' + path.sep) || path.isAbsolute(fromWeb)) {
-          throw new Error('资源路径越出运行包的 web 目录')
-        }
-        return absolute
-      } catch (error) {
-        throw new CoreError('ROOM_RESOURCE_READ', `无法读取运行包资源 web/${relative}：${reasonOf(error)}`, 500)
-      }
-    }
-    const readJson = async (relative: string): Promise<unknown> => {
-      try {
-        return JSON.parse(await readFile(await resourcePath(relative), 'utf8')) as unknown
-      } catch (error) {
-        if (error instanceof CoreError) throw error
-        throw new CoreError('ROOM_RESOURCE_READ', `无法解析运行包资源 web/${relative}：${reasonOf(error)}`, 500)
-      }
-    }
-    const importResource = async (relative: string): Promise<unknown> => {
-      try {
-        // 使用运行时 URL，避免 esbuild 将 registry 的模型及 Three 追入 CLI。
-        const url = pathToFileURL(await resourcePath(relative)).href
-        return await import(url)
-      } catch (error) {
-        if (error instanceof CoreError) throw error
-        throw new CoreError('ROOM_RESOURCE_READ', `无法导入运行包模块 web/${relative}：${reasonOf(error)}`, 500)
-      }
-    }
-    const templates = await readJson('assets/rooms/templates.json')
-    if (!isObject(templates) || templates.schemaVersion !== 1 || !Array.isArray(templates.templates)) {
-      return withProblems(outcome, 'failed', [{ stage: 'template', code: 'TEMPLATE_INPUT', message: '运行包 templates.json 必须是 schemaVersion=1 且 templates 为数组的对象', fieldPath: 'templates', sourcePath: 'web/assets/rooms/templates.json' }])
-    }
-    const matches = templates.templates.filter((item: unknown) => isObject(item) && item.templateId === layout.templateRef)
-    if (matches.length === 0) {
+    const reader = await createRoomResourceReader()
+    const templates = await loadRoomTemplates(reader)
+    const template = selectRoomTemplate(templates, layout.templateRef)
+    if (!template) {
       return withProblems(outcome, 'checked', [{ stage: 'template', code: 'TEMPLATE_UNKNOWN', message: `房间模板未登记：${layout.templateRef}`, fieldPath: 'layout.templateRef', sourcePath: outcome.sourcePath! }])
     }
-    if (matches.length !== 1) {
-      return withProblems(outcome, 'failed', [{ stage: 'template', code: 'TEMPLATE_INPUT', message: `运行包模板 ${layout.templateRef} 重复登记，必须恰好一项`, fieldPath: 'templates', sourcePath: 'web/assets/rooms/templates.json' }])
-    }
-    const placeholder = await readJson('assets/rooms/placeholder-catalog.json')
-    if (!isObject(placeholder) || !Array.isArray(placeholder.assets)) {
-      return withProblems(outcome, 'failed', [{ stage: 'resources', code: 'CATALOG_INPUT', message: '运行包 placeholder-catalog.json 必须是 assets 为数组的非 null、非数组对象', fieldPath: 'catalog', sourcePath: 'web/assets/rooms/placeholder-catalog.json' }])
-    }
-    const placement = await importResource('assets/rooms/placement.js') as PlacementModule
-    const bindings = await importResource('assets/rooms/bindings.js') as BindingsModule
-    const library = await importResource('assets/furniture/catalog.js') as CatalogModule
-    if (typeof placement.validatePlacement !== 'function' || typeof bindings.resolveRoomBindings !== 'function' || typeof library.loadFurnitureCatalog !== 'function') {
-      throw new CoreError('ROOM_RESOURCE_READ', '运行包校验模块缺少所需导出函数', 500)
-    }
-    const loaded = await library.loadFurnitureCatalog({ fetchJson: async (url) => {
-      const prefix = '/specdev-workbench/assets/furniture/'
-      if (url === prefix + 'index.json') return readJson('assets/furniture/index.json')
-      const match = /^\/specdev-workbench\/assets\/furniture\/assets\/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\/asset\.json$/.exec(url)
-      if (!match) throw new Error(`家具资源地址不在固定包内白名单：${url}`)
-      return readJson(`assets/furniture/assets/${match[1]}/asset.json`)
-    } })
-    if (!loaded.ok) return withProblems(outcome, 'failed', atStage(loaded.diagnostics, 'resources'))
-    if (!loaded.catalog) throw new CoreError('ROOM_RESOURCE_READ', '家具目录读取成功却未返回目录', 500)
-    // 数组拼接，不能覆盖去重；重复 ID 交真实 placement 诊断。
-    const catalog = { schemaVersion: 1, assets: [...placeholder.assets, ...loaded.catalog.assets] }
+    const { placement, catalog } = await loadRoomPlacementResources(reader)
+    const bindings = await reader.importResource('assets/rooms/bindings.js') as BindingsModule
+    if (typeof bindings.resolveRoomBindings !== 'function') throw new CoreError('ROOM_RESOURCE_READ', '运行包校验模块缺少所需导出函数', 500)
     stage = 'placement'
-    const placed = placement.validatePlacement(matches[0], catalog, layout)
+    const placed = placement.validatePlacement(template, catalog, layout)
     if (!placed.ok) return withProblems(outcome, 'checked', atStage(placed.diagnostics, stage))
     stage = 'bindings'
     const resolved = bindings.resolveRoomBindings({ business, layout, catalog })
@@ -213,6 +151,7 @@ export async function runRoomCheck(input: string, businessId: string): Promise<R
     }
     return { ...outcome, kind: 'checked', ok: diagnostics.length === 0, diagnostics }
   } catch (error) {
+    if (error instanceof RoomResourceError) return withProblems(outcome, 'failed', atStage(error.diagnostics as ModuleDiagnostic[], error.stage))
     return withProblems(outcome, 'failed', [{ stage, code: error instanceof CoreError ? error.code : 'internal', message: reasonOf(error) }])
   }
 }

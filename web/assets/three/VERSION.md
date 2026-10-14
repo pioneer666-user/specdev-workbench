@@ -10,3 +10,5 @@
 - 升级：从官方发布取新版三文件整组替换（两个核心文件必须同版本成组更新），
   改动涉及渲染的页面后由作者看页面验收；本目录文件不手改。
 - 大小核对：三文件均低于插件静态资源 2 MiB 读取上限（最大 three.core.js ≈1.46 MB）。
+
+T44新增官方 `Reflector.js`：从T43冻结的three@0.186.0 `examples/jsm/objects/Reflector.js` 原字节复制，只依赖当前同版core，MIT。用于屋外天气反射；导出闭包沿用同一文件，无第二套core。来源/SHA见 `audio/rain/notices.json` 与T44 `sources.json`，不手改官方文件。

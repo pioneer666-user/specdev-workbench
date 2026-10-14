@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "roomId": "sample-ceramic-home",
+  "businessId": "sample-ceramic-home",
+  "templateRef": "room-ceramic-01",
+  "instances": [
+    { "instanceId": "welcome-board", "assetId": "fairy-notice-board-01", "placement": { "kind": "floor", "zoneId": "floor-main", "x": -3, "z": -2.25, "yawDeg": 0 } },
+    { "instanceId": "entry-cabinet", "assetId": "ceramic-low-cabinet-01", "placement": { "kind": "floor", "zoneId": "floor-main", "x": -1.1, "z": -2.3, "yawDeg": 0 } },
+    { "instanceId": "entry-vase", "assetId": "ceramic-vase-01", "placement": { "kind": "surface", "parentInstanceId": "entry-cabinet", "surfaceId": "cabinet-top", "offsetX": -0.27, "offsetZ": -0.02, "yawDeg": 0 } },
+    { "instanceId": "entry-books", "assetId": "fairy-book-stack-01", "placement": { "kind": "surface", "parentInstanceId": "entry-cabinet", "surfaceId": "cabinet-top", "offsetX": 0.22, "offsetZ": 0.04, "yawDeg": 0 } },
+    { "instanceId": "work-desk", "assetId": "fairy-desk-01", "placement": { "kind": "floor", "zoneId": "floor-main", "x": -3, "z": 0.05, "yawDeg": 90 } },
+    { "instanceId": "work-lamp", "assetId": "fairy-table-lamp-01", "placement": { "kind": "surface", "parentInstanceId": "work-desk", "surfaceId": "desktop", "offsetX": 0.4, "offsetZ": 0, "yawDeg": 0 } },
+    { "instanceId": "reading-chair", "assetId": "fairy-reading-chair-01", "placement": { "kind": "floor", "zoneId": "floor-main", "x": -2, "z": 1.95, "yawDeg": 180 } },
+    { "instanceId": "reading-light", "assetId": "ceramic-floor-lamp-01", "placement": { "kind": "floor", "zoneId": "floor-main", "x": -3.3, "z": 2.25, "yawDeg": 180 } },
+    { "instanceId": "reading-shelf", "assetId": "fairy-bookshelf-01", "placement": { "kind": "floor", "zoneId": "floor-main", "x": 0.4, "z": 2.4, "yawDeg": 180 } },
+    { "instanceId": "feature-stand", "assetId": "ceramic-display-stand-01", "placement": { "kind": "floor", "zoneId": "floor-main", "x": 3.15, "z": 0.8, "yawDeg": 270 } },
+    { "instanceId": "feature-plant", "assetId": "fairy-potted-plant-01", "placement": { "kind": "surface", "parentInstanceId": "feature-stand", "surfaceId": "display-top", "offsetX": 0, "offsetZ": 0, "yawDeg": 90 } }
+  ],
+  "bindings": []
+}

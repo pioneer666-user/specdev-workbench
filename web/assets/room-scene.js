@@ -12,6 +12,7 @@
 // 阅读暂停（E3b-1）：rooms/reading-gate.js 统一闸住输入、帧推进与总览控制器，
 // setReading(true) 期间切模式/开门为无操作，渲染循环只经 gate.advance 推进相机。
 import * as THREE from 'three'
+export { createFurniturePreview } from './rooms/furniture-preview.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { createWalkInput } from './building-walk.js'
 import { createCeramicRoom } from './rooms/ceramic-room.js'
@@ -21,7 +22,12 @@ import { createRoomLighting } from './rooms/room-lighting.js'
 import { createRoomWalkSession } from './rooms/walk-session.js'
 import { createWalkFrame, lookYawToward, WALK_FOV } from './rooms/walk-frame.js'
 import { createRoomReadingGate } from './rooms/reading-gate.js'
+import { createPickGesture } from './rooms/pick-gesture.js'
+import { createSelectionHighlight } from './rooms/selection-highlight.js'
+import { createFurnitureVisibility } from './rooms/furniture-visibility.js'
 import { prepareRoomFurniture, findFurnitureInstance } from './rooms/furniture-assembly.js'
+import { createMaterialHints, MATERIAL_HINT_LIMIT } from './rooms/material-hints.js'
+import { createRoomWeather } from './rooms/weather.js'
 
 // 页面经本模块动态入口进入 Three.js（E4b-2）：家具批次的准备与向上查找一并无须单独加载。
 export { prepareRoomFurniture, findFurnitureInstance }
@@ -109,10 +115,12 @@ function disposeGroup(group) {
  *   setReading(bool)  阅读暂停闸门（E3b-1）：true 停住全部场景操作（键盘、拖动、
  *                     总览控制器、拾取），false 后仍在原模式、原位置、原视线
  *   isReading()       闸门当前状态（销毁后恒 false）
+ *   getMaterialHintsVisible()/setMaterialHintsVisible(bool) 本页资料图标选择，
+ *                     隐藏/恢复只更新提示层；加载、阅读及冻结期不接受切换
  *   setPeriod('day'|'night')／dispose()
  * 场景／会话初始化失败沿用"清理后抛错"路径（页面展示失败原因），不退回无碰撞行走。
  */
-export function createRoomScene({ container, template, assembly, furniture, deferInput = false, brightness = 100, onBrightnessChange = () => {}, onPick = () => {} } = {}) {
+export function createRoomScene({ container, template, assembly, furniture, materialHints = [], deferInput = false, brightness = 100, acceptance = false, onBrightnessChange = () => {}, onPick = () => {}, onRead = () => {}, onFurnitureDisplayChange = () => {}, onWalkMove = () => {}, onWalkReset = () => {} } = {}) {
   // styleId 取值必须在函数顶层：setPeriod 闭包引用它——不能随风格校验挪进 try 的块作用域
   const styleId = template?.styleId
   const reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -129,13 +137,25 @@ export function createRoomScene({ container, template, assembly, furniture, defe
   let furnitureBatch = null
   let furnitureGroup = null
   let outdoorGround = null
+  let weather = null, weatherNight = 0
   let session = null
   let input = null
   let walkFrame = null
   let gate = null
   let observer = null
+  let hints = null
+  let highlight = null
+  let furnitureDisplay = null
+  let selectedInstance = null, acceptanceInput = null, acceptanceQuality = null
+  let pageFocused = true
+  let reading = false, controlFocused = false, settingsActive = false
+  const gesture = createPickGesture()
+  let acceptanceLock = false, acceptanceObserver = null
+  const syncPause = () => gate?.setReading(reading || controlFocused || acceptanceLock)
   let disposed = false
   let loading = deferInput
+  let pageFrozen = false
+  let materialHintsVisible = true // 本页偏好独立于阅读/冻结等临时守卫，不持久化。
   let firstFrame = false
   let resolveReady, rejectReady
   const ready = new Promise((resolve, reject) => { resolveReady = resolve; rejectReady = reject })
@@ -149,16 +169,22 @@ export function createRoomScene({ container, template, assembly, furniture, defe
   function releaseAll() {
     if (disposed && !renderer) return
     disposed = true
+    acceptanceObserver = null
     resolveReady(false)
     if (renderer) renderer.setAnimationLoop(null)
     observer?.disconnect()
-    for (const { target, type, listener } of canvasListeners) target.removeEventListener(type, listener)
+    for (const { target, type, listener, capture = false } of canvasListeners) target.removeEventListener(type, listener, capture)
     canvasListeners.length = 0
     for (const { target, type, listener } of pageListeners) target.removeEventListener(type, listener)
     pageListeners.length = 0
     brightnessControl?.dispose()
+    hints?.dispose()
+    highlight?.dispose()
+    furnitureDisplay?.dispose()
+    gesture.cancel()
     gate?.dispose() // 先让阅读闸门失效，再走既有释放路径（不会重新启用输入或连接监听）
     input?.dispose()
+    weather?.dispose()
     // 家具批次所有权在调用 createRoomScene 时已整体转交本场景：任何失败路径都由这里释放
     furnitureBatch?.dispose()
     if (outdoorGround) disposeGroup(outdoorGround)
@@ -178,11 +204,13 @@ export function createRoomScene({ container, template, assembly, furniture, defe
     furnitureBatch = null
     furnitureGroup = null
     outdoorGround = null
+    weather = null
     session = null
     input = null
     walkFrame = null
     gate = null
     observer = null
+    hints = null
   }
 
   function resize() {
@@ -209,6 +237,7 @@ export function createRoomScene({ container, template, assembly, furniture, defe
    *  阅读期间为无操作（输入启停统一交闸门的 syncMode，不在这里直写）。 */
   function resetView() {
     if (disposed || loading || gate?.isReading()) return
+    if (pageFrozen || document.hidden || !pageFocused) return
     session.setMode('overview')
     mode = 'overview'
     walkFrame.resetClock()
@@ -217,24 +246,32 @@ export function createRoomScene({ container, template, assembly, furniture, defe
     controls.target.set(overviewPose.target.x, overviewPose.target.y, overviewPose.target.z)
     controls.update()
     gate.syncMode()
+    onFurnitureDisplayChange()
   }
 
   /** 继续行走：保留站位与视线，只切输入与相机；切模式清空计时避免切回来补算。
    *  阅读期间为无操作。 */
   function enterWalk() {
     if (disposed || loading || gate?.isReading()) return
+    if (pageFrozen || document.hidden || !pageFocused) return
     session.setMode('walk')
     mode = 'walk'
+    // 输入/活动相机生效前，清主动隐藏并同步实际模型、提示、高亮和清单。
+    furnitureDisplay.restoreForWalk()
+    onFurnitureDisplayChange()
     walkFrame.resetClock()
     renderer.domElement.focus({ preventScroll: true })
     gate.syncMode()
   }
 
-  function setBrightness(value) {
-    if (disposed || loading || gate?.isReading()) return false
+  function applyBrightness(value) {
     brightnessControl.set(value)
     onBrightnessChange(brightnessControl.get())
     return true
+  }
+  function setBrightness(value) {
+    if (disposed || loading || gate?.isReading()) return false
+    return applyBrightness(value)
   }
   // 只允许首个成功主画面前更新主题初值，场景已呈现就冻结本次会话。
   function setInitialBrightness(value) {
@@ -263,6 +300,11 @@ export function createRoomScene({ container, template, assembly, furniture, defe
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.domElement.tabIndex = 0
     renderer.domElement.setAttribute('aria-label', '房间视图：WASD 或方向键行走、Shift 加速、拖动环视；回到总览后拖动旋转、滚轮缩放；点击家具查看身份')
+    if (acceptance) {
+      const gl=renderer.getContext?.(),debug=gl?.getExtension('WEBGL_debug_renderer_info')
+      acceptanceQuality={reducedMotion,antialias:gl?.getContextAttributes()?.antialias??null,shadowType:renderer.shadowMap.type,toneMapping:renderer.toneMapping,
+        renderer:gl?gl.getParameter(debug?debug.UNMASKED_RENDERER_WEBGL:gl.RENDERER):null,vendor:gl?gl.getParameter(debug?debug.UNMASKED_VENDOR_WEBGL:gl.VENDOR):null}
+    }
     container.append(renderer.domElement)
 
     scene = new THREE.Scene()
@@ -281,16 +323,30 @@ export function createRoomScene({ container, template, assembly, furniture, defe
     room = roomFactory({ renderer, scene, reducedMotion, doorOpen: false })
     scene.add(room.group)
     brightnessControl = createBrightnessTransition({ style: styleId, initial: brightness, reducedMotion,
-      apply: (params) => { lighting.applyBrightness(styleId, params); room.applyBrightness?.(params) },
+      apply: (params) => { weatherNight = params.nightMix; lighting.applyBrightness(styleId, params); room.applyBrightness?.(params) },
     })
 
     // 家具批次（E4b-2）：模型由页面先经 prepareRoomFurniture 异步备好，这里只整组挂进
     // 场景——不再内置模型工厂循环；位置/朝向已在批次内按 assembly 世界坐标摆好。
     furnitureGroup = furnitureBatch.group
     scene.add(furnitureGroup)
+    if (acceptance) acceptanceInput={templateId:template.templateId,instances:furnitureGroup.children.map(owner=>({instanceId:owner.userData.instanceId,
+      assetId:assembly.instances.find(item=>item.instanceId===owner.userData.instanceId)?.assetId,position:owner.position.toArray(),rotation:owner.rotation.toArray(),scale:owner.scale.toArray()}))}
+    highlight = createSelectionHighlight(scene, furnitureGroup)
+    const originalVisibility = new Map(furnitureGroup.children.map(owner => [owner, owner.visible]))
+    furnitureDisplay = createFurnitureVisibility({ instances: assembly.instances,
+      canChange: () => !disposed && !loading && !pageFrozen && pageFocused && !document.hidden && !reading && mode === 'overview',
+      onChange: () => {
+        for (const owner of furnitureGroup.children) owner.visible = originalVisibility.get(owner) && !furnitureDisplay.getState(owner.userData.instanceId).hidden
+        gesture.cancel(); hints?.cancelGesture()
+        highlight.refresh(); hints?.update()
+        onFurnitureDisplayChange()
+      },
+    })
 
     outdoorGround = buildOutdoorGround(styleId, template)
     scene.add(outdoorGround)
+    weather = createRoomWeather({ scene, renderer, template, groundColor: outdoorGround.children[0].material.color })
 
     // 行走会话：人物站位、walk／overview 模式与门开合事务的唯一来源（P1c-2c-1 模块）。
     session = createRoomWalkSession({ template, assembly, door: room.door })
@@ -302,6 +358,8 @@ export function createRoomScene({ container, template, assembly, furniture, defe
       session,
       input,
       camera: walkCamera,
+      onMove: onWalkMove,
+      onReset: onWalkReset,
       yaw: lookYawToward(spawn, { x: doorCenter.centerX, z: doorCenter.centerZ }),
     })
 
@@ -309,41 +367,77 @@ export function createRoomScene({ container, template, assembly, furniture, defe
     // 现有 mode，不另建一套 walk/overview 状态。未完成拾取记录放在 clearPick 可
     // 访问的同一作用域，暂停时由闸门清掉——恢复后不把暂停前的按下与恢复后的
     // 抬起拼成新点击；阅读中的按下/抬起在下方监听器里直接忽略。
-    let downAt = null
     gate = createRoomReadingGate({
       input,
       controls,
       walkFrame,
       getMode: () => mode,
-      clearPick: () => { downAt = null },
+      clearPick: gesture.cancel,
     })
 
-    // 点击家具：拖动超过 6px 不算点击；pointercancel 清掉本次按下记录。
+    // 点击家具：完整手势移出 6px 即拒绝，即使抬起时回到原位；取消清掉记录。
     // 候选＝家具网格＋四面墙组（含门框、门扇——门是墙组的活动子树），
     // 由 judgeRoomPick 按距离与可见性裁决：总览裁掉的墙不遮挡，磨砂玻璃不遮挡。
     const raycaster = new THREE.Raycaster()
+    const canPick = () => !disposed && !loading && !pageFrozen && !document.hidden && !gate.isReading()
     const onPointerDown = (event) => {
-      if (loading || gate.isReading()) return
-      downAt = [event.clientX, event.clientY]
+      if (disposed || loading || pageFrozen || document.hidden || reading) return
+      controlFocused = false; syncPause()
+      if (!canPick()) return
+      gesture.down(event)
     }
-    const onPointerCancel = () => { downAt = null }
+    const onPointerCancel = gesture.cancel
+    const onPointerMove = event => { if (canPick()) gesture.move(event); else gesture.cancel() }
     const effectivelyVisible = (object) => {
       for (let node = object; node; node = node.parent) if (!node.visible) return false
       return true
     }
+    // 原拾取对象集合与不透明度口径共用；世界包围盒只在装配后计算一次。
+    const pickTargets = [...furnitureGroup.children, ...room.walls.map((wall) => wall.group)]
+    furnitureGroup.updateMatrixWorld(true)
+    const hintItems = materialHints.slice(0, MATERIAL_HINT_LIMIT).flatMap((item) => {
+      const owner = furnitureGroup.children.find((child) => child.userData.instanceId === item.instanceId)
+      if (!owner) return []
+      const anchor = new THREE.Box3().setFromObject(owner).getCenter(new THREE.Vector3())
+      return [{ instanceId: item.instanceId, title: item.title ?? owner.userData.name, owner, anchor, pick: { ...owner.userData } }]
+    })
+    const projected = new THREE.Vector3(), cameraPosition = new THREE.Vector3(), direction = new THREE.Vector3()
+    const projectHint = (item) => {
+      const camera = mode === 'walk' ? walkCamera : overviewCamera
+      if (!camera || !effectivelyVisible(item.owner)) return { visible: false }
+      camera.updateMatrixWorld()
+      projected.copy(item.anchor).project(camera)
+      if (projected.z < -1 || projected.z > 1 || Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1) return { visible: false }
+      camera.getWorldPosition(cameraPosition)
+      direction.copy(item.anchor).sub(cameraPosition)
+      const distance = direction.length()
+      // 每个标记每帧最多一条射线；按钮点击再次核当前相机，不能借避让绕过遮挡。
+      raycaster.set(cameraPosition, direction.normalize())
+      raycaster.camera = camera
+      for (const hit of raycaster.intersectObjects(pickTargets, true)) {
+        if (hit.distance >= distance - 0.001) break
+        if (!effectivelyVisible(hit.object)) continue
+        const owner = findFurnitureInstance(hit.object, furnitureGroup)
+        if (owner === item.owner) continue
+        const material = Array.isArray(hit.object.material) ? hit.object.material[0] : hit.object.material
+        if (owner || !material?.transparent || material.opacity >= 0.6) return { visible: false }
+      }
+      return { visible: true, x: (projected.x + 1) * container.clientWidth / 2, y: (1 - projected.y) * container.clientHeight / 2 }
+    }
+    hints = hintItems.length ? createMaterialHints({ container, items: hintItems, project: projectHint,
+      canInteract: () => materialHintsVisible && !disposed && !loading && !pageFrozen && !document.hidden && !reading,
+      clearInput: () => { input.clear(); walkFrame.resetClock(); gesture.cancel() },
+      onOpen: onRead, focusFallback: renderer.domElement,
+    }) : null
     const onPointerUp = (event) => {
-      if (loading || gate.isReading()) return
-      if (!downAt) return
-      const moved = Math.hypot(event.clientX - downAt[0], event.clientY - downAt[1])
-      downAt = null
-      if (moved > 6) return
+      if (!canPick()) { gesture.cancel(); return }
+      if (!gesture.up(event)) return
       const rect = renderer.domElement.getBoundingClientRect()
       raycaster.setFromCamera(
         new THREE.Vector2(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1),
         mode === 'walk' ? walkCamera : overviewCamera,
       )
-      const targets = [...furnitureGroup.children, ...room.walls.map((wall) => wall.group)]
-      const hits = raycaster.intersectObjects(targets, true).map((hit) => {
+      const hits = raycaster.intersectObjects(pickTargets, true).map((hit) => {
         const material = Array.isArray(hit.object.material) ? hit.object.material[0] : hit.object.material
         const opacity = material?.transparent ? material.opacity : 1
         const owner = findFurnitureInstance(hit.object, furnitureGroup) // 书板/书脊/藤叶命中都归所属书架实例
@@ -352,34 +446,50 @@ export function createRoomScene({ container, template, assembly, furniture, defe
           : { kind: 'occluder', visible: effectivelyVisible(hit.object), opacity }
       })
       const picked = judgeRoomPick(hits)
-      if (picked) onPick(picked)
+      onPick(picked)
     }
-    renderer.domElement.addEventListener('pointerdown', onPointerDown)
+    // 原输入器/Orbit 收到按下之前解除控件暂停，让返回画布的首次拖动完整成立。
+    renderer.domElement.addEventListener('pointerdown', onPointerDown, true)
     renderer.domElement.addEventListener('pointerup', onPointerUp)
     renderer.domElement.addEventListener('pointercancel', onPointerCancel)
+    renderer.domElement.addEventListener('pointermove', onPointerMove)
+    renderer.domElement.addEventListener('wheel', onPointerCancel)
+    renderer.domElement.addEventListener('lostpointercapture', onPointerCancel)
     canvasListeners.push(
-      { target: renderer.domElement, type: 'pointerdown', listener: onPointerDown },
+      { target: renderer.domElement, type: 'pointerdown', listener: onPointerDown, capture: true },
       { target: renderer.domElement, type: 'pointerup', listener: onPointerUp },
       { target: renderer.domElement, type: 'pointercancel', listener: onPointerCancel },
+      { target: renderer.domElement, type: 'pointermove', listener: onPointerMove },
+      { target: renderer.domElement, type: 'wheel', listener: onPointerCancel },
+      { target: renderer.domElement, type: 'lostpointercapture', listener: onPointerCancel },
     )
 
     // 页面隐藏／失焦时输入器自会清空；这里再把帧计时基线一并重置，
     // 往返缓存（pagehide persisted=true 只冻结）恢复后首帧 dt=0，不把离开的时间算成位移。
     const pauseForFreeze = () => {
+      gesture.cancel()
+      hints?.cancelGesture()
       input.clear()
       walkFrame.resetClock()
       brightnessControl.resetClock()
+      weather?.setActive(!pageFrozen && !document.hidden && pageFocused)
     }
     const onVisibilityChange = () => pauseForFreeze()
-    const onPageHide = (event) => { if (event.persisted) pauseForFreeze() }
-    const onPageShow = () => pauseForFreeze()
+    const onPageHide = () => { pageFrozen = true; pauseForFreeze(); hints?.update() }
+    const onPageShow = () => { pageFrozen = false; pauseForFreeze(); hints?.update(); onFurnitureDisplayChange() }
+    const onBlur = () => { pageFocused = false; pauseForFreeze(); onFurnitureDisplayChange() }
+    const onFocus = () => { pageFocused = true; pauseForFreeze(); onFurnitureDisplayChange() }
     document.addEventListener('visibilitychange', onVisibilityChange)
     window.addEventListener('pagehide', onPageHide)
     window.addEventListener('pageshow', onPageShow)
+    window.addEventListener('blur', onBlur)
+    window.addEventListener('focus', onFocus)
     pageListeners.push(
       { target: document, type: 'visibilitychange', listener: onVisibilityChange },
       { target: window, type: 'pagehide', listener: onPageHide },
       { target: window, type: 'pageshow', listener: onPageShow },
+      { target: window, type: 'blur', listener: onBlur },
+      { target: window, type: 'focus', listener: onFocus },
     )
 
     observer = new ResizeObserver(() => {
@@ -430,7 +540,13 @@ export function createRoomScene({ container, template, assembly, furniture, defe
         brightnessControl.update(now)
         room.update?.(now / 1000, activeCamera)
         lighting.update(reducedMotion ? 0 : now / 1000)
-        renderer.render(scene, activeCamera)
+        weather.update(now, activeCamera, weatherNight)
+        const collecting = !!acceptanceObserver, previousAutoReset = collecting ? renderer.info.autoReset : undefined
+        if (collecting) { renderer.info.autoReset = false; renderer.info.reset() }
+        try { renderer.render(scene, activeCamera) }
+        finally { if (collecting) renderer.info.autoReset = previousAutoReset }
+        acceptanceObserver?.({ now, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, lines:renderer.info.render.lines, points:renderer.info.render.points })
+        hints?.update()
         if (!firstFrame) {
           firstFrame = true
           resolveReady(true)
@@ -454,6 +570,7 @@ export function createRoomScene({ container, template, assembly, furniture, defe
       input.clear()
       walkFrame.resetClock()
       gate.syncMode()
+      hints?.update()
     },
     resetView,
     enterWalk,
@@ -462,13 +579,77 @@ export function createRoomScene({ container, template, assembly, furniture, defe
       if (loading || gate?.isReading()) return { ok: false, code: 'reading-active' }
       return session.setDoorOpen(open)
     },
-    setReading: (value) => gate?.setReading(value),
-    isReading: () => gate?.isReading() ?? false,
+    setReading: (value) => { if (disposed) return; reading = value; syncPause(); hints?.cancelGesture(); hints?.update() },
+    isReading: () => reading,
+    // 受控设置命令和场景输入分开；窗口打开不解除 reading 闸门。
+    setSettingsActive(value) { if (!disposed) settingsActive = value === true },
+    setSettingsBrightness(value) {
+      if (acceptanceLock || !settingsActive || disposed || loading || pageFrozen || document.hidden || !pageFocused) return false
+      return applyBrightness(value)
+    },
+    setSettingsRain(value) {
+      if (acceptanceLock || !settingsActive || disposed || loading || pageFrozen || document.hidden || !pageFocused) return false
+      return weather.set(value)
+    },
+    getWeather: () => weather?.get(),
+    setSettingsHintsVisible(value) {
+      if (!settingsActive || disposed || loading || pageFrozen || document.hidden || !pageFocused) return false
+      if (typeof value !== 'boolean') throw new TypeError('资料图标显示选择必须是布尔值')
+      hints?.cancelGesture(); materialHintsVisible = value; hints?.update(); return true
+    },
+    setControlFocus(value) {
+      if (disposed || loading || controlFocused === value) return
+      controlFocused = value; syncPause()
+      // 离开面板、聚焦图标可能发生在其 pointerdown 之后，不能取消该新手势。
+      if (value) hints?.cancelGesture()
+      hints?.update()
+    },
+    setSelected(instanceId) { if (!disposed) { selectedInstance=instanceId;highlight?.select(instanceId) } },
+    getFurnitureDisplayState: instanceId => furnitureDisplay?.getState(instanceId) ?? null,
+    hasHiddenFurniture: () => furnitureDisplay?.hasHidden() ?? false,
+    canChangeFurnitureDisplay: () => furnitureDisplay?.canChange() ?? false,
+    setFurnitureHidden: (instanceId, value) => furnitureDisplay?.setHidden(instanceId, value) ?? false,
+    showAllFurniture: () => furnitureDisplay?.showAll() ?? false,
+    getMaterialHintsVisible: () => materialHintsVisible,
+    setMaterialHintsVisible(value) {
+      if (disposed || loading || pageFrozen || document.hidden || gate?.isReading()) return false
+      if (typeof value !== 'boolean') throw new TypeError('资料图标显示选择必须是布尔值')
+      hints?.cancelGesture()
+      materialHintsVisible = value
+      hints?.update() // 立即隐藏或按当前相机重新投影，不等下一帧、不重建场景。
+      return true
+    },
     setPeriod,
     setBrightness,
-    clearControlInput() { if (disposed || loading || gate?.isReading()) return; input.clear(); walkFrame.resetClock() },
+    clearControlInput() { if (disposed || loading) return; gesture.cancel(); input.clear(); walkFrame.resetClock() },
     setInitialBrightness,
     getBrightness: () => brightnessControl?.get(),
+    // 只在显式T44验收页存在的受控入口；普通页面不能安装观察器或改采样配置。
+    beginAcceptance(observer) {
+      if (!acceptance || disposed || loading || pageFrozen || document.hidden || !pageFocused || typeof observer !== 'function') return false
+      // 受控验收不能被侧栏的焦点暂停挡在行走机位；先排空旧阻尼，再精确回原总览。
+      session.setMode('overview');mode='overview';walkFrame.resetClock()
+      const damping=controls.enableDamping;controls.enableDamping=false;controls.update()
+      overviewPose=roomOverviewPose(template,overviewCamera.aspect)
+      overviewCamera.position.set(overviewPose.position.x,overviewPose.position.y,overviewPose.position.z);controls.target.set(overviewPose.target.x,overviewPose.target.y,overviewPose.target.z)
+      controls.update();controls.enableDamping=damping
+      acceptanceLock = true; syncPause(); input.clear(); acceptanceObserver = observer
+      return true
+    },
+    configureAcceptance(rain) {
+      if (!acceptance || !acceptanceLock || disposed || ((pageFrozen || document.hidden || !pageFocused) && rain !== 0)) return false
+      brightnessControl.set(100, true); weather.set(rain); return true
+    },
+    endAcceptance() { if (!acceptance || disposed) return; acceptanceObserver = null; acceptanceLock = false; syncPause(); walkFrame.resetClock() },
+    getAcceptanceSnapshot() {
+      if (!acceptance || disposed) return null
+      const canvas=renderer.domElement,rect=canvas.getBoundingClientRect(),c=mode==='walk'?walkCamera:overviewCamera
+      return { revision:THREE.REVISION,webgl2:renderer.capabilities?.isWebGL2??null,pixelRatio:renderer.getPixelRatio(),quality:acceptanceQuality,
+        viewport:[container.clientWidth,container.clientHeight,window.devicePixelRatio||1,canvas.width,canvas.height,renderer.getPixelRatio(),window.visualViewport?.scale??null,rect.width,rect.height],
+        camera:{mode,position:c.position.toArray(),fov:c.fov},brightness:brightnessControl.get(),weather:weather.get(),rendererMemory:{...renderer.info.memory},
+        configuration:{input:acceptanceInput,doorOpen:session.getState().doorOpen,hints:materialHintsVisible,selected:selectedInstance,hidden:assembly.instances.filter(item=>furnitureDisplay.getState(item.instanceId).hidden).map(item=>item.instanceId)},
+        heap:performance.memory?{usedJSHeapBytes:performance.memory.usedJSHeapSize,totalJSHeapBytes:performance.memory.totalJSHeapSize,limitBytes:performance.memory.jsHeapSizeLimit}:null }
+    },
     dispose: releaseAll,
   }
 }

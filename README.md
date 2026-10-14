@@ -1,30 +1,30 @@
-# SpecDev Workbench 0.2.2
+# SpecDev Workbench 0.2.3
 
 English | [简体中文](README.zh.md)
 
 Choose a DSH project, read business documents and workflows, or ask a bundled Skill to arrange an independent room for one business.
 
-Version 0.2.2 adds theme-following pages, ceramic/fairy room materials and lighting, Archify 3.0.1 workflow and lifecycle reading, source/document pairing, and single-HTML room export. [Changes](CHANGELOG.md).
+Version 0.2.3 brings flexible arrangement, furnished forest/ceramic layouts, furniture material browsing, rain and sound, quick controls and categorized settings. [Changes](CHANGELOG.md). Packages, checksums and publication status are listed in the [0.2.3 Release](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.3); the exact npm version is [0.2.3](https://www.npmjs.com/package/@pioneer_zmc/dsh-workbench/v/0.2.3). Previous [npm 0.2.2](https://www.npmjs.com/package/@pioneer_zmc/dsh-workbench/v/0.2.2) remains available.
 
 Use **Export room**, select current business materials, then **Export HTML**. Room and selected documents/charts are readable offline. Source evidence in the plugin is read from exact local Git commits; exported HTML contains pinned remote source links instead of repository source snippets. Those links need a network connection and private-repository access. Documents may contain code or sensitive text you wrote: confirm the sharing scope. An empty selection exports the room alone. The plugin does not save another HTML copy in your project; keep the file wherever you download it. Closing the export panel releases its temporary download data; the next export generates a new file.
 
 ## Preview
 
-Real screenshots of fictional sample rooms. Both styles include furniture and a material-matched toolbar.
+Real product screenshots of complete furnished layouts for fictional businesses. Both languages share the same two v0.2.3 images.
 
-![Ceramic room with glazed walls and soft daylight](https://raw.githubusercontent.com/pioneer666-user/specdev-workbench/v0.2.2/web/assets/screenshots/ceramic-room.png)
+![Ceramic room with complete work and display arrangement](https://raw.githubusercontent.com/pioneer666-user/specdev-workbench/v0.2.3/web/assets/screenshots/ceramic-room-0.2.3.jpg)
 
-Ceramic: glazed surfaces, translucent windows and adjustable brightness.
+Ceramic: glazed surfaces, translucent windows, separate work and display areas.
 
-![Fairy room with wood textures and leafy details](https://raw.githubusercontent.com/pioneer666-user/specdev-workbench/v0.2.2/web/assets/screenshots/fairy-room.png)
+![Forest room with complete warm wooden reading arrangement](https://raw.githubusercontent.com/pioneer666-user/specdev-workbench/v0.2.3/web/assets/screenshots/forest-room-0.2.3.jpg)
 
-Fairy: warm wood, small leaves and brightness-linked day/night lighting.
+Forest: warm wood and small leaves, with reading, rest and decoration combined. Previous screenshots remain intact: [0.2.2 ceramic](https://raw.githubusercontent.com/pioneer666-user/specdev-workbench/v0.2.2/web/assets/screenshots/ceramic-room.png), [0.2.2 fairy](https://raw.githubusercontent.com/pioneer666-user/specdev-workbench/v0.2.2/web/assets/screenshots/fairy-room.png).
 
 ## Download and install
 
 ### npm install (recommended; exact version)
 
-[npm 0.2.2](https://www.npmjs.com/package/@pioneer_zmc/dsh-workbench/v/0.2.2). GitHub and npm 0.2.2 distribute the same package, `@pioneer_zmc/dsh-workbench`. Product ID, routes and data roots stay the same.
+Install the exact version `@pioneer_zmc/dsh-workbench@0.2.3`. GitHub and npm use the same fixed package; product ID, routes and data roots stay the same. Publication status is listed in the version Release linked above.
 
 ### Windows Desktop
 
@@ -33,7 +33,7 @@ Save work, exit via the menu or tray, and confirm the background instance ended.
 ~~~powershell
 $DesktopDir = 'C:\Apps\DSH' # Replace with the actual installation directory
 $env:DSH_HOME = 'C:\DSHData\desktop' # Custom-root example; existing users keep their actual root
-& "$DesktopDir\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@pioneer_zmc/dsh-workbench@0.2.2' '--registry=https://registry.npmjs.org/'
+& "$DesktopDir\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@pioneer_zmc/dsh-workbench@0.2.3' '--registry=https://registry.npmjs.org/'
 & "$DesktopDir\DeepSeek Harness.exe"
 ~~~
 
@@ -46,20 +46,23 @@ The sidebar opens SpecDev Workbench in the central panel. Choose a project and u
 Stop the corresponding instance and keep its original data root and Web CLI. Apply the same installed-package removal and configuration checks using the web profile.
 
 ~~~sh
-dsh plugin --profile web add @pioneer_zmc/dsh-workbench@0.2.2 --registry=https://registry.npmjs.org/
+dsh plugin --profile web add @pioneer_zmc/dsh-workbench@0.2.3 --registry=https://registry.npmjs.org/
 ~~~
 
 Restart that Web instance. The sidebar opens a new tab with project names and full paths, preserving chat. Create a workspace and refresh an empty list; retry read failures. Both states retain manual configuration. Use the CLI and profile for the instance you actually run.
 
 ### GitHub fallback
 
-[Same-version installation package](https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.2/specdev-dsh-workbench-0.2.2.tgz) · [Release and SHA256](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.2). Download to a path without spaces and use the appropriate profile's `plugin add <local-tgz-path>`. Historical [GitHub 0.2.1](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.1) remains the old `@specdev/dsh-workbench` package; it differs from npm 0.2.1.
+[Same-version package](https://github.com/pioneer666-user/specdev-workbench/releases/download/v0.2.3/specdev-dsh-workbench-0.2.3.tgz) · [Release and SHA256](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.3). Download to a path without spaces and use the appropriate profile's `plugin add <local-tgz-path>`. [GitHub 0.2.2](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.2) remains available. Historical [GitHub 0.2.1](https://github.com/pioneer666-user/specdev-workbench/releases/tag/v0.2.1) retains the old `@specdev/dsh-workbench` identity and differs from npm 0.2.1.
 
 ## Features
 
-- One independent room per business: realistic or fairy base, overview and walking modes, indoor/outdoor passage.
+- One independent room per business: ceramic or forest base, overview and walking modes, indoor/outdoor passage. Adapt the bundled furnished layouts to your registered materials.
 - Twelve furniture assets and rendered thumbnails: bookshelf, desk, table lamp, notice board, display stand, vase, plant, book stack, bed, reading chair, low cabinet and floor lamp. Select items in the catalog and copy the list to your chat.
-- Furniture with document capabilities can bind that business's registered documents, workflows and lifecycle charts. Reading pauses walking; closing resumes in place. Decorative assets do not promise sitting, sleeping, light switches or free drag placement.
+- All twelve furniture assets can bind the business's registered documents, workflows and lifecycle charts. Selection and reading are separate; all materials are also accessible through furniture browsing. Reading pauses walking; closing returns to the previous browsing position. Temporarily hide furniture in overview; entering walking restores it. Visibility does not rewrite the layout. Sitting and light switches are not supported.
+- Arrange floor furniture and one level of supported tabletop objects through room.json. Public tools provide read-only trial checks and bounded position/support-surface suggestions without automatic writes. Collision, entrance, operating space and reachability still require validation; arbitrary positions are not guaranteed. The final complete check-room remains required.
+- Environment sounds, walking footsteps, brightness-linked day/night ambience, adjustable rain and wet reflections. Forest bird/insect ambience fades to silence at rain amount 30. Enable sound manually; backgrounding pauses it, and returning requires manual resume.
+- Quick brightness, sound master switch and arrow-to-volume share state with display/weather/sound settings. Brightness, weather, sound choices/volumes and visibility last only within the current page; reload/re-entry restores defaults. Export can retain the selected theme/brightness, while starting sunny and silent without weather/sound preferences.
 - Project/business navigation, interactive workflows, node explanations, pinned source evidence and historical reading. Saving a version only adds an annotated Git tag to committed content.
 - Whole-building overview and walking remain available. Three bundled skills: [specdev-business](skills/specdev-business/SKILL.md), [specdev-building](skills/specdev-building/SKILL.md), [specdev-room](skills/specdev-room/SKILL.md).
 
@@ -68,9 +71,9 @@ Restart that Web instance. The sidebar opens a new tab with project names and fu
 1. Select a DSH workspace at a Git repository root. Existing `docs/specdev` projects can be browsed directly. Otherwise agree business requirements with the AI and use specdev-business to register documents and workflows first.
 2. In that project's chat, say:
 
-> Use specdev-room to create a room for this business.
+> Use specdev-room to create a forest room for the registered “Reading list” business. I want to read its existing materials there; arrange the rest for me.
 
-The Skill guides business, style and arrangement choices, reads the current catalog, writes only `docs/specdev/<businessId>/room.json` and invokes the read-only validator. It does not generate models, business documents, new workflows or choose a default project.
+Replace the business name with your own registered business; forest maps to fairy and ceramic to ceramic. The Skill asks only for missing business/style information; arrangement preferences are optional. “Arrange the rest” lets the AI choose quantities and combinations; minimal layouts, selected assets or exclusions take precedence when specified. Use the [furnished layouts and adaptation guide](skills/specdev-room/references/furnished-layouts.md), keep the real business identity, bind existing materials, and finish with complete validation. The Skill writes only `docs/specdev/<businessId>/room.json`; it does not generate models, business prose or new diagrams, or choose a default project. One successful fresh-context forest-room AI trial does not establish consistent results across all models, styles or hosts.
 
 3. Open the sidebar entry, choose the project/business, enter the room, inspect the overview and read bound material while walking. Refresh after configuration changes.
 
@@ -94,7 +97,7 @@ No in-page furniture editing, arbitrary scaling, wall mounting, nested furniture
 
 ## Build and sample
 
-Node.js ≥22. From this repository root, run sequentially:
+Node.js ≥22. Obtain this version from the public source repository, then run sequentially from that repository root. The npm package contains runtime artifacts, not source build scripts:
 
 ~~~sh
 npm install
@@ -103,14 +106,14 @@ node scripts/build.mjs
 npm pack --ignore-scripts --pack-destination .
 ~~~
 
-Produces `pioneer_zmc-dsh-workbench-0.2.2.tgz`. The renderer and read-only validators are bundled; no private research repository is needed.
+Produces `pioneer_zmc-dsh-workbench-0.2.3.tgz`. The renderer and read-only validators are bundled; no private research repository is needed.
 
 ~~~sh
 node sample/generate.mjs ./local-artifacts/demo-project
 ~~~
 
-The target must not exist. See [sample/README.md](sample/README.md), then open the generated directory as a DSH workspace. Optional checks `node scripts/smoke.mjs` and `node scripts/check-save.mjs` run serially in generated samples without using your business project.
+The target must not exist. See the [public source sample/README.md](https://github.com/pioneer666-user/specdev-workbench/blob/v0.2.3/sample/README.md), then open the generated directory as a DSH workspace. Optional checks `node scripts/smoke.mjs` and `node scripts/check-save.mjs` run serially in generated samples without using your business project.
 
 ## License and acknowledgments
 
-Plugin code, twelve self-created furniture models, generated textures and rendered thumbnails use [MIT](LICENSE). See [furniture sources](web/assets/furniture/SOURCES.md). Bundled [Archify 3.0.1 license](vendor/archify-3.0.1/LICENSE), [Marked license](web/assets/vendor/marked/LICENSE) and legacy [Archify license](vendor/archify-renderer/archify/LICENSE), [third-party notices](vendor/archify-renderer/archify/THIRD_PARTY_NOTICES.md) and [Three.js provenance](web/assets/three/VERSION.md) retain upstream attribution. Thanks to DSH and the upstream projects.
+Plugin code, twelve self-created furniture models, generated textures and rendered thumbnails use [MIT](LICENSE). See [furniture sources](web/assets/furniture/SOURCES.md). Diagram features use Archify; the [Archify 3.0.1 license](vendor/archify-3.0.1/LICENSE), [Marked license](web/assets/vendor/marked/LICENSE), legacy [Archify license](vendor/archify-renderer/archify/LICENSE), [third-party notices](vendor/archify-renderer/archify/THIRD_PARTY_NOTICES.md) and [Three.js provenance](web/assets/three/VERSION.md) retain attribution. [Ambience](web/assets/audio/ambience/notices.json), [footsteps](web/assets/audio/footsteps/notices.json) and [rain](web/assets/audio/rain/notices.json) include authors, processing provenance and license texts. Thanks to DSH, Archify and the audio creators.

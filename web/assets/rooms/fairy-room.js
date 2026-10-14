@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createDoorHandle } from './door.js';
 import { sampleBrightness } from './brightness.js';
+import { ROOM_FLOOR_SURFACES } from './floor-surfaces.js';
 
 // 童话房间只负责外观：内部 8 × 6 × 3.4 米，所有装饰都跟随所属墙面。
 // 主场景负责灯光、镜头和墙面剖看；这里不持有 renderer 的环境或输出设置。
@@ -26,6 +27,7 @@ export function createFairyRoom({ renderer, scene, reducedMotion = false, doorOp
 
   const plasterMap = makeTexture(512, paintPlaster, keep, renderer);
   const woodMap = makeTexture(512, paintWood, keep, renderer);
+  const floorWoodMap = makeTexture(512, paintFloorWood, keep, renderer);
   const plaster = keep(new THREE.MeshStandardMaterial({ color: '#e6d7b9', map: plasterMap, bumpMap: plasterMap, bumpScale: 0.028, roughness: 0.92 }));
   const edgePlaster = keep(new THREE.MeshStandardMaterial({ color: '#d3c2a0', map: plasterMap, roughness: 0.93 }));
   const timber = keep(new THREE.MeshStandardMaterial({ color: '#b88045', map: woodMap, roughness: 0.72 }));
@@ -34,6 +36,11 @@ export function createFairyRoom({ renderer, scene, reducedMotion = false, doorOp
   const mortar = keep(new THREE.MeshStandardMaterial({ color: '#a99e80', roughness: 1 }));
   const stoneColors = ['#d5c2a0', '#decbae', '#cbbf9f', '#d7c6ac', '#e0cbb0', '#c8b999'];
   const stones = stoneColors.map(color => keep(new THREE.MeshStandardMaterial({ color, map: plasterMap, bumpMap: plasterMap, bumpScale: 0.012, roughness: 0.9 })));
+  const floorBoards = ['#e1d1b3', '#dfcfb0', '#e4d5b9', '#ddcdb0'].map(color => {
+    const material = keep(new THREE.MeshStandardMaterial({ color, map: floorWoodMap, bumpMap: floorWoodMap, bumpScale: .004, roughness: .83 }));
+    material.userData.floorSurface = ROOM_FLOOR_SURFACES.fairy.interior;
+    return material;
+  });
   const moss = keep(new THREE.MeshStandardMaterial({ color: '#657b45', roughness: 1 }));
   const leafMaterials = ['#637f41', '#789546', '#a0ad58'].map(color => keep(new THREE.MeshStandardMaterial({ color, roughness: 0.9, side: THREE.DoubleSide })));
   const tiles = ['#567c82', '#7687a7', '#9b7b99', '#b77565', '#86a58e'].map(color => keep(new THREE.MeshStandardMaterial({ color, roughness: 0.64, metalness: 0.03 })));
@@ -81,18 +88,23 @@ export function createFairyRoom({ renderer, scene, reducedMotion = false, doorOp
   plinth.name = 'organic-exterior-plinth';
   box(8.04, 0.11, 6.04, mortar, group, 0, -0.055, 0);
 
-  for (let row = 0; row < 8; row++) {
-    const rowWidth = row % 2 ? [0.5,1,1,1,1,1,1,1,0.5] : Array(8).fill(1);
+  // A1浅暖长木板：保持旧顶面0.0035米和8×6范围，窄板缝/顺板木纹辨材质。
+  for (let row = 0; row < 20; row++) {
     let x = -4;
-    for (let c = 0; c < rowWidth.length; c++) {
-      const w = rowWidth[c];
-      const item = box(w - 0.023, 0.065, 0.728, stones[(row * 3 + c) % stones.length], group, x + w / 2, -0.029, -2.625 + row * 0.75, 0.018);
-      item.name = 'level-limestone-floor';
+    let c = 0;
+    while (x < 4 - .00001) {
+      const w = Math.min(4 - x, c === 0 ? 2 - (row % 3) * .65 : 2);
+      const item = box(w - .007, .065, .296, floorBoards[(row + c) % floorBoards.length], group, x + w / 2, -.029, -2.85 + row * .3, .006);
+      item.name = 'level-wood-floor';
       x += w;
+      c++;
     }
   }
   // 门外的一小段门槛不侵占室内；门与地面同高，留给接入方继续延伸路径。
-  box(1.7, 0.14, 0.78, stones[1], group, 2.25, -0.066, -3.4, 0.035);
+  const threshold = ROOM_FLOOR_SURFACES.fairy.threshold;
+  const thresholdMesh = box(threshold.width, threshold.height, threshold.depth, stones[1], group, threshold.x, threshold.y, threshold.z, .035);
+  thresholdMesh.name = 'stone-entry-threshold';
+  thresholdMesh.userData.floorSurface = threshold.surface;
 
   let doorHinge = null;
   const wallDefs = [
@@ -386,8 +398,9 @@ export function createFairyRoom({ renderer, scene, reducedMotion = false, doorOp
       dimensions:{width:8,depth:6,height:3.4},
       door:{wall:'north',centerX:2.25,width:1.4,height:2.55,position:[2.25,0,-3],opens:'outward'},
       floorBounds:{minX:-4,maxX:4,minZ:-3,maxZ:3,y:0},
+      floorSurface:ROOM_FLOOR_SURFACES.fairy.interior,
       periods:['day','night'],furniture:[],
-      description:'奶油灰泥、蜂蜜木梁与浅色石地；墙外藤蔓、彩瓦门檐和小蘑菇。白昼蝶与花粉，夜晚萤火与暖光。'
+      description:'奶油灰泥、蜂蜜木梁与浅暖木地板，门外石门槛保留；墙外藤蔓、彩瓦门檐和小蘑菇。白昼蝶与花粉，夜晚萤火与暖光。'
     }
   };
 }
@@ -426,7 +439,9 @@ function mergeStaticMeshes(parent,keep,recursive,exclude) {
     const geo=keep(new THREE.BufferGeometry());
     geo.setAttribute('position',new THREE.BufferAttribute(positions,3));geo.setAttribute('normal',new THREE.BufferAttribute(normals,3));geo.setAttribute('uv',new THREE.BufferAttribute(uvs,2));
     geo.computeBoundingSphere();
-    const combined=new THREE.Mesh(geo,material);combined.name='static-material-batch';combined.castShadow=true;combined.receiveShadow=true;parent.add(combined);
+    const combined=new THREE.Mesh(geo,material);combined.name=material.userData.floorSurface?'level-wood-floor':'static-material-batch';
+    if(material.userData.floorSurface)combined.userData.floorSurface=material.userData.floorSurface;
+    combined.castShadow=true;combined.receiveShadow=true;parent.add(combined);
   }
 }
 
@@ -470,6 +485,24 @@ function paintWood(ctx,size) {
   for(let i=0;i<5;i++) {
     const x=40+rng()*(size-80),y=40+rng()*(size-80);
     for(let j=0;j<6;j++) {ctx.strokeStyle='rgba(101,65,30,0.06)';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(x,y,3+j*2.2,8+j*7.6,0,0,Math.PI*2);ctx.stroke();}
+  }
+}
+
+// 浅木地板独立纹理，不改变原梁/门的蜂蜜木纹；本地固定种子可重建，file同源。
+function paintFloorWood(ctx,size) {
+  const rng=seededRandom(61011);
+  ctx.fillStyle='#f4eddf';ctx.fillRect(0,0,size,size);
+  for(let i=0;i<170;i++) {
+    const y=rng()*size;
+    ctx.strokeStyle=i%5?'rgba(118,88,48,0.07)':'rgba(255,251,239,0.19)';ctx.lineWidth=.45+rng()*1.1;
+    ctx.beginPath();ctx.moveTo(-8,y);ctx.bezierCurveTo(size*.32,y-2.5,size*.68,y+2,size+8,y);ctx.stroke();
+  }
+  for(let i=0;i<3;i++) {
+    const x=size*(.18+i*.28),y=size*(.2+rng()*.6);
+    for(let j=0;j<4;j++) {
+      ctx.strokeStyle='rgba(128,96,55,0.045)';ctx.lineWidth=.8;
+      ctx.beginPath();ctx.ellipse(x,y,10+j*8,2+j*1.8,0,0,Math.PI*2);ctx.stroke();
+    }
   }
 }
 

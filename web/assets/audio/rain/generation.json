@@ -1,0 +1,55 @@
+{
+  "source": "Ylmir / Rain (loopable) / CC0-1.0",
+  "numpy": "2.4.2",
+  "ffmpeg": "ffmpeg version n7.1 Copyright (c) 2000-2024 the FFmpeg developers",
+  "records": [
+    {
+      "file": "light.wav",
+      "sourceMember": "3.ogg",
+      "sourceSha256": "73a0f5ef19ed9f64599c0425b1fb52d857acfc42c0fd5eab85c4577ace18f0ed",
+      "cropSeconds": [
+        5,
+        29
+      ],
+      "bandpassHz": [
+        430,
+        5400
+      ],
+      "butterOrder": 2,
+      "crossfadeSeconds": 2,
+      "gain": 2.1606989468826416,
+      "durationSeconds": 22.0,
+      "channels": 2,
+      "sampleRate": 24000,
+      "rms": 0.065,
+      "peak": 0.6667613365655067,
+      "seamDelta": 0.07048542979852089,
+      "decodedFloat32Bytes": 4224000,
+      "sha256": "bcc6a17369ac0df7f2410646c146a67ba02f59491ce409b29011db30343fd4e2"
+    },
+    {
+      "file": "heavy.wav",
+      "sourceMember": "3.ogg",
+      "sourceSha256": "73a0f5ef19ed9f64599c0425b1fb52d857acfc42c0fd5eab85c4577ace18f0ed",
+      "cropSeconds": [
+        5,
+        29
+      ],
+      "bandpassHz": [
+        180,
+        6500
+      ],
+      "butterOrder": 2,
+      "crossfadeSeconds": 2,
+      "gain": 2.2498887351186947,
+      "durationSeconds": 22.0,
+      "channels": 2,
+      "sampleRate": 24000,
+      "rms": 0.08039690685241696,
+      "peak": 0.7,
+      "seamDelta": 0.07987696428194552,
+      "decodedFloat32Bytes": 4224000,
+      "sha256": "1f22ef8c15c43b5f02e97c1dbeac589f34d80a0f32ac8cb7aa0550df6dd4c10b"
+    }
+  ]
+}

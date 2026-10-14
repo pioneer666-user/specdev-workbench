@@ -6,9 +6,10 @@
 |---|---|---|
 | 结构/身份引用 | STRUCT_INVALID、ID_DUPLICATE、REF_UNKNOWN、YAW_INVALID、PLACEMENT_UNSUPPORTED | 按原实例身份核对必填字段、资产/区域、朝向及放置类型；去掉自己新增的非法字段，不重编号整屋或发明资产 |
 | 越界/重叠 | OUT_OF_BOUNDS、FURNITURE_OVERLAP | 对指明实例的完整旋转实体改位置/朝向或选可容纳资产；相接允许，不能改 bounds 掩盖 |
-| 门口/通路/操作空间/站位 | RESERVED_BLOCKED、CLEARANCE_BLOCKED、STAND_UNREACHABLE | 保留固定模板，移动相关家具使门口、通路、人形净空和操作站位满足要求；不能只查中心点 |
+| 门口/构件/操作空间/站位 | RESERVED_BLOCKED、CLEARANCE_BLOCKED、STAND_UNREACHABLE | 保留入口/构件、完整人形净空和操作留空，按具体冲突最小调整；旧corridor不再禁放或限制站位，不能只查中心点 |
+| 自由可达性暂未确认 | REACHABILITY_UNCONFIRMED | 无路径见证或输入/图/重建/复核/整次限额触顶；CLI退出1、stage=placement、ok=false，不放行也不称绝对不可达。核对targetId原因、站位和障碍；不得退回固定通道、缩人物/实体、清空家具凑通过或无限搜索；同问题两轮后带证据返回 |
 | 父项/承载 | PARENT_UNKNOWN、SELF_ATTACH、ATTACH_CYCLE、ATTACH_DEPTH、SURFACE_UNKNOWN、SURFACE_OVERHANG、CATEGORY_NOT_ALLOWED | 保留合法父实例与局部关系，核对一层依附、承载面 ID/类别、旋转后完整边界；修局部偏移，不另写世界位置或让孤儿落地 |
-| 绑定身份/动作 | BINDING_INPUT、BINDING_BUSINESS_MISMATCH、BINDING_DUPLICATE_TARGET、BINDING_UNKNOWN_INSTANCE、BINDING_UNKNOWN_ASSET、BINDING_ACTION_UNSUPPORTED、BINDING_CAPABILITY_MISSING | 核对实例、资产能力与唯一动作 open-document-collection；保留原集合语义，不能绑定到没有能力的灯/桌 |
+| 绑定身份/动作 | BINDING_INPUT、BINDING_BUSINESS_MISMATCH、BINDING_DUPLICATE_TARGET、BINDING_UNKNOWN_INSTANCE、BINDING_UNKNOWN_ASSET、BINDING_ACTION_UNSUPPORTED、BINDING_CAPABILITY_MISSING | 核对实例、资产能力与唯一动作 open-document-collection；保留原集合语义，本包十二款正式家具都有该能力，仍拒绝无能力的占位/自定义资产；title/summary错类型、空白或超过80/280个Unicode码点时按准确fieldPath修正 |
 | 登记文档 | BINDING_DOCUMENT_UNREGISTERED、BINDING_DUPLICATE_DOCUMENT、DOCUMENT_UNREADABLE | 核对本业务原始登记路径及实际正文，读取失败看 sourcePath/causeCode；清单/资料修复超出本技能，报告作者；不造正文、删登记或清空 bindings 规避 |
 | 绑定流程图 | BINDING_CHART_UNREGISTERED、BINDING_DUPLICATE_CHART、BINDING_CHART_UNAVAILABLE | 核对图 ID 属于本业务图目录（读 chart.json 确认 id/名称/归属）；不在本业务、集合内重复、图说明坏或编号重名冲突分别对应上述码。不凭编码/裁剪/改名修 ID，不拿其他业务的图替代，不扫别的业务凑图，不往 business.json 加 charts 登记 |
 | 图文件读取（charts 阶段） | CHART_UNAVAILABLE、CHART_UNREADABLE、CHART_JSON_INVALID | CHART_UNAVAILABLE 看 targetId 与原因（登记图坏说明/重名）；CHART_UNREADABLE 复查 workflow.json 是否缺失、读不开或超限（causeCode 有则附）；CHART_JSON_INVALID 表示 workflow.json 不是合法 JSON 或顶层不是对象。图的修复与重编译归 specdev-business；本检查不验证图已编译或可渲染 |

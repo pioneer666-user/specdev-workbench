@@ -4,7 +4,14 @@
 // 不请求 inventory / /api/room、不写业务数据；选择只存本页内存，刷新即清空。
 // 所有外部名称、描述、错误一律 textContent / DOM 安全赋值，不拼 HTML。
 import { loadFurnitureCatalog } from './furniture/catalog.js'
-import { $, fetchJson, renderEmptyWorkspaceParam, setStatus, workspaceParamEmpty } from './common.js'
+import { $, fetchJson, renderEmptyWorkspaceParam, setStatus, workspaceParamEmpty, wsUrl } from './common.js'
+
+// 只接受正式业务ID，返回固定站内房间路由；不消费外部URL或任意return路径。
+const sourceRoom = new URLSearchParams(location.search).get('room')
+if (sourceRoom && /^[a-z0-9][a-z0-9._-]*$/i.test(sourceRoom)) {
+  $('atlasBack').href = wsUrl(`/specdev-workbench/room/${encodeURIComponent(sourceRoom)}`)
+  $('atlasBack').textContent = '返回房间'
+}
 
 const INDEX_URL = '/specdev-workbench/assets/furniture/index.json'
 const ASSET_ROOT = '/specdev-workbench/assets/furniture/'

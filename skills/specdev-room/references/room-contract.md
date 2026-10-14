@@ -9,7 +9,7 @@
 | businessId | 必填；同一 ID 规则，必须等于目标业务目录与清单身份 |
 | templateRef | 必填非空字符串，匹配当前模板 templateId |
 | instances | 必填数组，空数组是空房间；每件写 instanceId、assetId、placement |
-| bindings | 可选数组，省略或空数组表示无家具绑定；单条恰含 instanceId、action、documents，另可选 charts |
+| bindings | 可选数组，省略或空数组表示无家具绑定；单条恰含 instanceId、action、documents，另可选 charts、title、summary |
 
 顶层只允许上述六字段，不加 business、name、style、units、docs 等。instanceId 是房内唯一非空实例标识（新 ID 建议沿用字母数字开头及 . _ -），assetId 是目录资产 ID；同款资产可多次实例化。parentInstanceId 和 bindings 引用实例 ID，不能拿 assetId 代替。换外形而仍是同一物品时优先保持 instanceId，不重新编号无关实例。
 
@@ -24,7 +24,9 @@
 
 仅 floor 父项 → surface 子项一层。不能自依附、循环或嵌套，缺父项不能自动落地。桌移动或转动时子项局部偏移及父/承载面引用保持，不能另存世界坐标。换或删除父项需同时核对子项和绑定，但不能擅自删掉未授权内容。
 
-bounds 是完整实体；clearanceBoxes 为操作留空；approachPoint 为站位；surfaces 的 rect/y 是承载范围和高度。旋转后的完整包围盒也须在区域/净空/承载面内，不只中心点在内。reservedVolumes、通路和 walkProfile 来自只读模板，不能改小来过检。surface.allowedCategories 对应资产 category，例如 lamp；不是家具索引分组 lighting。风格 styleIds 和 recommendations 是软建议，写实/童话允许混搭。
+bounds 是完整实体；clearanceBoxes 为操作留空；approachPoint 为站位；surfaces 的 rect/y 是承载范围和高度。旋转后的完整盒须在区域/净空/承载面内，不只中心点在内。入口、fixture、人物0.26m半径/1.9m净高及10cm墙边区域保留；corridor仅为旧元数据，实体可进入、站位无需属于它。现有0/90/180/270朝向不变。不能改小实体/人物/入口来过检。surface.allowedCategories 对应资产category，例如lamp；不是索引分组lighting。风格是软建议，允许混搭。
+
+自由可达性检查按完整人物方盒连续扫掠见证，并用原导航复核；所有站位有见证才通过。无见证或预算耗尽返回REACHABILITY_UNCONFIRMED（stage=placement、退出1、ok=false），表示“暂未确认可达／校验未完成”，不放行、不称绝对不可达。正式上限64实例、4096图节点和200ms整次几何预算等见产品房间契约；本技能不能扩上限、做组合搜索或采用固定通道降级。
 
 ## 资料集合（文档与流程图）
 
@@ -42,13 +44,13 @@ bounds 是完整实体；clearanceBoxes 为操作留空；approachPoint 为站�
   "documents": [], "charts": ["submit-review"] }
 ```
 
-省略 charts 等同空数组；旧三字段（无 charts）配置照常有效。绑定字段白名单不收 href、workspace、businessId、图路径或版本。省略 bindings 不免除 CLI 对全部登记资料（含未绑家具的图）的读取检查。
+省略 charts 等同空数组；旧三字段（无 charts）配置照常有效。title/summary 出现时须非空白字符串，分别最多80/280个Unicode码点，错类型/空白/超长报BINDING_INPUT及准确字段，不截断。名称未填回退资产显示名，简介未填不占位；它们只展示，不作为资料身份、URL或路径。绑定字段白名单不收 href、workspace、businessId、图路径或版本。省略 bindings 不免除 CLI 对全部登记资料（含未绑家具的图）的读取检查。
 
 业务清单位于 `docs/specdev/project.json`（schema=`specdev/project/1`）及业务目录 business.json（schema=`specdev/business/1`）；旧根不兜底、不自动迁移。business.docs 可指向仓内原位置，不要求搬进资料目录。图目录由业务目录内 chart.json/workflow.json 等文件按既有规则扫描得出，business.json 没有 charts 登记数组。
 
 ## 示例与校验
 
-[完整演示](../assets/intro-room.json) 的 docs/项目介绍.md 只是演示业务登记资料；真实使用时替换为本业务真实路径，并重新核对目录、身份和坐标。演示文件不得整体覆盖已有房间。
+[最小结构例](../assets/intro-room.json) 的 docs/项目介绍.md 只是演示业务登记资料；新建完整布置另看[成品样板与搭配指导](furnished-layouts.md)。真实使用时替换为本业务真实路径，并重新核对目录、身份和坐标。演示文件不得整体覆盖已有房间。
 
 从技能实际 resourceBase.path 或 SKILL.md 所在目录向上两级取包根，核对 package.json 身份及同包资源后运行：
 

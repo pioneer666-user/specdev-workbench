@@ -7,13 +7,15 @@
 // （矩形中心 + 高度）× 子局部偏移，世界 yaw＝父 yaw＋子 yaw 对 360 取模，子项不允许自填 Y。
 // 校验与绘制必须共用本模块产出的同一份解析结果；本模块不改写任何输入对象。
 
+import { validationBudget, checkPlacementInput, ValidationLimit } from './validation-budget.js';
+import { confirmRoomReachability } from './reachability.js';
+
 export const TOLERANCE = 1e-5; // 米；只消除浮点误差，边界接触允许、正厚度相交才拒绝
 const SUPPORTED_VERSION = 1;
 const GLOBAL_YAW_WHITELIST = [0, 90, 180, 270]; // 首版只接受直角朝向
 const SUPPORTED_ZONE_KINDS = ['floor']; // 墙面区域是以后单独的一步
 const SUPPORTED_PLACEMENT_KINDS = ['floor', 'surface']; // E2b 起支持桌面承载；wall 仍不支持
 const RESERVED_PURPOSES = ['entry', 'corridor', 'fixture']; // 入口／通路／固定构件
-const WALK_PURPOSES = ['entry', 'corridor']; // 通路并集＝入口带＋通行带
 // placement 按 kind 使用字段白名单：floor 五项、surface 六项。其他自有字段（y、position、
 // scale、floor 的 surface 字段、surface 的 floor 字段等）一律 STRUCT_INVALID，不静默忽略——
 // 配置写了高度而程序按另一个高度显示，比直接拒绝更危险。
@@ -112,6 +114,8 @@ function checkTemplate(template, out) {
   }
   if (!finite(template?.walkProfile?.radius) || template.walkProfile.radius <= 0 || !finite(template.walkProfile?.eyeClearance) || template.walkProfile.eyeClearance <= 0) {
     problems.push(['template.walkProfile', 'walkProfile 需要正的 radius 与 eyeClearance']);
+  } else if (template.walkProfile.radius !== 0.26 || template.walkProfile.eyeClearance !== 1.9) {
+    problems.push(['template.walkProfile', '现有导航只支持半径 0.26 米、净高 1.9 米，不允许缩小人物参数']);
   }
   for (const [fieldPath, message] of problems) out.push(diag('STRUCT_INVALID', message, { fieldPath }));
   return problems.length === 0;
@@ -391,18 +395,17 @@ function surfaceChecks(resolved, byId, out) {
   }
 }
 
-function spatialChecks(template, resolved, out) {
+function spatialChecks(template, resolved, out, budget) {
   const volumes = template.reservedVolumes ?? [];
-  const walkSet = volumes.filter((volume) => WALK_PURPOSES.includes(volume.purpose) && volume.bounds.maxY - volume.bounds.minY >= template.walkProfile.eyeClearance);
-  const corridors = walkSet.filter((volume) => volume.purpose === 'corridor');
   for (const entry of resolved) {
+    budget.check();
     // 地面实例须落在所登记的摆放区内；桌面子项不重新求地面区域，由承载面与室内净空约束
     if (entry.placement.kind === 'floor') {
       const zone = template.zones.find((item) => item.zoneId === entry.placement.zoneId);
       if (!boxInside(zone.bounds, entry.solid)) out.push(diag('OUT_OF_BOUNDS', `实例「${entry.instance.instanceId}」的完整包围盒越出了摆放区「${zone.zoneId}」（只查中心点不合格）。`, { instanceIds: [entry.instance.instanceId], targetId: zone.zoneId, fieldPath: 'layout.instances' }));
     }
     if (!boxInside(template.interiorBounds, entry.solid)) out.push(diag('OUT_OF_BOUNDS', `实例「${entry.instance.instanceId}」的完整包围盒越出了室内净空。`, { instanceIds: [entry.instance.instanceId], targetId: 'interior', fieldPath: 'template.interiorBounds' }));
-    for (const volume of volumes) {
+    for (const volume of volumes.filter((item) => item.purpose !== 'corridor')) {
       if (boxIntersects(entry.solid, volume.bounds)) {
         const kindName = volume.purpose === 'entry' ? '入口' : volume.purpose === 'corridor' ? '通路' : '固定构件';
         out.push(diag('RESERVED_BLOCKED', `实例「${entry.instance.instanceId}」占用了${kindName}禁放区「${volume.id}」。`, { instanceIds: [entry.instance.instanceId], targetId: volume.id, fieldPath: 'template.reservedVolumes' }));
@@ -414,11 +417,12 @@ function spatialChecks(template, resolved, out) {
         if (boxIntersects(bounds, volume.bounds)) out.push(diag('CLEARANCE_BLOCKED', `固定构件「${volume.id}」占用了实例「${entry.instance.instanceId}」的操作留空「${name}」。`, { instanceIds: [entry.instance.instanceId], targetId: volume.id, fieldPath: 'template.reservedVolumes' }));
       }
       for (const other of resolved) {
+        budget.check();
         if (other === entry) continue;
         if (boxIntersects(bounds, other.solid)) out.push(diag('CLEARANCE_BLOCKED', `实例「${other.instance.instanceId}」的实体占用了实例「${entry.instance.instanceId}」的操作留空「${name}」。`, { instanceIds: [entry.instance.instanceId], targetId: other.instance.instanceId, fieldPath: 'layout.instances' }));
       }
     }
-    // 站位按保守人形盒判断：中心 ± 半径（X/Z），Y [0, 净高]；须完整落在自身操作区与同一条固定通路内。
+    // 站位完整人形盒仍须落在自身操作区；可达性由真实实体自由空间的连续见证判断。
     // 桌面子项没有独立地面站位（approach 为 null），沿用父家具的站位，不在此检查。
     if (entry.approach) {
       const radius = template.walkProfile.radius;
@@ -426,80 +430,38 @@ function spatialChecks(template, resolved, out) {
       if (!entry.clearances.some(({ bounds }) => boxInside(bounds, human))) {
         out.push(diag('STAND_UNREACHABLE', `实例「${entry.instance.instanceId}」站位周围的人形范围（半径 ${radius} 米、净高 ${template.walkProfile.eyeClearance} 米）未完整落在自身操作留空内。`, { instanceIds: [entry.instance.instanceId], fieldPath: 'catalog.assets' }));
       }
-      const covered = corridors.some((volume) => boxInside(volume.bounds, human));
-      if (!covered) out.push(diag('STAND_UNREACHABLE', `实例「${entry.instance.instanceId}」站位周围的人形范围未完整落入固定通路之一（含头顶净高）。`, { instanceIds: [entry.instance.instanceId], targetId: 'corridor', fieldPath: 'template.reservedVolumes' }));
     }
   }
   // 全部实体统一碰撞（含桌面子项）：父子只做接触不做豁免；仅接触允许、正厚度相交拒绝
   for (let i = 0; i < resolved.length; i += 1) {
     for (let j = i + 1; j < resolved.length; j += 1) {
+      budget.check();
       if (boxIntersects(resolved[i].solid, resolved[j].solid)) {
         out.push(diag('FURNITURE_OVERLAP', `实例「${resolved[i].instance.instanceId}」与「${resolved[j].instance.instanceId}」的实体盒相交（仅接触允许）。`, { instanceIds: [resolved[i].instance.instanceId, resolved[j].instance.instanceId], fieldPath: 'layout.instances' }));
       }
     }
   }
-  return walkSet;
 }
 
-/**
- * 出生点到全部地面站位的连续路径证据（固定模板，不是通用寻路）：
- *   路点 = 出生点 → 入口带与主通路衔接点 → 主通路上的转竖点 → 各站位（按 X 降序）。
- *   每一段用两端点人形盒的联合包围盒做保守包含：整段扫过范围必须完整落在**单一**通行盒内，
- *   相邻段共享同一个合法站立位置。端点合法而中途越出会被拒绝。
- *   只有需要地面站位的实例（floor）纳入路径；桌面子项沿用父家具站位，不重复计入。
- */
-function routeCheck(template, resolved, walkSet, out) {
-  const radius = template.walkProfile.radius;
-  const stands = resolved.filter((entry) => entry.approach).map((entry) => ({ instanceId: entry.instance.instanceId, x: entry.approach.x, z: entry.approach.z })).sort((a, b) => b.x - a.x);
-  const spawn = template.entry.spawn;
-  const human = (x, z) => ({ minX: x - radius, maxX: x + radius, minY: 0, maxY: template.walkProfile.eyeClearance, minZ: z - radius, maxZ: z + radius });
-  const entryVolume = walkSet.find((volume) => volume.purpose === 'entry' && boxInside(volume.bounds, human(spawn.x, spawn.z)));
-  let join = { x: spawn.x, z: spawn.z };
-  if (entryVolume) {
-    for (const volume of walkSet) {
-      if (volume === entryVolume) continue;
-      const zLow = Math.max(entryVolume.bounds.minZ, volume.bounds.minZ);
-      const zHigh = Math.min(entryVolume.bounds.maxZ, volume.bounds.maxZ);
-      if (zHigh - zLow <= TOLERANCE) continue;
-      const candidate = { x: spawn.x, z: (zLow + zHigh) / 2 };
-      if (boxInside(volume.bounds, human(candidate.x, candidate.z)) && boxInside(entryVolume.bounds, human(candidate.x, candidate.z))) { join = candidate; break; }
-    }
-  }
-  const zRoute = stands.length ? [...stands].sort((a, b) => a.z - b.z)[Math.floor(stands.length / 2)].z : spawn.z;
-  const waypoints = [{ x: spawn.x, z: spawn.z }, join, { x: spawn.x, z: zRoute }, ...stands];
-  const inOneVolume = (box) => walkSet.some((volume) => boxInside(volume.bounds, box));
-  for (let i = 0; i < waypoints.length - 1; i += 1) {
-    const a = human(waypoints[i].x, waypoints[i].z);
-    const b = human(waypoints[i + 1].x, waypoints[i + 1].z);
-    const swept = { minX: Math.min(a.minX, b.minX), maxX: Math.max(a.maxX, b.maxX), minY: 0, maxY: template.walkProfile.eyeClearance, minZ: Math.min(a.minZ, b.minZ), maxZ: Math.max(a.maxZ, b.maxZ) };
-    for (const volume of template.reservedVolumes.filter((item) => item.purpose === 'fixture')) {
-      if (boxIntersects(swept, volume.bounds)) out.push(diag('STAND_UNREACHABLE', `出生点到站位的路径第 ${i + 1} 段扫过的人形范围碰到固定构件「${volume.id}」。`, { instanceIds: waypoints[i + 1].instanceId ? [waypoints[i + 1].instanceId] : [], targetId: volume.id, fieldPath: 'template.reservedVolumes' }));
-    }
-    if (!inOneVolume(swept)) {
-      out.push(diag('STAND_UNREACHABLE', `出生点到站位的路径第 ${i + 1} 段扫过的人形范围未完整落在单一通行盒内（保守包含判定），区间 X[${swept.minX.toFixed(2)}, ${swept.maxX.toFixed(2)}] Z[${swept.minZ.toFixed(2)}, ${swept.maxZ.toFixed(2)}]。`, { instanceIds: waypoints[i + 1].instanceId ? [waypoints[i + 1].instanceId] : [], targetId: 'corridor', fieldPath: 'template.reservedVolumes' }));
-      return waypoints;
-    }
-  }
-  return waypoints;
-}
 
 // ───────────────────────── 对外入口 ─────────────────────────
 
 /**
- * 整体校验一份布置：结构 → 引用 → 解析（含依附）→ 桌面投影 → 空间检查 → 通路检查。
+ * 静态检查：结构 → 引用 → 解析（含依附）→ 桌面投影 → 完整实体／入口／操作空间。
  * 通过返回 { ok: true, assembly }（绘制与点击映射必须复用 assembly 的同一份数据）；
  * 失败返回 { ok: false, diagnostics }（含全部真实错误，不因第一个错误吞掉其余）。
  */
-export function validatePlacement(template, catalog, layout) {
-  const diagnostics = [];
+function validateStaticPlacement(template, catalog, layout, diagnostics, budget) {
   const versionsOk = [
     checkVersion(template, '房间模板', 'template', diagnostics),
     checkVersion(catalog, '家具目录', 'catalog', diagnostics),
     checkVersion(layout, '房间布置', 'layout', diagnostics),
   ].every(Boolean);
   if (!versionsOk) return { ok: false, diagnostics };
+  budget.stage('structure');
   const structureOk = [checkTemplate(template, diagnostics), checkCatalog(catalog, diagnostics), checkLayout(layout, diagnostics)].every(Boolean);
   if (!structureOk) return { ok: false, diagnostics };
+  budget.stage('resolve');
   if (layout.templateRef !== template.templateId) {
     diagnostics.push(diag('REF_UNKNOWN', `布置引用的模板「${layout.templateRef}」与提供的模板「${template.templateId}」不一致。`, { fieldPath: 'layout.templateRef', targetId: layout.templateRef }));
     return { ok: false, diagnostics };
@@ -507,8 +469,8 @@ export function validatePlacement(template, catalog, layout) {
   const assets = new Map(catalog.assets.map((asset) => [asset.assetId, asset]));
   const { resolved, byId } = resolveInstances(template, assets, layout, diagnostics);
   surfaceChecks(resolved, byId, diagnostics);
-  const walkSet = spatialChecks(template, resolved, diagnostics);
-  const route = routeCheck(template, resolved, walkSet, diagnostics);
+  budget.stage('static');
+  spatialChecks(template, resolved, diagnostics, budget);
   if (diagnostics.length) return { ok: false, diagnostics };
   return {
     ok: true,
@@ -518,7 +480,6 @@ export function validatePlacement(template, catalog, layout) {
       styleId: template.styleId,
       roomId: layout.roomId,
       spawn: { x: template.entry.spawn.x, z: template.entry.spawn.z },
-      route,
       instances: resolved.map((entry) => ({
         instanceId: entry.instance.instanceId,
         assetId: entry.asset.assetId,
@@ -543,6 +504,24 @@ export function validatePlacement(template, catalog, layout) {
       })),
     },
   };
+}
+
+/** 统一入口：硬冲突与未确认都不给有效assembly；预算覆盖整次处理。第4参仅供内部缩小限额/测试时钟。 */
+export function validatePlacement(template, catalog, layout, options = {}) {
+  const budget = validationBudget(options), diagnostics = [];
+  try {
+    checkPlacementInput(template,catalog,layout,budget);
+    const placed = validateStaticPlacement(template,catalog,layout,diagnostics,budget);
+    if(!placed.ok) return {...placed,status:'invalid'};
+    const reachability = confirmRoomReachability(template,placed.assembly,budget);
+    if(reachability.status !== 'confirmed') return {ok:false,status:'unconfirmed',reachability,
+      diagnostics:[diag('REACHABILITY_UNCONFIRMED',`暂未确认可达，校验未完成（${reachability.reason}）。请检查入口、站位和障碍；这不是绝对不可达的结论。`,{targetId:reachability.reason,fieldPath:'layout.instances'})]};
+    return {...placed,status:'confirmed',assembly:{...placed.assembly,routes:reachability.routes},reachability};
+  } catch(error) {
+    if(!(error instanceof ValidationLimit)) throw error;
+    return {ok:false,status:'unconfirmed',reachability:{status:'unconfirmed',reason:error.reason,stage:error.stage},
+      diagnostics:[...diagnostics,diag('REACHABILITY_UNCONFIRMED',`暂未确认可达，校验未完成：${error.stage} 阶段触及 ${error.reason}，请减少本次布局规模或核对障碍；未放行当前布局。`,{targetId:error.reason,fieldPath:'layout.instances'})]};
+  }
 }
 
 /** 诊断视图用：尽量解析每个实例的世界盒（结构坏掉的实例跳过），只画红框说明被拒位置，不当有效家具。 */

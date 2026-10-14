@@ -45,9 +45,22 @@ const materialKey = (entry) => (isChartMaterial(entry) ? `chart:${entry.chartId}
 /** 清单与标题里的人话前缀。 */
 const kindLabel = (entry) => (isChartMaterial(entry) ? chartMaterialLabel(entry) : '文档')
 
+// 恢复场景后标记可能已隐藏/离屏；连接DOM不等于可以归焦。
+function usableFocusTarget(target) {
+  if (!target?.isConnected || typeof target.focus !== 'function' || target.disabled || target.closest?.('[hidden], [inert]')) return false
+  if (target.tabIndex < 0 && !target.hasAttribute('tabindex')) return false
+  const view = target.ownerDocument?.defaultView
+  if (view?.getComputedStyle) for (let node = target; node; node = node.parentElement) {
+    const style = view.getComputedStyle(node)
+    if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false
+  }
+  return true
+}
+
 export function createRoomReader({ root, onReadingChange = () => {}, focusFallback = null, documents = [] } = {}) {
   const panel = root.querySelector('#readerPanel')
   const title = root.querySelector('#readerTitle')
+  const summary = root.querySelector('#readerSummary')
   const closeBtn = root.querySelector('#readerClose')
   const listLabel = root.querySelector('#readerListLabel')
   const list = root.querySelector('#readerList')
@@ -303,18 +316,21 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
     syncAppearanceToggle()
   }
 
-  function open({ title: heading = '', entries = [], emptyText = '', returnFocus: focusTarget = null } = {}) {
+  function open({ title: heading = '', summary: introduction = '', entries = [], emptyText = '', returnFocus: focusTarget = null, initialEntry = null } = {}) {
     if (disposed) return
     const wasOpen = openState
     openState = true
     returnFocus = focusTarget || focusFallback
     title.textContent = heading
     title.title = heading
+    if (summary) { summary.textContent = introduction; summary.hidden = !introduction }
     renderList(Array.isArray(entries) ? entries : [], emptyText)
     listCollapsed = false // 换集合重置清单为展开；外观选择保持。
     syncListToggle()
     resetReader()
     root.hidden = false
+    // 只接受当前 resolver 集合中的原对象；旧调用仍等待用户选择。
+    if (initialEntry && entries.includes(initialEntry)) void openEntry(initialEntry)
     if (wasOpen) return // 已打开时换集合：不重复暂停、不动焦点
     onReadingChange(true)
     closeBtn.focus()
@@ -330,8 +346,8 @@ export function createRoomReader({ root, onReadingChange = () => {}, focusFallba
     onReadingChange(false) // 页面先解除背景 inert，焦点才能落回触发元素
     const target = returnFocus
     returnFocus = null
-    if (target && target.isConnected) target.focus?.()
-    else if (focusFallback && focusFallback.isConnected) focusFallback.focus?.()
+    if (usableFocusTarget(target)) target.focus()
+    else if (usableFocusTarget(focusFallback)) focusFallback.focus()
   }
 
   function dispose() {

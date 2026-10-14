@@ -57,6 +57,8 @@ const MIME: Record<string, string> = {
   '.md': 'text/markdown; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
   '.txt': 'text/plain; charset=utf-8',
 }
 
@@ -187,6 +189,7 @@ async function serveFile(
   res: import('node:http').ServerResponse,
   base: string,
   rel: string,
+  maxBytes = MAX_FILE_BYTES,
 ): Promise<boolean> {
   const parts = rel.split('/').filter((p) => p !== '' && p !== '.')
   if (parts.length === 0 || parts.some((p) => p === '..')) return false
@@ -199,8 +202,8 @@ async function serveFile(
   } catch {
     return false
   }
-  if (size > MAX_FILE_BYTES) {
-    sendError(res, new CoreError('file-too-large', `静态资源 ${rel} 为 ${size} 字节，超过读取上限 ${MAX_FILE_BYTES} 字节`, 413))
+  if (size > maxBytes) {
+    sendError(res, new CoreError('file-too-large', `静态资源 ${rel} 为 ${size} 字节，超过读取上限 ${maxBytes} 字节`, 413))
     return true
   }
   const body = await readFile(full)
@@ -658,7 +661,10 @@ async function handle(
 
   // 静态资产：页面自身资源与 vendor 渲染器副本
   if (segments[1] === 'assets' && segments.length > 2) {
-    if (await serveFile(res, path.join(ctx.webRoot, 'assets'), segments.slice(2).join('/'))) return
+    const asset = segments.slice(2).join('/')
+    // 只有这两个随包22秒PCM路径各2,112,044，略超2MiB；其他资源/业务/导出上限不变。
+    const maxBytes = ['audio/rain/light.wav', 'audio/rain/heavy.wav'].includes(asset) ? 2_112_044 : MAX_FILE_BYTES
+    if (await serveFile(res, path.join(ctx.webRoot, 'assets'), asset, maxBytes)) return
   }
   if (segments[1] === 'vendor' && segments.length > 2) {
     if (await serveFile(res, ctx.vendorRoot, segments.slice(2).join('/'))) return

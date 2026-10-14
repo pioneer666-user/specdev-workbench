@@ -16,12 +16,12 @@
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 
 /** 首版唯一动作：打开资料集合。E9c 起该动作代表"文档＋流程图"的资料集合，
- *  动作名与十二款资产的 capabilities 不批量改名；不因此让灯、桌或展示台自动具有资料能力。 */
+ *  能力仍逐资产声明，未声明的资产不能绑定资料。 */
 export const BINDING_ACTION = 'open-document-collection'
 
-/** 绑定条目的必填字段（instanceId、action、documents）＋唯一可选字段 charts（E9c）。 */
+/** 必填 instanceId/action/documents；可选 charts（E9c）、title/summary（T34）。 */
 const BINDING_REQUIRED_FIELDS = ['instanceId', 'action', 'documents']
-const BINDING_ALLOWED_FIELDS = [...BINDING_REQUIRED_FIELDS, 'charts']
+const BINDING_ALLOWED_FIELDS = [...BINDING_REQUIRED_FIELDS, 'charts', 'title', 'summary']
 
 const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value)
 const isNonEmptyString = (value) => typeof value === 'string' && value !== ''
@@ -275,7 +275,7 @@ export function resolveRoomBindings(input) {
       diagnostics.push(diag('BINDING_INPUT', `${at} 必须是对象（实际是 ${Array.isArray(raw) ? '数组' : typeof raw}）`, { fieldPath: at }))
       continue
     }
-    // 字段白名单（E9c）：instanceId、action、documents 必填，charts 唯一可选；
+    // 字段白名单：instanceId、action、documents 必填，charts/title/summary 可选；
     // 旧三字段配置照常通过；href、workspace、businessId 等仍然拒绝。
     const keys = Object.keys(raw)
     const extraFields = keys.filter((key) => !BINDING_ALLOWED_FIELDS.includes(key))
@@ -286,12 +286,21 @@ export function resolveRoomBindings(input) {
       if (extraFields.length) problems.push(`多出：${extraFields.join('、')}`)
       diagnostics.push(diag(
         'BINDING_INPUT',
-        `${at} 只允许 instanceId、action、documents（必填）与 charts（可选），不收 href、workspace、businessId 等；实际字段（${keys.join('、') || '（无）'}）${problems.join('；')}`,
+        `${at} 只允许 instanceId、action、documents（必填）与 charts、title、summary（可选），不收 href、workspace、businessId 等；实际字段（${keys.join('、') || '（无）'}）${problems.join('；')}`,
         { fieldPath: at },
       ))
       continue
     }
     const { instanceId, action, documents, charts } = raw
+    let descriptionOk = true
+    for (const [field, limit] of [['title', 80], ['summary', 280]]) {
+      if (!Object.hasOwn(raw, field)) continue
+      if (!isNonEmptyString(raw[field]) || !raw[field].trim() || Array.from(raw[field]).length > limit) {
+        diagnostics.push(diag('BINDING_INPUT', `${at}.${field} 出现时必须是非空白字符串，最多 ${limit} 个 Unicode 码点`, { fieldPath: `${at}.${field}`, instanceIds: isNonEmptyString(instanceId) ? [instanceId] : [] }))
+        descriptionOk = false
+      }
+    }
+    if (!descriptionOk) continue
     if (!isNonEmptyString(instanceId)) {
       diagnostics.push(diag('BINDING_INPUT', `${at}.instanceId 必须是非空字符串（实际是 ${JSON.stringify(instanceId)}）`, { fieldPath: `${at}.instanceId` }))
       continue
@@ -442,7 +451,10 @@ export function resolveRoomBindings(input) {
     }
     if (!documentsOk || !chartsOk) continue
     boundInstances.add(instanceId)
-    resolved.push({ instanceId, assetId: instance.assetId, action, entries })
+    resolved.push({ instanceId, assetId: instance.assetId, action, entries,
+      ...(Object.hasOwn(raw, 'title') ? { title: raw.title } : {}),
+      ...(Object.hasOwn(raw, 'summary') ? { summary: raw.summary } : {}),
+    })
   }
 
   if (diagnostics.length > 0) return { ok: false, diagnostics, directory, bindings }

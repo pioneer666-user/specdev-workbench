@@ -1,0 +1,57 @@
+{
+  "generation": "T42/A3/A-v01-r1",
+  "samples": [
+    "tile-a1-1",
+    "tile-a1-2",
+    "tile-a1-3",
+    "tile-a1-4",
+    "wood-a3-1",
+    "wood-a3-2",
+    "wood-a3-3",
+    "wood-a3-4"
+  ],
+  "resources": {
+    "tile-a1-1": {
+      "file": "tile-a1-1.mp3",
+      "mime": "audio/mpeg"
+    },
+    "tile-a1-2": {
+      "file": "tile-a1-2.mp3",
+      "mime": "audio/mpeg"
+    },
+    "tile-a1-3": {
+      "file": "tile-a1-3.mp3",
+      "mime": "audio/mpeg"
+    },
+    "tile-a1-4": {
+      "file": "tile-a1-4.mp3",
+      "mime": "audio/mpeg"
+    },
+    "wood-a3-1": {
+      "file": "wood-a3-1.wav",
+      "mime": "audio/wav"
+    },
+    "wood-a3-2": {
+      "file": "wood-a3-2.wav",
+      "mime": "audio/wav"
+    },
+    "wood-a3-3": {
+      "file": "wood-a3-3.wav",
+      "mime": "audio/wav"
+    },
+    "wood-a3-4": {
+      "file": "wood-a3-4.wav",
+      "mime": "audio/wav"
+    }
+  },
+  "sources": {
+    "hard": "Kenney Impact Sounds/concrete (CC0)",
+    "wood": "mikeask Steps in wood floor (CC0), T42/A2 A-v01-r1"
+  },
+  "woodSha256": {
+    "wood-a3-1": "8bdde83a6e922f0f8b66291c47bc582a9ac18ca2723f90657d0e756b28153d9f",
+    "wood-a3-2": "f39c9751ce672f70ef7decac3e177402931035ee23d5323012104cbfa1dd9d58",
+    "wood-a3-3": "80bb8c70f31718220c483d17371dcd60b9c448e9615402b9667fea3c10abe985",
+    "wood-a3-4": "bb4f5fed9e35ed79765f74edfeea7f1696c386494259728a9a77405d60d73c9e"
+  }
+}
